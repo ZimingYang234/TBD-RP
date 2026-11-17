@@ -63,7 +63,7 @@ export type ValidationResult<T> =
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const DEFAULT_GEMINI_MODEL = 'gemini-3.8-flash';
+const DEFAULT_GEMINI_MODEL = 'gemini-3.5-flash-lite';
 const GEMINI_TIMEOUT_MS = 9000;
 const MAX_NARRATION_WORDS = 120;
 const MIN_HP_DELTA = -10;
