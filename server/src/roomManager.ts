@@ -138,6 +138,7 @@ export class RoomManager {
             xp: typeof p.xp === 'number' && Number.isFinite(p.xp) ? Math.max(0, p.xp) : 0,
             luckBonus: typeof p.luckBonus === 'number' && Number.isFinite(p.luckBonus) ? Math.max(0, p.luckBonus) : 0,
             inventory: p.inventory && typeof p.inventory === 'object' ? { ...p.inventory } : {},
+            redeemedCodes: Array.isArray(p.redeemedCodes) ? [...p.redeemedCodes] : [],
             connected: false,
           };
         });
@@ -238,6 +239,7 @@ export class RoomManager {
       xp: 0,
       luckBonus: 0,
       inventory: {},
+      redeemedCodes: [],
       connected: true,
     };
   }
@@ -1067,7 +1069,40 @@ export class RoomManager {
           summary: `${headline} — ${player.name} golpea a ${target.name}.`,
         };
       } else {
-        const headline = fumble ? '¡Pifia total!' : '¡Falló!';
+        const missChoices = fumble
+          ? [
+              {
+                headline: '¡Pifia legendaria!',
+                summary: `¡Pifia legendaria! ${player.name} tropezó con su propia sombra y saludó al suelo.`,
+              },
+              {
+                headline: '¡Desastre total!',
+                summary: `¡Desastre total! ${player.name} cerró los ojos para concentrarse y atacó a un árbol.`,
+              },
+              {
+                headline: '¡Ridículo absoluto!',
+                summary: `¡Ridículo absoluto! A ${player.name} se le resbaló el arma y le pidió perdón a ${target.name}.`,
+              },
+            ]
+          : [
+              {
+                headline: '¡Aire puro!',
+                summary: `¡Aire puro! ${player.name} le pegó con todas sus fuerzas... a una mosca que pasaba.`,
+              },
+              {
+                headline: '¡Fallo épico!',
+                summary: `¡Fallo épico! ${target.name} se agachó a atarse los cordones y ${player.name} pasó de largo.`,
+              },
+              {
+                headline: '¡Otro código postal!',
+                summary: `¡Ni cerca! ${player.name} mandó el ataque a otra dimensión y ${target.name} solo miró.`,
+              },
+              {
+                headline: '¡Brisa refrescante!',
+                summary: `¡Qué puntería! ${player.name} abanicó a ${target.name} con mucho cariño, pero cero daño.`,
+              },
+            ];
+        const chosen = missChoices[Math.floor(Math.random() * missChoices.length)];
         roll = {
           actorId: player.id,
           actorName: player.name,
@@ -1075,7 +1110,7 @@ export class RoomManager {
           targetId: target.id,
           targetName: target.name,
           actionType: 'attack',
-          headline,
+          headline: chosen.headline,
           d20,
           attackMod: player.attackMod,
           attackTotal,
@@ -1083,9 +1118,7 @@ export class RoomManager {
           hit: false,
           critical: false,
           fumble,
-          summary: fumble
-            ? `¡Pifia total! ${player.name} pierde el equilibrio ante ${target.name}.`
-            : `¡Falló! ${target.name} esquiva el ataque de ${player.name}.`,
+          summary: chosen.summary,
         };
       }
     } else if (action === 'luck') {
@@ -1341,7 +1374,32 @@ export class RoomManager {
         summary: `${headline} — ${enemy.name} hiere a ${target.name}.`,
       };
     } else {
-      const headline = fumble ? '¡Pifia enemiga!' : '¡Esquivado!';
+      const enemyMisses = fumble
+        ? [
+            {
+              headline: '¡Pifia enemiga!',
+              summary: `¡Qué papelón! ${enemy.name} se tropezó solo y casi se noquea.`,
+            },
+            {
+              headline: '¡Torpeza máxima!',
+              summary: `¡Torpeza máxima! ${enemy.name} atacó con furia a una piedra pensando que era ${target.name}.`,
+            },
+          ]
+        : [
+            {
+              headline: '¡Esquivado con estilo!',
+              summary: `¡Esquivado! ${target.name} bostezó, dio un pasito al lado y ${enemy.name} golpeó la nada.`,
+            },
+            {
+              headline: '¡Aire fresco!',
+              summary: `¡Jajaja! ${enemy.name} se mareó dando vueltas y le pegó al viento.`,
+            },
+            {
+              headline: '¡Ni lo tocó!',
+              summary: `¡Fallo cómico! ${enemy.name} apuntó tan mal que asustó a una ardilla.`,
+            },
+          ];
+      const chosen = enemyMisses[Math.floor(Math.random() * enemyMisses.length)];
       roll = {
         actorId: enemy.id,
         actorName: enemy.name,
@@ -1349,7 +1407,7 @@ export class RoomManager {
         targetId: target.id,
         targetName: target.name,
         actionType: 'attack',
-        headline,
+        headline: chosen.headline,
         d20,
         attackMod: enemy.attackMod,
         attackTotal,
@@ -1357,7 +1415,7 @@ export class RoomManager {
         hit: false,
         critical: false,
         fumble,
-        summary: `${headline} — ${target.name} evita el golpe de ${enemy.name}.`,
+        summary: chosen.summary,
       };
     }
 
@@ -1527,5 +1585,49 @@ export class RoomManager {
       room,
       notice: `${player.name} usó una Poción de vida y recuperó ${healed} PV.`,
     };
+  }
+
+  public redeemCode(
+    socketId: string,
+    rawCode: string
+  ): { room: InternalRoom; notice: string } | { error: string } {
+    const binding = this.socketToBinding.get(socketId);
+    if (!binding) return { error: 'No estás en ninguna sala.' };
+
+    const room = this.rooms.get(binding.roomCode);
+    if (!room) return { error: 'Sala no encontrada.' };
+
+    const player = room.players.find((p) => p.id === binding.playerId);
+    if (!player) return { error: 'Personaje no encontrado.' };
+
+    const code = rawCode.trim().toUpperCase();
+    if (!code) return { error: 'Escribe un código para canjear.' };
+
+    player.redeemedCodes = player.redeemedCodes ?? [];
+    if (player.redeemedCodes.includes(code)) {
+      return { error: `Ya canjeaste el código "${code}".` };
+    }
+
+    if (code === 'SUERTE100') {
+      player.luckBonus = (player.luckBonus ?? 0) + 100;
+      player.redeemedCodes.push(code);
+      this.scheduleSave();
+      return {
+        room,
+        notice: `¡Código ${code} canjeado! ${player.name} recibe +100 de Suerte.`,
+      };
+    }
+
+    if (code === 'PAPEL100') {
+      player.ac -= 100;
+      player.redeemedCodes.push(code);
+      this.scheduleSave();
+      return {
+        room,
+        notice: `¡Código ${code} canjeado! La CA de ${player.name} bajó -100 (CA actual: ${player.ac}).`,
+      };
+    }
+
+    return { error: `Código "${code}" no válido.` };
   }
 }

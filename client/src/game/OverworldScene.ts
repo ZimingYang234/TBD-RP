@@ -383,6 +383,10 @@ export class OverworldScene extends Phaser.Scene {
     if (this.inputBlocked || !this.room || this.room.phase !== 'playing' || !this.onMoveRequest) {
       return;
     }
+    const activeTag = document.activeElement?.tagName;
+    if (activeTag === 'INPUT' || activeTag === 'TEXTAREA') {
+      return;
+    }
     if (time - this.lastMoveSentAt < MOVE_COOLDOWN_MS) return;
 
     const keyDir = this.readDirectionInput();

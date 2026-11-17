@@ -192,6 +192,16 @@ function renderGameShell(room: PublicRoomState): void {
               <span class="legend-chip"><span class="legend-dot dot-combat"></span>Combate</span>
               <span class="legend-chip"><span class="legend-dot dot-shop"></span>Tienda</span>
             </div>
+            <div class="redeem-box">
+              <input
+                id="hud-code-input"
+                class="input redeem-input"
+                type="text"
+                maxlength="20"
+                placeholder="Código de premio..."
+              />
+              <button type="button" id="hud-code-btn" class="btn btn-secondary">Canjear</button>
+            </div>
             <h3>Registro</h3>
             <div id="game-log" class="log-box"></div>
             <div class="controls-hint">
@@ -233,6 +243,22 @@ function renderGameShell(room: PublicRoomState): void {
       if (currentRoom && currentRoom.phase === 'playing') {
         shopModal.show(currentRoom, myPlayerId);
         syncInputLock();
+      }
+    });
+
+    const redeemInput = document.querySelector<HTMLInputElement>('#hud-code-input');
+    const submitRedeem = () => {
+      if (!redeemInput) return;
+      const code = redeemInput.value.trim();
+      if (!code) return;
+      socket.emit('redeem_code', { code });
+      redeemInput.value = '';
+    };
+    document.querySelector('#hud-code-btn')?.addEventListener('click', submitRedeem);
+    redeemInput?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        submitRedeem();
       }
     });
 
@@ -322,7 +348,7 @@ function updateGameHud(room: PublicRoomState): void {
               </span>
             </div>
             <div style="font-size:0.78rem; color: var(--muted); margin-top: 2px;">
-              ${cfg.name} • PV ${p.hp}/${p.maxHp} • CA ${p.ac}
+              ${cfg.name} • PV ${p.hp}/${p.maxHp} • CA ${p.ac}${(p.luckBonus ?? 0) > 0 ? ` • Suerte +${p.luckBonus}` : ''}
             </div>
             <div style="font-size:0.76rem; color: #cbd5e8; margin-top: 2px;">
               Monedas: <strong>${p.gold ?? 0}</strong> • EXP: <strong>${p.xp ?? 0}</strong>
@@ -507,6 +533,10 @@ socket.on('open_shop', () => {
 socket.on('room_error', ({ message, code }) => {
   if (code === 'RECONNECT_FAILED') {
     clearSession();
+    return;
+  }
+  if (currentRoom && currentRoom.phase !== 'lobby') {
+    addLog(`Aviso: ${message}`);
     return;
   }
   lastError = message;

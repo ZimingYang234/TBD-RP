@@ -380,6 +380,19 @@ io.on('connection', (socket) => {
     io.to(publicRoom.code).emit('system_notice', { message: result.notice });
   });
 
+  socket.on('redeem_code', (payload) => {
+    if (!payload || typeof payload.code !== 'string') return;
+    const result = roomManager.redeemCode(socket.id, payload.code);
+    if ('error' in result) {
+      socket.emit('room_error', { message: result.error });
+      return;
+    }
+
+    const publicRoom = roomManager.toPublicRoom(result.room);
+    io.to(publicRoom.code).emit('room_state', publicRoom);
+    io.to(publicRoom.code).emit('system_notice', { message: result.notice });
+  });
+
   socket.on('leave_room', () => {
     const result = roomManager.leaveRoom(socket.id);
     if (!result) return;

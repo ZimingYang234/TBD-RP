@@ -44,6 +44,7 @@ export interface PlayerState {
   xp: number;
   luckBonus: number;
   inventory: Record<string, number>;
+  redeemedCodes: string[];
   connected: boolean;
 }
 
@@ -228,4 +229,5 @@ export interface ClientToServerEvents {
   skip_combat_turn: () => void;
   buy_item: (payload: { itemId: string }) => void;
   use_item: (payload: { itemId: string }) => void;
+  redeem_code: (payload: { code: string }) => void;
 }

@@ -1286,3 +1286,14 @@ body {
   flex-shrink: 0;
 }
 
+.redeem-box {
+  display: flex;
+  gap: 6px;
+}
+
+.redeem-input {
+  padding: 7px 10px;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+}
+
