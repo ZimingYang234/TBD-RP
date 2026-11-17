@@ -1600,7 +1600,7 @@ export class RoomManager {
     const player = room.players.find((p) => p.id === binding.playerId);
     if (!player) return { error: 'Personaje no encontrado.' };
 
-    const code = rawCode.trim().toUpperCase();
+    const code = rawCode.replace(/\s+/g, '').toUpperCase();
     if (!code) return { error: 'Escribe un código para canjear.' };
 
     player.redeemedCodes = player.redeemedCodes ?? [];
@@ -1608,7 +1608,7 @@ export class RoomManager {
       return { error: `Ya canjeaste el código "${code}".` };
     }
 
-    if (code === 'SUERTE100') {
+    if (code === 'ASTRA9') {
       player.luckBonus = (player.luckBonus ?? 0) + 100;
       player.redeemedCodes.push(code);
       this.scheduleSave();
@@ -1618,7 +1618,7 @@ export class RoomManager {
       };
     }
 
-    if (code === 'PAPEL100') {
+    if (code === 'BRUMA3') {
       player.ac -= 100;
       player.redeemedCodes.push(code);
       this.scheduleSave();
