@@ -64,7 +64,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const DEFAULT_GEMINI_MODEL = 'gemini-3.8-flash';
-const GEMINI_TIMEOUT_MS = 5000;
+const GEMINI_TIMEOUT_MS = 9000;
 const MAX_NARRATION_WORDS = 120;
 const MIN_HP_DELTA = -10;
 const MAX_HP_DELTA = 10;
