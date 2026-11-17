@@ -1,0 +1,1392 @@
+[
+  {
+    "id": "valderroble-01",
+    "regionId": "valderroble",
+    "title": "El Altar del Roble Ancestral",
+    "narration": "Entre la maleza esmeralda descubrís un altar cubierto de musgo luminoso bajo un roble milenario. Sobre la piedra descansan una copa de madera tallada y un saco de cuero sellado con cera verde. Un susurro antiguo recorre las hojas.",
+    "choices": [
+      {
+        "id": "a",
+        "label": "Beber del rocío acumulado en la copa",
+        "outcomeNarration": "El agua fresca recorre vuestras venas con una calidez revitalizante. El roble agita sus ramas en señal de gratitud y vuestras heridas leves se cierran al instante.",
+        "effects": {
+          "hpDelta": 5,
+          "xpDelta": 15,
+          "summary": "+5 PV y +15 EXP para el grupo"
+        }
+      },
+      {
+        "id": "b",
+        "label": "Abrir con cuidado el saco de cuero",
+        "outcomeNarration": "Dentro halláis monedas acuñadas de antiguos reyes y un mapa desgastado. Sin embargo, una espina encantada pincha la mano de quien rompe el sello verde.",
+        "effects": {
+          "hpDelta": -2,
+          "xpDelta": 10,
+          "goldDelta": 25,
+          "summary": "-2 PV, +25 oro y +10 EXP"
+        }
+      },
+      {
+        "id": "c",
+        "label": "Dejar una ofrenda silenciosa y seguir",
+        "outcomeNarration": "Inclináis la cabeza ante el espíritu del bosque. Aunque no tomáis nada, la claridad del lugar afina vuestros sentidos para el resto del viaje.",
+        "effects": {
+          "xpDelta": 20,
+          "summary": "+20 EXP por respetar el santuario"
+        }
+      }
+    ]
+  },
+  {
+    "id": "valderroble-02",
+    "regionId": "valderroble",
+    "title": "Emboscada en el Sendero Verde",
+    "narration": "Dos bandidos con capas de hojas secas saltan desde un árbol caído y bloquean el camino. Sus arcos apuntan al frente, aunque parecen nerviosos y mal equipados tras días ocultos en el bosque.",
+    "choices": [
+      {
+        "id": "a",
+        "label": "Cargar de frente con armas en alto",
+        "outcomeNarration": "Vuestra determinación rompe su formación al instante. Recibís un rasguño de flecha al avanzar, pero lográis desarmarlos y recuperar parte del botín que habían robado.",
+        "effects": {
+          "hpDelta": -4,
+          "xpDelta": 30,
+          "goldDelta": 18,
+          "summary": "-4 PV, +18 oro y +30 EXP"
+        }
+      },
+      {
+        "id": "b",
+        "label": "Intimidarlos mencionando a la guardia real",
+        "outcomeNarration": "Al oír que una patrulla de Valderroble cabalga cerca, los bandidos dudan y huyen entre los helechos dejando atrás una bolsa de provisiones y monedas.",
+        "effects": {
+          "hpDelta": 2,
+          "xpDelta": 20,
+          "goldDelta": 12,
+          "summary": "+2 PV, +12 oro y +20 EXP"
+        }
+      },
+      {
+        "id": "c",
+        "label": "Entregar unas monedas para evitar pelea",
+        "outcomeNarration": "Los asaltantes recogen el pago a toda prisa y desaparecen entre los árboles. Evitáis cualquier herida, aunque el bolsillo queda algo más ligero.",
+        "effects": {
+          "xpDelta": 10,
+          "goldDelta": -10,
+          "summary": "-10 oro y +10 EXP"
+        }
+      }
+    ]
+  },
+  {
+    "id": "valderroble-03",
+    "regionId": "valderroble",
+    "title": "El Puente del Arroyo Cantarín",
+    "narration": "Un pequeño puente de piedra cruza un arroyo cristalino. Bajo el arco descansa una anciana herbolaria rodeada de cestas volcadas; una de las ruedas de su carro está partida por la mitad.",
+    "choices": [
+      {
+        "id": "a",
+        "label": "Ayudarla a reparar la rueda del carro",
+        "outcomeNarration": "Con esfuerzo conjunto enderezáis el eje y aseguráis la madera. Agradecida, la herbolaria os regala varios ungüentos curativos y unas monedas por el favor.",
+        "effects": {
+          "hpDelta": 4,
+          "xpDelta": 20,
+          "goldDelta": 10,
+          "summary": "+4 PV, +10 oro y +20 EXP"
+        }
+      },
+      {
+        "id": "b",
+        "label": "Comprar sus pociones de emergencia",
+        "outcomeNarration": "Pagáis un precio justo por sus mejores frascos de hierbas de Valderroble. Su aroma mentolado despeja el cansancio y fortalece el ánimo del grupo.",
+        "effects": {
+          "hpDelta": 6,
+          "goldDelta": -12,
+          "summary": "+6 PV y -12 oro"
+        }
+      },
+      {
+        "id": "c",
+        "label": "Pedirle información sobre los portales",
+        "outcomeNarration": "Mientras recoge sus frascos, os señala atajos seguros hacia Solceniza y Ventisca, revelando rutas ocultas que os ahorran peligros futuros.",
+        "effects": {
+          "xpDelta": 25,
+          "summary": "+25 EXP en conocimiento del reino"
+        }
+      }
+    ]
+  },
+  {
+    "id": "valderroble-04",
+    "regionId": "valderroble",
+    "title": "Esporas del Claro Sombrío",
+    "narration": "Un claro cubierto de setas bioluminiscentes exhala una nube violácea al paso del viento. En el centro brilla un cofre medio enterrado entre raíces retorcidas.",
+    "choices": [
+      {
+        "id": "a",
+        "label": "Contener el aliento y forzar el cofre",
+        "outcomeNarration": "Lográis abrir la cerradura oxidada, pero las esporas os queman la garganta al escapar. Aun así, el interior guarda joyas de plata olvidadas.",
+        "effects": {
+          "hpDelta": -5,
+          "xpDelta": 20,
+          "goldDelta": 30,
+          "summary": "-5 PV, +30 oro y +20 EXP"
+        }
+      },
+      {
+        "id": "b",
+        "label": "Purificar el aire con una antorcha o chispazo",
+        "outcomeNarration": "El calor disipa las esporas con un chasquido inofensivo. Estudiáis las propiedades de los hongos luminosos antes de continuar la marcha.",
+        "effects": {
+          "xpDelta": 25,
+          "goldDelta": 8,
+          "summary": "+8 oro y +25 EXP"
+        }
+      },
+      {
+        "id": "c",
+        "label": "Rodear el claro por terreno alto",
+        "outcomeNarration": "Evitáis las esporas por completo y aprovecháis el sendero elevado para descansar unos minutos a salvo de cualquier amenaza.",
+        "effects": {
+          "hpDelta": 2,
+          "xpDelta": 10,
+          "summary": "+2 PV y +10 EXP"
+        }
+      }
+    ]
+  },
+  {
+    "id": "valderroble-05",
+    "regionId": "valderroble",
+    "title": "Ciervo de Cuernos Dorados",
+    "narration": "Un majestuoso ciervo de pelaje plateado y cornamenta dorada os observa desde la orilla del río. Una flecha negra de pluma de cuervo sobresale de su costado izquierdo.",
+    "choices": [
+      {
+        "id": "a",
+        "label": "Acercarse despacio para extraer la flecha",
+        "outcomeNarration": "El animal confía en vuestra calma. Al retirar la flecha y vendar la herida, toca vuestras frentes con su cornamenta, infundiéndoos vigor feérico.",
+        "effects": {
+          "hpDelta": 5,
+          "xpDelta": 25,
+          "summary": "+5 PV y +25 EXP"
+        }
+      },
+      {
+        "id": "b",
+        "label": "Rastrear a los cazadores furtivos cercanos",
+        "outcomeNarration": "Seguís las huellas hasta un campamento abandonado apresuradamente. Recuperáis pieles vendibles y un puñado de monedas, aunque os arañáis entre zarzas.",
+        "effects": {
+          "hpDelta": -2,
+          "xpDelta": 20,
+          "goldDelta": 22,
+          "summary": "-2 PV, +22 oro y +20 EXP"
+        }
+      },
+      {
+        "id": "c",
+        "label": "Dejar espacio y observar su partida",
+        "outcomeNarration": "El ciervo se interna en la espesura dorada por el sol de la tarde. La visión os llena de serenidad y renueva vuestro espíritu aventurero.",
+        "effects": {
+          "hpDelta": 2,
+          "xpDelta": 15,
+          "summary": "+2 PV y +15 EXP"
+        }
+      }
+    ]
+  },
+  {
+    "id": "valderroble-06",
+    "regionId": "valderroble",
+    "title": "Ruinas de la Atalaya Musgosa",
+    "narration": "Los muros derruidos de una vieja torre fronteriza emergen entre hiedras. En el sótano semiabierto se escuchan gruñidos apagados y el tintineo de cadenas.",
+    "choices": [
+      {
+        "id": "a",
+        "label": "Bajar con armas listas a despejar la cripta",
+        "outcomeNarration": "Os enfrentáis a un jabalí acorazado que defendía su guarida. La refriega deja algunos golpes, pero tras derrotarlo encontráis una bolsa olvidada por un explorador.",
+        "effects": {
+          "hpDelta": -6,
+          "xpDelta": 35,
+          "goldDelta": 24,
+          "summary": "-6 PV, +24 oro y +35 EXP"
+        }
+      },
+      {
+        "id": "b",
+        "label": "Atraer a la bestia fuera con raciones",
+        "outcomeNarration": "Arrojáis carne seca lejos de la entrada y la criatura sale tras el festín. Inspeccionáis la torre sin rasguños y halláis antiguos pergaminos tácticos.",
+        "effects": {
+          "xpDelta": 25,
+          "goldDelta": 10,
+          "summary": "+10 oro y +25 EXP"
+        }
+      },
+      {
+        "id": "c",
+        "label": "Trepar por la hiedra al mirador superior",
+        "outcomeNarration": "Desde lo alto divisáis todo el mapa de la Encrucijada Esmeralda, marcando rutas seguras y posibles peligros en el horizonte.",
+        "effects": {
+          "xpDelta": 20,
+          "summary": "+20 EXP de exploración"
+        }
+      }
+    ]
+  },
+  {
+    "id": "valderroble-07",
+    "regionId": "valderroble",
+    "title": "Feria Improvisada del Camino",
+    "narration": "Dos carromatos pintados de rojo y oro han montado un puesto junto al cruce. Ofrecen pan caliente, vino especiado y un juego de dados rúnicos para viajeros valientes.",
+    "choices": [
+      {
+        "id": "a",
+        "label": "Apostar en los dados rúnicos",
+        "outcomeNarration": "La suerte sonríe a medias: tras varias tiradas tensas ganáis el bote final entre vítores de los mercaderes.",
+        "effects": {
+          "xpDelta": 15,
+          "goldDelta": 20,
+          "summary": "+20 oro y +15 EXP"
+        }
+      },
+      {
+        "id": "b",
+        "label": "Compartir cena caliente y descansar",
+        "outcomeNarration": "Un buen estofado y pan recién horneado devuelven fuerzas al grupo por un precio módico.",
+        "effects": {
+          "hpDelta": 6,
+          "goldDelta": -8,
+          "summary": "+6 PV y -8 oro"
+        }
+      },
+      {
+        "id": "c",
+        "label": "Intercambiar historias de camino gratis",
+        "outcomeNarration": "Vuestras anécdotas animan la velada. Los mercaderes os regalan una jarra de sidra y consejos sobre las forjas de Solceniza.",
+        "effects": {
+          "hpDelta": 2,
+          "xpDelta": 15,
+          "summary": "+2 PV y +15 EXP"
+        }
+      }
+    ]
+  },
+  {
+    "id": "solceniza-01",
+    "regionId": "solceniza",
+    "title": "El Oasis de Brasas Dulces",
+    "narration": "Entre dunas rojizas brota un estanque rodeado de palmeras de corteza negra. El agua refleja destellos ámbar y junto a la orilla yace una cantimplora de bronce grabada con runas solares.",
+    "choices": [
+      {
+        "id": "a",
+        "label": "Refrescarse y llenar las cantimploras",
+        "outcomeNarration": "El agua es fresca a pesar del calor del desierto. Aliviados de la sed, recuperáis el aliento y sanáis las quemaduras del sol.",
+        "effects": {
+          "hpDelta": 5,
+          "xpDelta": 10,
+          "summary": "+5 PV y +10 EXP"
+        }
+      },
+      {
+        "id": "b",
+        "label": "Examinar la cantimplora grabada",
+        "outcomeNarration": "Al girar la tapa, una pequeña chispa ígnea salta por descuido, pero dentro descubrís polvo de oro refinado y anotaciones de herrería.",
+        "effects": {
+          "hpDelta": -2,
+          "xpDelta": 20,
+          "goldDelta": 25,
+          "summary": "-2 PV, +25 oro y +20 EXP"
+        }
+      },
+      {
+        "id": "c",
+        "label": "Vigilar los alrededores antes de partir",
+        "outcomeNarration": "Detectáis huellas de escorpiones gigantes a tiempo y trazáis un desvío seguro que evita una emboscada en las dunas.",
+        "effects": {
+          "xpDelta": 25,
+          "summary": "+25 EXP por precaución"
+        }
+      }
+    ]
+  },
+  {
+    "id": "solceniza-02",
+    "regionId": "solceniza",
+    "title": "La Forja Abandonada de Kael",
+    "narration": "Bajo un arco de basalto aún arden carbones azules en un yunque agrietado. Un espíritu de ceniza golpea lentamente una hoja sin filo, buscando completar su última obra.",
+    "choices": [
+      {
+        "id": "a",
+        "label": "Ayudar a avivar el fuelle y templar el acero",
+        "outcomeNarration": "El calor abrasador os deja marcas de hollín, pero el espíritu asiente satisfecho y os recompensa con lingotes de bronce antiguo y maestría marcial.",
+        "effects": {
+          "hpDelta": -3,
+          "xpDelta": 35,
+          "goldDelta": 20,
+          "summary": "-3 PV, +20 oro y +35 EXP"
+        }
+      },
+      {
+        "id": "b",
+        "label": "Recoger ceniza rúnica con respeto",
+        "outcomeNarration": "Tomáis un poco de polvo arcano sin perturbar su labor. El espíritu exhala un suspiro cálido que templa vuestra resistencia.",
+        "effects": {
+          "hpDelta": 3,
+          "xpDelta": 20,
+          "summary": "+3 PV y +20 EXP"
+        }
+      },
+      {
+        "id": "c",
+        "label": "Intentar arrebatar el arma del yunque",
+        "outcomeNarration": "El metal arde al rojo vivo y os quema las manos al instante. Retrocedéis apresurados con apenas unas chispas doradas caídas del yunque.",
+        "effects": {
+          "hpDelta": -7,
+          "xpDelta": 10,
+          "goldDelta": 12,
+          "summary": "-7 PV, +12 oro y +10 EXP"
+        }
+      }
+    ]
+  },
+  {
+    "id": "solceniza-03",
+    "regionId": "solceniza",
+    "title": "Caravana de Especias y Obsidiana",
+    "narration": "Una caravana de camellos acorazados avanza levantando polvo dorado. Su capitán hace sonar una campana y pregunta si lleváis noticias del paso hacia el Plano Astral.",
+    "choices": [
+      {
+        "id": "a",
+        "label": "Compartir mapas y estado de los caminos",
+        "outcomeNarration": "El capitán agradece vuestra honradez con una bolsa de monedas y dátiles mielados que levantan el ánimo de todo el grupo.",
+        "effects": {
+          "hpDelta": 3,
+          "xpDelta": 15,
+          "goldDelta": 15,
+          "summary": "+3 PV, +15 oro y +15 EXP"
+        }
+      },
+      {
+        "id": "b",
+        "label": "Ofrecer escolta durante un tramo de dunas",
+        "outcomeNarration": "Ahuyentáis a un par de chacales de arena en una escaramuza breve. La caravana paga generosamente por la protección.",
+        "effects": {
+          "hpDelta": -3,
+          "xpDelta": 30,
+          "goldDelta": 28,
+          "summary": "-3 PV, +28 oro y +30 EXP"
+        }
+      },
+      {
+        "id": "c",
+        "label": "Comprar ungüento protector contra el calor",
+        "outcomeNarration": "Adquirís un bálsamo refrescante de gran calidad que alivia el agotamiento de caminar sobre la arena ardiente.",
+        "effects": {
+          "hpDelta": 6,
+          "goldDelta": -10,
+          "summary": "+6 PV y -10 oro"
+        }
+      }
+    ]
+  },
+  {
+    "id": "solceniza-04",
+    "regionId": "solceniza",
+    "title": "El Nido del Escorpión Carmesí",
+    "narration": "La arena cede bajo vuestros pies revelando una madriguera de vidrio fundido. Un escorpión del tamaño de un caballo emerge chasqueando sus tenazas tras un brillo metálico.",
+    "choices": [
+      {
+        "id": "a",
+        "label": "Atacar su caparazón entre todos",
+        "outcomeNarration": "Tras un combate feroz lográis quebrarle el aguijón. Su caparazón guarda gemas adheridas que podréis vender, aunque recibís varios picotazos.",
+        "effects": {
+          "hpDelta": -6,
+          "xpDelta": 40,
+          "goldDelta": 26,
+          "summary": "-6 PV, +26 oro y +40 EXP"
+        }
+      },
+      {
+        "id": "b",
+        "label": "Desorientarlo con ruido y retroceder",
+        "outcomeNarration": "Golpeáis una piedra contra otra para distraerlo y escapáis sin un rasguño mientras el monstruo ataca la duna equivocada.",
+        "effects": {
+          "xpDelta": 20,
+          "summary": "+20 EXP por maniobra evasiva"
+        }
+      },
+      {
+        "id": "c",
+        "label": "Enganchar el brillo metálico a distancia",
+        "outcomeNarration": "Con rapidez y puntería pescáis un medallón de cobre antes de alejaros. Una pinza os roza el brazo, pero el botín merece la pena.",
+        "effects": {
+          "hpDelta": -2,
+          "xpDelta": 15,
+          "goldDelta": 18,
+          "summary": "-2 PV, +18 oro y +15 EXP"
+        }
+      }
+    ]
+  },
+  {
+    "id": "solceniza-05",
+    "regionId": "solceniza",
+    "title": "Espejismo de la Ciudad de Cristal",
+    "narration": "Al mediodía, el horizonte vibra mostrando torres translúcidas que no aparecen en ningún mapa. Una brisa tibia trae notas de arpa que parecen llamaros hacia el este.",
+    "choices": [
+      {
+        "id": "a",
+        "label": "Seguir la melodía durante unos minutos",
+        "outcomeNarration": "La ilusión se desvanece al llegar a una losa grabada con antiguos himnos solares. Descifráis parte del texto y encontráis monedas ofrendadas.",
+        "effects": {
+          "xpDelta": 25,
+          "goldDelta": 12,
+          "summary": "+12 oro y +25 EXP"
+        }
+      },
+      {
+        "id": "b",
+        "label": "Ignorar el espejismo y mantener el rumbo",
+        "outcomeNarration": "No malgastáis energía ni agua persiguiendo sombras del desierto. Vuestra disciplina mantiene al grupo firme y descansado.",
+        "effects": {
+          "hpDelta": 3,
+          "xpDelta": 15,
+          "summary": "+3 PV y +15 EXP"
+        }
+      },
+      {
+        "id": "c",
+        "label": "Correr hacia las torres sin mirar el suelo",
+        "outcomeNarration": "Un desnivel oculto bajo la arena os hace rodar por la ladera. Acabáis llenos de magulladuras aunque aprendéis a no fiaros del sol.",
+        "effects": {
+          "hpDelta": -5,
+          "xpDelta": 15,
+          "summary": "-5 PV y +15 EXP"
+        }
+      }
+    ]
+  },
+  {
+    "id": "solceniza-06",
+    "regionId": "solceniza",
+    "title": "Tributo al Obelisco Solar",
+    "narration": "Un obelisco de granito rojo proyecta una sombra afilada sobre tres cuencos vacíos: uno pide una moneda, otro una gota de esfuerzo y el tercero una plegaria.",
+    "choices": [
+      {
+        "id": "a",
+        "label": "Depositar unas monedas en el primer cuenco",
+        "outcomeNarration": "El oro se funde en luz cálida que baña al grupo entero, cerrando cortes y disipando la fatiga acumulada.",
+        "effects": {
+          "hpDelta": 7,
+          "xpDelta": 10,
+          "goldDelta": -10,
+          "summary": "+7 PV, -10 oro y +10 EXP"
+        }
+      },
+      {
+        "id": "b",
+        "label": "Tocar la piedra ardiente como prueba de valor",
+        "outcomeNarration": "La superficie quema las palmas por un segundo, pero el obelisco graba en vuestra mente secretos de combate ancestral.",
+        "effects": {
+          "hpDelta": -4,
+          "xpDelta": 35,
+          "summary": "-4 PV y +35 EXP"
+        }
+      },
+      {
+        "id": "c",
+        "label": "Recitar un verso improvisado al sol",
+        "outcomeNarration": "El viento cálido responde haciendo tintinear un compartimento oculto, del que caen unas pocas monedas antiguas.",
+        "effects": {
+          "xpDelta": 15,
+          "goldDelta": 14,
+          "summary": "+14 oro y +15 EXP"
+        }
+      }
+    ]
+  },
+  {
+    "id": "solceniza-07",
+    "regionId": "solceniza",
+    "title": "Mercader de Lámparas Genio",
+    "narration": "Sentado bajo un toldo púrpura, un vendedor asegura poseer lámparas con chispas de fuego domesticadas. Sus ojos brillan con picardía mientras agita una pequeña vasija.",
+    "choices": [
+      {
+        "id": "a",
+        "label": "Comprar una chispa embotellada",
+        "outcomeNarration": "Al destaparla brota una ráfaga cálida y curativa en lugar de un genio, pero al menos alivia vuestras heridas.",
+        "effects": {
+          "hpDelta": 5,
+          "xpDelta": 10,
+          "goldDelta": -12,
+          "summary": "+5 PV, -12 oro y +10 EXP"
+        }
+      },
+      {
+        "id": "b",
+        "label": "Desenmascarar su truco con calma",
+        "outcomeNarration": "Se ríe al verse descubierto y, admirado por vuestra agudeza, os entrega unas monedas para que guardéis el secreto ante el próximo cliente.",
+        "effects": {
+          "xpDelta": 20,
+          "goldDelta": 15,
+          "summary": "+15 oro y +20 EXP"
+        }
+      },
+      {
+        "id": "c",
+        "label": "Frotar la vasija sin permiso",
+        "outcomeNarration": "Una nube de pimienta ardiente estalla directo en vuestros rostros entre las carcajadas del mercader.",
+        "effects": {
+          "hpDelta": -4,
+          "xpDelta": 10,
+          "summary": "-4 PV y +10 EXP"
+        }
+      }
+    ]
+  },
+  {
+    "id": "ventisca-01",
+    "regionId": "ventisca",
+    "title": "Refugio en la Gruta de Hielo",
+    "narration": "Una ráfaga helada os obliga a resguardaros tras una cortina de carámbanos. En el fondo de la cueva encontráis restos de una fogata aún tibia y un cofre cubierto de escarcha.",
+    "choices": [
+      {
+        "id": "a",
+        "label": "Reavivar el fuego y descansar un momento",
+        "outcomeNarration": "El calor devuelve la sensibilidad a vuestras manos y pies. Recuperáis fuerzas mientras el viento aúlla fuera sin alcanzaros.",
+        "effects": {
+          "hpDelta": 6,
+          "xpDelta": 10,
+          "summary": "+6 PV y +10 EXP"
+        }
+      },
+      {
+        "id": "b",
+        "label": "Romper el hielo del cofre con cuidado",
+        "outcomeNarration": "El frío os entumece los dedos al apartar el hielo, pero dentro recuperáis monedas de plata y una brújula intacta.",
+        "effects": {
+          "hpDelta": -2,
+          "xpDelta": 15,
+          "goldDelta": 24,
+          "summary": "-2 PV, +24 oro y +15 EXP"
+        }
+      },
+      {
+        "id": "c",
+        "label": "Estudiar las pinturas grabadas en el hielo",
+        "outcomeNarration": "Las marcas muestran los pasos seguros entre los lagos congelados de Ventisca, aumentando vuestra experiencia en alta montaña.",
+        "effects": {
+          "xpDelta": 25,
+          "summary": "+25 EXP de supervivencia"
+        }
+      }
+    ]
+  },
+  {
+    "id": "ventisca-02",
+    "regionId": "ventisca",
+    "title": "Manada de Lobos de Escarcha",
+    "narration": "Tres lobos de pelaje blanco emergen de la ventisca rodeando el sendero. Sus alientos forman nubes de vapor helado mientras gruñen con cautela.",
+    "choices": [
+      {
+        "id": "a",
+        "label": "Formar muro y hacerlos retroceder",
+        "outcomeNarration": "El choque es rápido y frío: un mordisco alcanza un hombro antes de que la manada huya cuesta abajo, dejando tras de sí la presa que custodiaban.",
+        "effects": {
+          "hpDelta": -5,
+          "xpDelta": 35,
+          "goldDelta": 16,
+          "summary": "-5 PV, +16 oro y +35 EXP"
+        }
+      },
+      {
+        "id": "b",
+        "label": "Lanzar raciones secas hacia un costado",
+        "outcomeNarration": "El macho alfa olfatea la carne y guía a su manada lejos de vosotros. Cruzáis el paso sin sufrir rasguños.",
+        "effects": {
+          "xpDelta": 20,
+          "goldDelta": -4,
+          "summary": "-4 oro en raciones y +20 EXP"
+        }
+      },
+      {
+        "id": "c",
+        "label": "Encender una llama brillante para asustarlos",
+        "outcomeNarration": "Las chispas reflejadas en la nieve ciegan momentáneamente a los lobos, que se retiran aullando hacia las cumbres.",
+        "effects": {
+          "xpDelta": 25,
+          "summary": "+25 EXP por táctica"
+        }
+      }
+    ]
+  },
+  {
+    "id": "ventisca-03",
+    "regionId": "ventisca",
+    "title": "El Alpinista Perdido",
+    "narration": "Junto a un pino cubierto de nieve halláis a un joven mensajero tiritando con el tobillo torcido. Su mochila lleva el sello de la guardia de Ventisca.",
+    "choices": [
+      {
+        "id": "a",
+        "label": "Entablillar su tobillo y compartir abrigo",
+        "outcomeNarration": "Con ayuda vuelve a caminar despacio. Agradecido, os entrega su paga de emergencia y os enseña un truco para conservar el calor.",
+        "effects": {
+          "hpDelta": 2,
+          "xpDelta": 25,
+          "goldDelta": 18,
+          "summary": "+2 PV, +18 oro y +25 EXP"
+        }
+      },
+      {
+        "id": "b",
+        "label": "Cargar con su mochila hasta el próximo hito",
+        "outcomeNarration": "El peso extra bajo la nieve agota vuestros músculos, pero cumplís el encargo y recibís una generosa recompensa del puesto cercano.",
+        "effects": {
+          "hpDelta": -3,
+          "xpDelta": 30,
+          "goldDelta": 28,
+          "summary": "-3 PV, +28 oro y +30 EXP"
+        }
+      },
+      {
+        "id": "c",
+        "label": "Darle indicaciones hacia la hoguera más cercana",
+        "outcomeNarration": "Le marcáis el camino con estacas visibles en la nieve. Parte más tranquilo y os deja una pequeña piedra térmica de gratitud.",
+        "effects": {
+          "hpDelta": 4,
+          "xpDelta": 15,
+          "summary": "+4 PV y +15 EXP"
+        }
+      }
+    ]
+  },
+  {
+    "id": "ventisca-04",
+    "regionId": "ventisca",
+    "title": "El Estanque de Cristal Azul",
+    "narration": "Bajo la superficie transparente de un lago helado brillan monedas de oro y una llave plateada atrapadas a poca profundidad. El hielo cruje con suavidad bajo vuestras botas.",
+    "choices": [
+      {
+        "id": "a",
+        "label": "Picar el borde con cuidado para sacar el oro",
+        "outcomeNarration": "Una grieta cede de golpe y el agua helada empapa una bota, pero lográis rescatar el puñado de monedas antes de alejaros.",
+        "effects": {
+          "hpDelta": -4,
+          "xpDelta": 15,
+          "goldDelta": 26,
+          "summary": "-4 PV, +26 oro y +15 EXP"
+        }
+      },
+      {
+        "id": "b",
+        "label": "Atar una cuerda y deslizarse tumbados",
+        "outcomeNarration": "Repartís el peso sobre el hielo sin romperlo y pescáis una bolsa enganchada cerca de la orilla con habilidad envidiable.",
+        "effects": {
+          "xpDelta": 25,
+          "goldDelta": 15,
+          "summary": "+15 oro y +25 EXP"
+        }
+      },
+      {
+        "id": "c",
+        "label": "No arriesgarse y bordear el estanque",
+        "outcomeNarration": "El sendero firme os recompensa con unas bayas invernales comestibles que revitalizan al grupo sin correr riesgos.",
+        "effects": {
+          "hpDelta": 3,
+          "xpDelta": 10,
+          "summary": "+3 PV y +10 EXP"
+        }
+      }
+    ]
+  },
+  {
+    "id": "ventisca-05",
+    "regionId": "ventisca",
+    "title": "Santuario de la Aurora Boreal",
+    "narration": "Un círculo de menhires nevados vibra bajo cintas verdes y violetas en el cielo nocturno. La luz boreal cae directamente sobre un pedestal de mármol blanco.",
+    "choices": [
+      {
+        "id": "a",
+        "label": "Meditar bajo el resplandor de la aurora",
+        "outcomeNarration": "Una paz helada pero benigna envuelve vuestros corazones. Las heridas sanan y la mente se despeja con claridad sobrenatural.",
+        "effects": {
+          "hpDelta": 6,
+          "xpDelta": 20,
+          "summary": "+6 PV y +20 EXP"
+        }
+      },
+      {
+        "id": "b",
+        "label": "Canalizar la energía hacia vuestras armas",
+        "outcomeNarration": "Un chispazo gélido sacude vuestros brazos, dejándolos entumecidos un instante, aunque aprendéis a golpear con precisión invernal.",
+        "effects": {
+          "hpDelta": -2,
+          "xpDelta": 35,
+          "summary": "-2 PV y +35 EXP"
+        }
+      },
+      {
+        "id": "c",
+        "label": "Recoger los cristales caídos alrededor",
+        "outcomeNarration": "Algunos fragmentos de cuarzo glacial aún conservan valor para coleccionistas y magos de las tierras bajas.",
+        "effects": {
+          "xpDelta": 10,
+          "goldDelta": 20,
+          "summary": "+20 oro y +10 EXP"
+        }
+      }
+    ]
+  },
+  {
+    "id": "ventisca-06",
+    "regionId": "ventisca",
+    "title": "Campana de la Cumbre Silenciosa",
+    "narration": "Una campana de bronce cuelga de un arco torii cubierto de nieve. Una placa advierte que su sonido despierta tanto a los ecos de la montaña como a sus guardianes.",
+    "choices": [
+      {
+        "id": "a",
+        "label": "Hacer sonar la campana con fuerza",
+        "outcomeNarration": "El tañido retumba y provoca un pequeño desprendimiento de nieve que os golpea, pero despeja la entrada a un nicho con reliquias.",
+        "effects": {
+          "hpDelta": -5,
+          "xpDelta": 30,
+          "goldDelta": 25,
+          "summary": "-5 PV, +25 oro y +30 EXP"
+        }
+      },
+      {
+        "id": "b",
+        "label": "Limpiar la nieve de la inscripción",
+        "outcomeNarration": "Descubrís tallados antiguos que explican cómo orientarse en las tormentas blancas. Ganáis valiosa experiencia sin provocar avalanchas.",
+        "effects": {
+          "xpDelta": 25,
+          "summary": "+25 EXP de sabiduría"
+        }
+      },
+      {
+        "id": "c",
+        "label": "Dejar una moneda sobre la base de piedra",
+        "outcomeNarration": "La montaña parece responder con un silencio cálido que calma vuestros temblores y repara el aliento del grupo.",
+        "effects": {
+          "hpDelta": 4,
+          "goldDelta": -5,
+          "summary": "+4 PV y -5 oro"
+        }
+      }
+    ]
+  },
+  {
+    "id": "ventisca-07",
+    "regionId": "ventisca",
+    "title": "Mercader de Pieles y Caldo",
+    "narration": "Un enano robusto empuja un trineo humeante con ollas de caldo de hueso y mantas gruesas. Se ríe del frío mientras os ofrece probar su mercancía.",
+    "choices": [
+      {
+        "id": "a",
+        "label": "Comprar tazones de caldo bien caliente",
+        "outcomeNarration": "El caldo especiado entra como fuego bendito en el cuerpo. Todo el grupo recupera vitalidad al instante.",
+        "effects": {
+          "hpDelta": 7,
+          "goldDelta": -10,
+          "summary": "+7 PV y -10 oro"
+        }
+      },
+      {
+        "id": "b",
+        "label": "Ayudarle a desatascar el patín del trineo",
+        "outcomeNarration": "Con un buen empujón liberáis el trineo de una grieta. Agradecido, os invita a un sorbo gratis y os da unas monedas.",
+        "effects": {
+          "hpDelta": 2,
+          "xpDelta": 15,
+          "goldDelta": 10,
+          "summary": "+2 PV, +10 oro y +15 EXP"
+        }
+      },
+      {
+        "id": "c",
+        "label": "Retarlo a un pulso amistoso sobre la nieve",
+        "outcomeNarration": "El enano tiene brazos como robles y os deja la muñeca dolorida, pero celebra vuestro coraje con una propina y carcajadas.",
+        "effects": {
+          "hpDelta": -2,
+          "xpDelta": 25,
+          "goldDelta": 14,
+          "summary": "-2 PV, +14 oro y +25 EXP"
+        }
+      }
+    ]
+  },
+  {
+    "id": "plano-astral-01",
+    "regionId": "plano-astral",
+    "title": "Espejo de las Constelaciones",
+    "narration": "Un estanque flotante de mercurio plateado refleja vuestras siluetas rodeadas de estrellas que no pertenecen al cielo mortal. Tres constelaciones brillan al alcance de la mano.",
+    "choices": [
+      {
+        "id": "a",
+        "label": "Tocar la constelación de la Espada",
+        "outcomeNarration": "Un pulso arcano recorre vuestros músculos como una descarga eléctrica, dolorosa un segundo pero cargada de técnica marcial.",
+        "effects": {
+          "hpDelta": -3,
+          "xpDelta": 35,
+          "summary": "-3 PV y +35 EXP"
+        }
+      },
+      {
+        "id": "b",
+        "label": "Tocar la constelación del Cáliz",
+        "outcomeNarration": "Polvo estelar dorado envuelve al grupo cerrando heridas y devolviendo el vigor perdido en mundos inferiores.",
+        "effects": {
+          "hpDelta": 7,
+          "xpDelta": 15,
+          "summary": "+7 PV y +15 EXP"
+        }
+      },
+      {
+        "id": "c",
+        "label": "Tocar la constelación de la Corona",
+        "outcomeNarration": "De la superficie del espejo emergen monedas de plata astral perfectamente acuñadas que caen en vuestras manos.",
+        "effects": {
+          "xpDelta": 15,
+          "goldDelta": 25,
+          "summary": "+25 oro y +15 EXP"
+        }
+      }
+    ]
+  },
+  {
+    "id": "plano-astral-02",
+    "regionId": "plano-astral",
+    "title": "El Autómata Bibliotecario",
+    "narration": "Una esfera de latón con tres anillos giratorios flota frente a un atril de luz sólida. Su voz resonante exige una contraseña o un intercambio de conocimiento.",
+    "choices": [
+      {
+        "id": "a",
+        "label": "Narrar vuestras hazañas en los reinos",
+        "outcomeNarration": "El autómata archiva vuestra crónica en un cristal azul y os recompensa con conocimientos antiguos y fragmentos valiosos.",
+        "effects": {
+          "xpDelta": 30,
+          "goldDelta": 15,
+          "summary": "+15 oro y +30 EXP"
+        }
+      },
+      {
+        "id": "b",
+        "label": "Intentar desmontar uno de sus anillos",
+        "outcomeNarration": "Una descarga defensiva os lanza hacia atrás. Lográis atrapar un engranaje dorado, aunque os queda el pecho adolorido.",
+        "effects": {
+          "hpDelta": -6,
+          "xpDelta": 15,
+          "goldDelta": 25,
+          "summary": "-6 PV, +25 oro y +15 EXP"
+        }
+      },
+      {
+        "id": "c",
+        "label": "Solicitar restauración física de protocolo",
+        "outcomeNarration": "Tras comprobar que no sois intrusos hostiles, emite un rayo violeta suave que repara vuestra vitalidad.",
+        "effects": {
+          "hpDelta": 5,
+          "xpDelta": 10,
+          "summary": "+5 PV y +10 EXP"
+        }
+      }
+    ]
+  },
+  {
+    "id": "plano-astral-03",
+    "regionId": "plano-astral",
+    "title": "Eco del Tiempo Perdido",
+    "narration": "En mitad del puente estelar veis imágenes translúcidas de otros aventureros que pasaron por aquí hace siglos. Uno de ellos deja caer una bolsa antes de disolverse.",
+    "choices": [
+      {
+        "id": "a",
+        "label": "Recoger la bolsa del eco temporal",
+        "outcomeNarration": "El peso es real: dentro hay monedas antiguas y un amuleto roto. El roce con el eco os deja un escalofrío fugaz.",
+        "effects": {
+          "hpDelta": -2,
+          "xpDelta": 15,
+          "goldDelta": 24,
+          "summary": "-2 PV, +24 oro y +15 EXP"
+        }
+      },
+      {
+        "id": "b",
+        "label": "Observar su técnica de combate espectral",
+        "outcomeNarration": "Imitáis mentalmente los giros y guardias de aquellos héroes olvidados, perfeccionando vuestro propio estilo.",
+        "effects": {
+          "xpDelta": 30,
+          "summary": "+30 EXP en táctica"
+        }
+      },
+      {
+        "id": "c",
+        "label": "Honrar su memoria en silencio",
+        "outcomeNarration": "La luz de las estrellas os envuelve con serenidad. Sentís una paz profunda que alivia el cansancio del viaje.",
+        "effects": {
+          "hpDelta": 4,
+          "xpDelta": 15,
+          "summary": "+4 PV y +15 EXP"
+        }
+      }
+    ]
+  },
+  {
+    "id": "plano-astral-04",
+    "regionId": "plano-astral",
+    "title": "Grieta de Gravedad Inversa",
+    "narration": "Un remolino púrpura levanta piedras del suelo alrededor de una gema flotante. Si dais un paso mal calculado, la gravedad podría lanzaros contra los pilares.",
+    "choices": [
+      {
+        "id": "a",
+        "label": "Saltar en el pulso exacto para tomar la gema",
+        "outcomeNarration": "Calculáis el instante justo, aunque al aterrizar la caída os sacude las rodillas. La gema brilla con valor incalculable.",
+        "effects": {
+          "hpDelta": -4,
+          "xpDelta": 25,
+          "goldDelta": 30,
+          "summary": "-4 PV, +30 oro y +25 EXP"
+        }
+      },
+      {
+        "id": "b",
+        "label": "Estabilizar la grieta con magia o cuerda",
+        "outcomeNarration": "Lográis equilibrar la anomalía sin incidentes. La energía liberada os llena de lucidez y confianza.",
+        "effects": {
+          "xpDelta": 30,
+          "goldDelta": 10,
+          "summary": "+10 oro y +30 EXP"
+        }
+      },
+      {
+        "id": "c",
+        "label": "Aprovechar la ingravidez para descansar",
+        "outcomeNarration": "Flotar un par de minutos alivia toda presión en espalda y pies, dejándoos como nuevos para seguir explorando.",
+        "effects": {
+          "hpDelta": 5,
+          "xpDelta": 10,
+          "summary": "+5 PV y +10 EXP"
+        }
+      }
+    ]
+  },
+  {
+    "id": "plano-astral-05",
+    "regionId": "plano-astral",
+    "title": "Mercader Errante de Polvo Estelar",
+    "narration": "Una figura envuelta en un manto de nebulosas os saluda desde una alfombra flotante. Exhibe frascos luminosos y monedas de mundos extintos.",
+    "choices": [
+      {
+        "id": "a",
+        "label": "Comprar un elixir de luz astral",
+        "outcomeNarration": "El brebaje sabe a menta y relámpagos suaves, cerrando heridas profundas en cuestión de latidos.",
+        "effects": {
+          "hpDelta": 8,
+          "goldDelta": -14,
+          "summary": "+8 PV y -14 oro"
+        }
+      },
+      {
+        "id": "b",
+        "label": "Vender recuerdos o baratijas mundanas",
+        "outcomeNarration": "Al comerciante le fascinan las monedas ordinarias y piedras de Valderroble. Os paga con creces por vuestras curiosidades.",
+        "effects": {
+          "xpDelta": 15,
+          "goldDelta": 22,
+          "summary": "+22 oro y +15 EXP"
+        }
+      },
+      {
+        "id": "c",
+        "label": "Preguntar por la historia del Santuario",
+        "outcomeNarration": "Relata cómo los cuatro reinos fueron unidos por portales antiguos, enriqueciendo vuestra comprensión del mundo.",
+        "effects": {
+          "xpDelta": 25,
+          "summary": "+25 EXP de saber arcano"
+        }
+      }
+    ]
+  },
+  {
+    "id": "plano-astral-06",
+    "regionId": "plano-astral",
+    "title": "Centinela de Cristal Roto",
+    "narration": "Un golem hecho de prismas oscuros bloquea un pedestal brillante. Parece dañado y emite destellos erráticos cada vez que alguien se acerca.",
+    "choices": [
+      {
+        "id": "a",
+        "label": "Destruir su núcleo inestable en combate",
+        "outcomeNarration": "Sus fragmentos hieren al estallar, pero tras derribarlo recogéis esquirlas preciosas del núcleo astral.",
+        "effects": {
+          "hpDelta": -6,
+          "xpDelta": 40,
+          "goldDelta": 26,
+          "summary": "-6 PV, +26 oro y +40 EXP"
+        }
+      },
+      {
+        "id": "b",
+        "label": "Realinear su prisma central con delicadeza",
+        "outcomeNarration": "El golem recupera su ritmo pacífico, inclina la cabeza en gratitud y os cede acceso al pedestal de energía.",
+        "effects": {
+          "hpDelta": 4,
+          "xpDelta": 30,
+          "summary": "+4 PV y +30 EXP"
+        }
+      },
+      {
+        "id": "c",
+        "label": "Esquivarlo por los pilares laterales",
+        "outcomeNarration": "Pasáis sin activar sus sensores de proximidad, ganando agilidad y evitando una pelea innecesaria.",
+        "effects": {
+          "xpDelta": 20,
+          "summary": "+20 EXP de sigilo"
+        }
+      }
+    ]
+  },
+  {
+    "id": "plano-astral-07",
+    "regionId": "plano-astral",
+    "title": "Fuente de la Memoria Viva",
+    "narration": "Un hilo de plata líquida asciende desde una losa flotante hacia el vacío superior. El aire huele a ozono y lluvia lejana.",
+    "choices": [
+      {
+        "id": "a",
+        "label": "Beber una gota de la fuente plateada",
+        "outcomeNarration": "Recuerdos nítidos de antiguas victorias fortalecen vuestra mente y revitalizan todo el cuerpo.",
+        "effects": {
+          "hpDelta": 6,
+          "xpDelta": 20,
+          "summary": "+6 PV y +20 EXP"
+        }
+      },
+      {
+        "id": "b",
+        "label": "Sumergir una moneda para probar su magia",
+        "outcomeNarration": "La moneda se multiplica brevemente en tres piezas relucientes antes de que la corriente se calme.",
+        "effects": {
+          "xpDelta": 10,
+          "goldDelta": 18,
+          "summary": "+18 oro y +10 EXP"
+        }
+      },
+      {
+        "id": "c",
+        "label": "Tocar directamente el núcleo ascendente",
+        "outcomeNarration": "La sobrecarga os quema las yemas de los dedos, aunque revela visiones nítidas de vuestro próximo destino.",
+        "effects": {
+          "hpDelta": -4,
+          "xpDelta": 35,
+          "summary": "-4 PV y +35 EXP"
+        }
+      }
+    ]
+  },
+  {
+    "id": "general-01",
+    "regionId": "any",
+    "title": "El Cofre del Viajero Olvidado",
+    "narration": "Medio oculto junto al sendero reposa un cofre de roble reforzado con hierro. La cerradura muestra marcas recientes de forcejeo, aunque sigue cerrada.",
+    "choices": [
+      {
+        "id": "a",
+        "label": "Forzar la cerradura con paciencia",
+        "outcomeNarration": "Tras unos intentos suena un clic metálico. Dentro hay monedas bien conservadas y un vendaje limpio.",
+        "effects": {
+          "hpDelta": 2,
+          "xpDelta": 15,
+          "goldDelta": 20,
+          "summary": "+2 PV, +20 oro y +15 EXP"
+        }
+      },
+      {
+        "id": "b",
+        "label": "Romper el candado de un golpe seco",
+        "outcomeNarration": "El golpe activa una aguja oculta en el resorte que os pincha la mano, aunque recogéis el tesoro sin perder tiempo.",
+        "effects": {
+          "hpDelta": -3,
+          "xpDelta": 10,
+          "goldDelta": 25,
+          "summary": "-3 PV, +25 oro y +10 EXP"
+        }
+      },
+      {
+        "id": "c",
+        "label": "Inspeccionar las huellas alrededor primero",
+        "outcomeNarration": "Notáis la trampa antes de tocar nada y además halláis una bolsa caída cerca de unos arbustos.",
+        "effects": {
+          "xpDelta": 25,
+          "goldDelta": 12,
+          "summary": "+12 oro y +25 EXP"
+        }
+      }
+    ]
+  },
+  {
+    "id": "general-02",
+    "regionId": "any",
+    "title": "Bardo de la Capa Remendada",
+    "narration": "Un trovador con un laúd de cuatro cuerdas rasguea una balada alegre junto al camino. Os invita a escuchar una canción sobre héroes sin fortuna.",
+    "choices": [
+      {
+        "id": "a",
+        "label": "Darle una propina y pedir una canción épica",
+        "outcomeNarration": "Su melodía inspiradora enciende el coraje del grupo, aliviando el cansancio y elevando el ánimo.",
+        "effects": {
+          "hpDelta": 5,
+          "xpDelta": 20,
+          "goldDelta": -6,
+          "summary": "+5 PV, -6 oro y +20 EXP"
+        }
+      },
+      {
+        "id": "b",
+        "label": "Acompañarlo con palmas e historias propias",
+        "outcomeNarration": "La música fluye tan bien que otros transeúntes arrojan unas monedas al sombrero, y el bardo las reparte con vosotros.",
+        "effects": {
+          "hpDelta": 2,
+          "xpDelta": 15,
+          "goldDelta": 12,
+          "summary": "+2 PV, +12 oro y +15 EXP"
+        }
+      },
+      {
+        "id": "c",
+        "label": "Pedirle rumores sobre tesoros cercanos",
+        "outcomeNarration": "Entre verso y verso desliza pistas muy útiles sobre rutas secretas y peligros de la región.",
+        "effects": {
+          "xpDelta": 25,
+          "summary": "+25 EXP de exploración"
+        }
+      }
+    ]
+  },
+  {
+    "id": "general-03",
+    "regionId": "any",
+    "title": "Trampa de Lianas y Campanas",
+    "narration": "Un hilo tenso cruza el paso conectado a cascabeles ocultos y una red colgante. Aún no la habéis pisado, pero un grupo de trasgos parece haberla preparado cerca.",
+    "choices": [
+      {
+        "id": "a",
+        "label": "Desarmar el mecanismo con precisión",
+        "outcomeNarration": "Cortáis el cordel maestro sin hacer ruido y recuperáis piezas útiles del campamento vacío.",
+        "effects": {
+          "xpDelta": 25,
+          "goldDelta": 14,
+          "summary": "+14 oro y +25 EXP"
+        }
+      },
+      {
+        "id": "b",
+        "label": "Activarla con una piedra y emboscar a los trasgos",
+        "outcomeNarration": "Los trasgos corren creyendo tener presa fácil y se llevan una sorpresa. Hay algún rasguño menor, pero os quedáis con su botín.",
+        "effects": {
+          "hpDelta": -3,
+          "xpDelta": 35,
+          "goldDelta": 22,
+          "summary": "-3 PV, +22 oro y +35 EXP"
+        }
+      },
+      {
+        "id": "c",
+        "label": "Saltar por encima en silencio",
+        "outcomeNarration": "Superáis la trampa con agilidad y continuáis sin alertar a nadie en los alrededores.",
+        "effects": {
+          "xpDelta": 15,
+          "summary": "+15 EXP"
+        }
+      }
+    ]
+  },
+  {
+    "id": "general-04",
+    "regionId": "any",
+    "title": "Fogata y Cuentos de Campamento",
+    "narration": "Encontráis un claro protegido del viento con leña seca lista para encender. Es una oportunidad ideal para revisar el equipo y tomar un respiro.",
+    "choices": [
+      {
+        "id": "a",
+        "label": "Encender fuego y curar heridas con calma",
+        "outcomeNarration": "El descanso bajo techo abierto repone energías y deja vuestras armaduras y túnicas listas para lo que venga.",
+        "effects": {
+          "hpDelta": 6,
+          "xpDelta": 10,
+          "summary": "+6 PV y +10 EXP"
+        }
+      },
+      {
+        "id": "b",
+        "label": "Entrenar movimientos y hechizos en grupo",
+        "outcomeNarration": "Practicáis coordinaciones tácticas hasta sudar la gota gorda. Termináis algo cansados, pero mucho más preparados.",
+        "effects": {
+          "hpDelta": -2,
+          "xpDelta": 35,
+          "summary": "-2 PV y +35 EXP"
+        }
+      },
+      {
+        "id": "c",
+        "label": "Registrar las cenizas del campamento previo",
+        "outcomeNarration": "Entre piedras removidas halláis una pequeña bolsa olvidada por viajeros anteriores.",
+        "effects": {
+          "xpDelta": 10,
+          "goldDelta": 16,
+          "summary": "+16 oro y +10 EXP"
+        }
+      }
+    ]
+  },
+  {
+    "id": "general-05",
+    "regionId": "any",
+    "title": "El Acertijo de la Esfinge Menor",
+    "narration": "Una estatua alada cobra vida brevemente al veros pasar. Con voz de piedra propone un acertijo antiguo: 'Camina sin pies, muerde sin dientes y abre puertas sin llave. ¿Qué es?'",
+    "choices": [
+      {
+        "id": "a",
+        "label": "Responder: 'El viento'",
+        "outcomeNarration": "La esfinge asiente complacida. Un compartimento en su base se abre revelando monedas de oro puro y sabiduría antigua.",
+        "effects": {
+          "xpDelta": 30,
+          "goldDelta": 20,
+          "summary": "+20 oro y +30 EXP"
+        }
+      },
+      {
+        "id": "b",
+        "label": "Responder: 'El fuego'",
+        "outcomeNarration": "Los ojos de la estatua parpadean en rojo y una chispita os roza los brazos, pero valora vuestro intento.",
+        "effects": {
+          "hpDelta": -4,
+          "xpDelta": 15,
+          "summary": "-4 PV y +15 EXP"
+        }
+      },
+      {
+        "id": "c",
+        "label": "Saludar con cortesía y seguir sin apostar",
+        "outcomeNarration": "La estatua vuelve a su quietud de piedra mientras seguís vuestro camino ilesos y serenos.",
+        "effects": {
+          "hpDelta": 2,
+          "xpDelta": 10,
+          "summary": "+2 PV y +10 EXP"
+        }
+      }
+    ]
+  },
+  {
+    "id": "general-06",
+    "regionId": "any",
+    "title": "Alquimista en Apuros",
+    "narration": "Un carro volcado humea con colores verdes y naranjas. Su dueño, un alquimista despeinado, intenta evitar que dos frascos sigan mezclándose en el suelo.",
+    "choices": [
+      {
+        "id": "a",
+        "label": "Apartar los frascos antes de que estallen",
+        "outcomeNarration": "Recibís una salpicadura ácida leve en la manga, pero salváis el cargamento y el alquimista os paga con oro y pociones.",
+        "effects": {
+          "hpDelta": -3,
+          "xpDelta": 25,
+          "goldDelta": 22,
+          "summary": "-3 PV, +22 oro y +25 EXP"
+        }
+      },
+      {
+        "id": "b",
+        "label": "Cubrir la mezcla con tierra y arena",
+        "outcomeNarration": "La reacción se apaga sin explosión. Agradecido por vuestra cabeza fría, os regala una poción curativa de reserva.",
+        "effects": {
+          "hpDelta": 5,
+          "xpDelta": 20,
+          "summary": "+5 PV y +20 EXP"
+        }
+      },
+      {
+        "id": "c",
+        "label": "Comprar sus frascos intactos a precio de ganga",
+        "outcomeNarration": "Por unas pocas monedas os lleváis tónicos revitalizantes que devuelven energía inmediata al grupo.",
+        "effects": {
+          "hpDelta": 7,
+          "goldDelta": -10,
+          "summary": "+7 PV y -10 oro"
+        }
+      }
+    ]
+  },
+  {
+    "id": "general-07",
+    "regionId": "any",
+    "title": "Perro Mensajero Herido",
+    "narration": "Un sabueso con un collar de cuero azul cojea hacia vosotros cargando un cilindro sellado. Sus patas muestran raspaduras recientes de alguna persecución.",
+    "choices": [
+      {
+        "id": "a",
+        "label": "Limpiar sus patas y darle agua",
+        "outcomeNarration": "El perro lame vuestras manos agradecido y trota hacia su puesto. Deja caer una bolsa de monedas atada a su arnés como recompensa acordada.",
+        "effects": {
+          "hpDelta": 2,
+          "xpDelta": 20,
+          "goldDelta": 15,
+          "summary": "+2 PV, +15 oro y +20 EXP"
+        }
+      },
+      {
+        "id": "b",
+        "label": "Escoltado un trecho por el camino seguro",
+        "outcomeNarration": "Os aseguráis de que ningún depredador lo siga. La caminata extra cansa algo, pero ganáis gran experiencia de rastreo.",
+        "effects": {
+          "hpDelta": -1,
+          "xpDelta": 30,
+          "goldDelta": 10,
+          "summary": "-1 PV, +10 oro y +30 EXP"
+        }
+      },
+      {
+        "id": "c",
+        "label": "Leer el sello del cilindro sin abrirlo",
+        "outcomeNarration": "Reconocéis la ruta de suministro de los reinos y ajustáis vuestro camino con inteligencia.",
+        "effects": {
+          "xpDelta": 20,
+          "summary": "+20 EXP"
+        }
+      }
+    ]
+  },
+  {
+    "id": "general-08",
+    "regionId": "any",
+    "title": "Santuario de los Cuatro Vientos",
+    "narration": "En un cruce de caminos se alza una pequeña capilla abierta con cuatro velas apagadas, una por cada punto cardinal. Una inscripción invita a encender una llama.",
+    "choices": [
+      {
+        "id": "a",
+        "label": "Encender la vela de la Salud",
+        "outcomeNarration": "Una brisa cálida rodea al grupo disipando dolores y devolviendo la fuerza a vuestros pasos.",
+        "effects": {
+          "hpDelta": 6,
+          "xpDelta": 15,
+          "summary": "+6 PV y +15 EXP"
+        }
+      },
+      {
+        "id": "b",
+        "label": "Encender la vela de la Fortuna",
+        "outcomeNarration": "Al prender la mecha suena un leve tintineo en el plato de ofrendas: alguien olvidó allí varias monedas relucientes.",
+        "effects": {
+          "xpDelta": 10,
+          "goldDelta": 20,
+          "summary": "+20 oro y +10 EXP"
+        }
+      },
+      {
+        "id": "c",
+        "label": "Encender la vela de la Destreza",
+        "outcomeNarration": "Una chispa juguetona os quema levemente un dedo, pero agudiza vuestros reflejos para los próximos encuentros.",
+        "effects": {
+          "hpDelta": -2,
+          "xpDelta": 30,
+          "summary": "-2 PV y +30 EXP"
+        }
+      }
+    ]
+  }
+]
