@@ -2,9 +2,28 @@ export type PlayerClass = 'Fighter' | 'Wizard' | 'Rogue';
 
 export type Direction = 'up' | 'down' | 'left' | 'right';
 
-export type TileType = 'grass' | 'path' | 'wall' | 'water' | 'portal' | 'event' | 'combat' | 'shop' | 'chest';
+export type TileType =
+  | 'grass'
+  | 'path'
+  | 'wall'
+  | 'water'
+  | 'portal'
+  | 'event'
+  | 'combat'
+  | 'shop'
+  | 'chest'
+  | 'minigame';
 
-export type RegionTheme = 'verdant' | 'desert' | 'frost' | 'astral' | 'boss';
+export type RegionTheme =
+  | 'verdant'
+  | 'desert'
+  | 'frost'
+  | 'astral'
+  | 'boss'
+  | 'swamp'
+  | 'ruins'
+  | 'ocean'
+  | 'cavern';
 
 export type ItemRarity = 'comun' | 'raro' | 'epico' | 'legendario';
 
@@ -36,6 +55,8 @@ export interface PortalDef {
   targetX: number;
   targetY: number;
   minLevel?: number;
+  requiredKey?: string;
+  requiredKeyLabel?: string;
 }
 
 export interface RegionMap {
@@ -250,6 +271,7 @@ export interface PublicRoomState {
   activeEvent: ActiveEventState | null;
   combat: CombatState | null;
   quest: QuestState | null;
+  bossKeys: string[];
 }
 
 export interface JoinSuccessPayload {
@@ -310,6 +332,7 @@ export interface ServerToClientEvents {
     room: PublicRoomState;
   }) => void;
   open_shop: () => void;
+  open_minigame: (payload: { game: 'memory' | 'reflex' }) => void;
   room_error: (payload: { message: string; code?: string }) => void;
   system_notice: (payload: { message: string }) => void;
 }
@@ -348,4 +371,9 @@ export interface ClientToServerEvents {
   drop_item: (payload: { itemId: string }) => void;
   unlock_skill: (payload: { skillId: SkillNodeId }) => void;
   redeem_code: (payload: { code: string }) => void;
+  complete_minigame: (payload: {
+    game: 'memory' | 'reflex';
+    difficulty: 'normal' | 'dificil';
+    score: number;
+  }) => void;
 }

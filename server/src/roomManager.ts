@@ -2,12 +2,14 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import {
+  BOSS_KEY_BY_REGION,
   CHEST_RESPAWN_MS,
   COMBAT_TILE_COOLDOWN_MS,
   EVENT_TILE_COOLDOWN_MS,
   ITEMS_BY_ID,
   MAX_INVENTORY_SLOTS,
   MAX_PLAYERS,
+  MINIGAME_COOLDOWN_MS,
   MOVE_COOLDOWN_MS,
   PLAYER_CLASSES,
   PORTAL_COOLDOWN_MS,
@@ -71,6 +73,7 @@ export interface InternalRoom {
   activeInternalEvent: InternalActiveEvent | null;
   combat: CombatState | null;
   quest: QuestState | null;
+  bossKeys: string[];
   recentEventIds?: string[];
 }
 
@@ -88,6 +91,7 @@ export type MoveOutcome =
       steppedOnCombatTile: boolean;
       isBossCombatTile: boolean;
       steppedOnShopTile: boolean;
+      steppedOnMinigameTile: boolean;
       openedChest: {
         playerId: string;
         playerName: string;
@@ -164,6 +168,7 @@ export class RoomManager {
   private eventTileCooldowns = new Map<string, number>();
   private combatTileCooldowns = new Map<string, number>();
   private chestTileCooldowns = new Map<string, number>();
+  private minigameCooldowns = new Map<string, number>();
   private pendingEventRooms = new Set<string>();
   private saveTimer: NodeJS.Timeout | null = null;
   private readonly storePath: string;
@@ -253,6 +258,7 @@ export class RoomManager {
           room.phase = 'playing';
         }
         room.recentEventIds = Array.isArray(room.recentEventIds) ? room.recentEventIds : [];
+        room.bossKeys = Array.isArray(room.bossKeys) ? [...room.bossKeys] : [];
         if (!room.quest || typeof room.quest.target !== 'number') {
           room.quest = createQuestByIndex(0);
         }
@@ -366,6 +372,7 @@ export class RoomManager {
       activeEvent: this.toPublicActiveEvent(room.activeInternalEvent),
       combat: room.combat,
       quest: room.quest ?? null,
+      bossKeys: [...(room.bossKeys ?? [])],
     };
   }
 
@@ -400,6 +407,7 @@ export class RoomManager {
       activeInternalEvent: null,
       combat: null,
       quest: createQuestByIndex(0),
+      bossKeys: [],
       recentEventIds: [],
     };
 
@@ -645,6 +653,15 @@ export class RoomManager {
 
     const portal = findPortalAt(currentMap, nextX, nextY);
     if (portal) {
+      if (portal.requiredKey && !(room.bossKeys ?? []).includes(portal.requiredKey)) {
+        const keyLabel = portal.requiredKeyLabel ?? portal.requiredKey;
+        return {
+          type: 'portal_blocked',
+          room,
+          message: `Necesitas la ${keyLabel} (derrota al Jefe de este reino).`,
+        };
+      }
+
       if (portal.minLevel) {
         const missing = room.players.filter((p) => (p.level ?? 1) < portal.minLevel!);
         if (missing.length > 0) {
@@ -700,6 +717,7 @@ export class RoomManager {
       steppedOnCombatTile: landedTile === 'combat',
       isBossCombatTile: currentMap.id === 'camara-final' && landedTile === 'combat',
       steppedOnShopTile: landedTile === 'shop',
+      steppedOnMinigameTile: landedTile === 'minigame',
       openedChest,
       tileX: nextX,
       tileY: nextY,
@@ -742,19 +760,7 @@ export class RoomManager {
     return true;
   }
 
-  private tryOpenChest(
-    room: InternalRoom,
-    player: PlayerState,
-    rarity: ItemRarity,
-    x: number,
-    y: number,
-    now: number
-  ) {
-    const chestKey = `${room.code}:${room.regionId}:${x},${y}`;
-    const readyAt = this.chestTileCooldowns.get(chestKey) ?? 0;
-    if (now < readyAt) return null;
-    this.chestTileCooldowns.set(chestKey, now + CHEST_RESPAWN_MS);
-
+  private grantChestReward(player: PlayerState, rarity: ItemRarity) {
     const rewards: Record<ItemRarity, { gold: number; xp: number; items: string[] }> = {
       comun: { gold: 15, xp: 30, items: ['potion', 'weapon_rusty', 'armor_leather'] },
       raro: { gold: 30, xp: 60, items: ['bomb', 'weapon_elven', 'armor_steel', 'potion'] },
@@ -780,6 +786,88 @@ export class RoomManager {
       itemName: itemDef?.name,
       inventoryFull: itemDef ? !added : false,
     };
+  }
+
+  private tryOpenChest(
+    room: InternalRoom,
+    player: PlayerState,
+    rarity: ItemRarity,
+    x: number,
+    y: number,
+    now: number
+  ) {
+    const chestKey = `${room.code}:${room.regionId}:${x},${y}`;
+    const readyAt = this.chestTileCooldowns.get(chestKey) ?? 0;
+    if (now < readyAt) return null;
+    this.chestTileCooldowns.set(chestKey, now + CHEST_RESPAWN_MS);
+
+    return this.grantChestReward(player, rarity);
+  }
+
+  public completeMinigame(
+    socketId: string,
+    payload: { game: 'memory' | 'reflex'; difficulty: 'normal' | 'dificil'; score: number }
+  ):
+    | {
+        room: InternalRoom;
+        chest: {
+          playerId: string;
+          playerName: string;
+          rarity: ItemRarity;
+          gold: number;
+          xp: number;
+          itemId?: string;
+          itemName?: string;
+          inventoryFull?: boolean;
+        };
+      }
+    | { error: string } {
+    const binding = this.socketToBinding.get(socketId);
+    if (!binding) return { error: 'No estás en ninguna sala.' };
+
+    const room = this.rooms.get(binding.roomCode);
+    if (!room || room.phase !== 'playing') {
+      return { error: 'Solo puedes completar minijuegos mientras exploras.' };
+    }
+
+    const player = room.players.find((p) => p.id === binding.playerId);
+    if (!player) return { error: 'Personaje no encontrado.' };
+
+    const now = Date.now();
+    const lastAt = this.minigameCooldowns.get(player.id) ?? 0;
+    if (now - lastAt < MINIGAME_COOLDOWN_MS) {
+      const waitSec = Math.max(1, Math.ceil((MINIGAME_COOLDOWN_MS - (now - lastAt)) / 1000));
+      return { error: `Debes esperar ${waitSec}s antes de jugar otro minijuego.` };
+    }
+    this.minigameCooldowns.set(player.id, now);
+
+    const score = Math.max(0, Math.floor(Number(payload.score) || 0));
+    const isHard = payload.difficulty === 'dificil';
+    let rarity: ItemRarity = 'comun';
+
+    if (payload.game === 'memory') {
+      if (isHard) {
+        if (score >= 3) rarity = 'legendario';
+        else if (score === 2) rarity = 'epico';
+        else if (score === 1) rarity = 'raro';
+      } else {
+        if (score >= 3) rarity = 'epico';
+        else if (score === 2) rarity = 'raro';
+      }
+    } else {
+      if (isHard) {
+        if (score >= 12) rarity = 'legendario';
+        else if (score >= 8) rarity = 'epico';
+        else if (score >= 5) rarity = 'raro';
+      } else {
+        if (score >= 12) rarity = 'epico';
+        else if (score >= 8) rarity = 'raro';
+      }
+    }
+
+    const chest = this.grantChestReward(player, rarity);
+    this.scheduleSave();
+    return { room, chest };
   }
 
   public async triggerEventForRoom(params: {
@@ -1890,6 +1978,7 @@ export class RoomManager {
     const combat = room.combat;
     let xpGained = 0;
     let goldGained = 0;
+    let earnedBossKeyLabel: string | null = null;
 
     if (victory && combat) {
       for (const e of combat.enemies) {
@@ -1900,6 +1989,16 @@ export class RoomManager {
         this.grantXp(p, xpGained);
         p.gold = (p.gold ?? 0) + goldGained;
         if (p.hp <= 0) p.hp = 1;
+      }
+      if (combat.isBoss) {
+        const keyDef = BOSS_KEY_BY_REGION[room.regionId];
+        if (keyDef) {
+          room.bossKeys = room.bossKeys ?? [];
+          if (!room.bossKeys.includes(keyDef.id)) {
+            room.bossKeys.push(keyDef.id);
+            earnedBossKeyLabel = keyDef.label;
+          }
+        }
       }
       this.advanceQuest(room, 'combat');
     } else {
@@ -1916,12 +2015,13 @@ export class RoomManager {
     room.phase = 'playing';
     this.scheduleSave();
 
+    const keyPart = earnedBossKeyLabel ? ` ¡Obtuvieron la ${earnedBossKeyLabel}!` : '';
     return {
       victory,
       xpGained,
       goldGained,
       summary: victory
-        ? `¡Victoria! El grupo derrotó a los enemigos (+${xpGained} EXP, +${goldGained} Oro).`
+        ? `¡Victoria! El grupo derrotó a los enemigos (+${xpGained} EXP, +${goldGained} Oro).${keyPart}`
         : 'El grupo cayó en combate y despertó a salvo en la entrada del reino con 50% de PV.',
       room: this.toPublicRoom(room),
     };

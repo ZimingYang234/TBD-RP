@@ -271,6 +271,9 @@ io.on('connection', (socket) => {
       }
     } else if (outcome.steppedOnShopTile) {
       socket.emit('open_shop');
+    } else if (outcome.steppedOnMinigameTile) {
+      const game = (outcome.tileX + outcome.tileY) % 2 === 0 ? 'memory' : 'reflex';
+      socket.emit('open_minigame', { game });
     }
   });
 
@@ -509,6 +512,36 @@ io.on('connection', (socket) => {
     const publicRoom = roomManager.toPublicRoom(result.room);
     io.to(publicRoom.code).emit('room_state', publicRoom);
     io.to(publicRoom.code).emit('system_notice', { message: result.notice });
+  });
+
+  socket.on('complete_minigame', (payload) => {
+    if (
+      !payload ||
+      (payload.game !== 'memory' && payload.game !== 'reflex') ||
+      (payload.difficulty !== 'normal' && payload.difficulty !== 'dificil') ||
+      typeof payload.score !== 'number'
+    ) {
+      return;
+    }
+    const result = roomManager.completeMinigame(socket.id, payload);
+    if ('error' in result) {
+      socket.emit('room_error', { message: result.error });
+      return;
+    }
+
+    const publicRoom = roomManager.toPublicRoom(result.room);
+    io.to(publicRoom.code).emit('chest_opened', {
+      ...result.chest,
+      room: publicRoom,
+    });
+    const itemPart = result.chest.itemName
+      ? result.chest.inventoryFull
+        ? ` (Mochila 5/5 llena: no pudo guardar ${result.chest.itemName})`
+        : ` y obtuvo ${result.chest.itemName}`
+      : '';
+    io.to(publicRoom.code).emit('system_notice', {
+      message: `${result.chest.playerName} completó el minijuego y ganó un cofre (${result.chest.rarity}): +${result.chest.gold} monedas, +${result.chest.xp} EXP${itemPart}.`,
+    });
   });
 
   socket.on('leave_room', () => {

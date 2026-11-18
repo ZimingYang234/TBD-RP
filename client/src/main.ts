@@ -23,6 +23,7 @@ import { TutorialModal } from './ui/tutorialModal';
 import { InventoryModal } from './ui/inventoryModal';
 import { ChestModal } from './ui/chestModal';
 import { SkillTreeModal } from './ui/skillTreeModal';
+import { MinigameModal } from './ui/minigameModal';
 import { ICON_COIN, ICON_HEART, ICON_LUCK, ICON_SHIELD, ICON_SWORD } from './ui/icons';
 import { getSavedQuality, renderQualityControl } from './ui/quality';
 import { createPhaserGame } from './game/phaserGame';
@@ -187,6 +188,15 @@ const skillTreeModal = new SkillTreeModal({
   },
 });
 
+const minigameModal = new MinigameModal({
+  onComplete: (payload) => {
+    socket.emit('complete_minigame', payload);
+  },
+  onClosed: () => {
+    syncInputLock();
+  },
+});
+
 function syncInputLock(): void {
   const blocked =
     eventModal.isOpen() ||
@@ -197,6 +207,7 @@ function syncInputLock(): void {
     inventoryModal.isOpen() ||
     chestModal.isOpen() ||
     skillTreeModal.isOpen() ||
+    minigameModal.isOpen() ||
     currentRoom?.phase !== 'playing';
   overworldScene?.setInputBlocked(blocked);
 }
@@ -211,6 +222,7 @@ function requestMove(dir: Direction): void {
     inventoryModal.isOpen() ||
     chestModal.isOpen() ||
     skillTreeModal.isOpen() ||
+    minigameModal.isOpen() ||
     currentRoom?.phase !== 'playing'
   ) {
     return;
@@ -275,6 +287,7 @@ function renderGameShell(room: PublicRoomState): void {
               <span class="legend-chip"><span class="legend-dot dot-combat"></span>Combate</span>
               <span class="legend-chip"><span class="legend-dot dot-shop"></span>Tienda</span>
               <span class="legend-chip"><span class="legend-dot dot-chest"></span>Cofre</span>
+              <span class="legend-chip"><span class="legend-dot dot-minigame"></span>Minijuego</span>
             </div>
             <div class="redeem-box">
               <input
@@ -465,14 +478,17 @@ function updateGameHud(room: PublicRoomState): void {
 
   const questEl = document.querySelector<HTMLElement>('#hud-quest-box');
   if (questEl) {
-    if (room.quest) {
-      questEl.innerHTML = `
+    const keysCount = room.bossKeys?.length ?? 0;
+    const questHtml = room.quest
+      ? `
         <div class="quest-title">Misión: ${escapeHtml(room.quest.title)}</div>
         <div class="quest-meta">Progreso ${room.quest.progress}/${room.quest.target} • +${room.quest.rewardGold} monedas</div>
-      `;
-    } else {
-      questEl.innerHTML = '';
-    }
+      `
+      : '';
+    questEl.innerHTML = `
+      ${questHtml}
+      <div class="quest-keys-row">🔑 Llaves: <strong>${keysCount}/4</strong></div>
+    `;
   }
 
   const pvpBtn = document.querySelector<HTMLButtonElement>('#hud-pvp-btn');
@@ -542,6 +558,7 @@ function renderApp(): void {
   inventoryModal.hide();
   chestModal.hide();
   skillTreeModal.hide();
+  minigameModal.hide();
   destroyPhaser();
   lobbyUI.render(currentRoom, myPlayerId, lastError);
 }
@@ -712,6 +729,13 @@ socket.on('chest_opened', (payload) => {
 socket.on('open_shop', () => {
   if (currentRoom && currentRoom.phase === 'playing') {
     shopModal.show(currentRoom, myPlayerId);
+    syncInputLock();
+  }
+});
+
+socket.on('open_minigame', ({ game }) => {
+  if (currentRoom && currentRoom.phase === 'playing') {
+    minigameModal.show(game);
     syncInputLock();
   }
 });

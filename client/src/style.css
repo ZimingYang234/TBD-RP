@@ -1283,6 +1283,7 @@ body {
 .dot-combat { background: #e05a47; }
 .dot-shop { background: #2dd4bf; }
 .dot-chest { background: #fbbf24; }
+.dot-minigame { background: #22d3ee; }
 
 .equip-grid {
   display: grid;
@@ -1785,5 +1786,88 @@ body {
   .log-box {
     font-size: 0.92rem;
   }
+}
+
+.quest-keys-row {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(242, 183, 73, 0.25);
+  font-size: 0.8rem;
+  color: #fde68a;
+}
+
+.minigame-modal-card {
+  max-width: 520px;
+}
+
+.mg-diff-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.mg-status-bar {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 12px;
+  text-align: center;
+  font-weight: 700;
+  color: #67e8f9;
+}
+
+.memory-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.memory-pad {
+  height: 96px;
+  border-radius: 12px;
+  border: 2px solid var(--pad-color);
+  background: color-mix(in srgb, var(--pad-color) 20%, var(--bg));
+  color: var(--text);
+  font-weight: 800;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: transform 0.1s, box-shadow 0.12s, background 0.12s;
+}
+
+.memory-pad:active,
+.memory-pad.lit {
+  background: var(--pad-color);
+  box-shadow: 0 0 24px var(--pad-glow);
+  transform: scale(1.03);
+}
+
+.reflex-arena {
+  position: relative;
+  height: 280px;
+  background: radial-gradient(circle at center, #151b2b 0%, #090b10 100%);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.reflex-target {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 2px solid #e0f2fe;
+  background: radial-gradient(circle, #67e8f9 0%, #0891b2 100%);
+  color: #082f49;
+  font-weight: 900;
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 0 18px rgba(34, 211, 238, 0.75);
+  transition: transform 0.08s;
+}
+
+.reflex-target:hover {
+  transform: translate(-50%, -50%) scale(1.1);
 }
 

@@ -147,6 +147,86 @@ const THEME_PALETTES: Record<RegionTheme, ThemePalette> = {
     eventTile: 0xf5b942,
     eventGlow: 0xfef08a,
   },
+  swamp: {
+    grassA: 0x2d4a3a,
+    grassB: 0x345443,
+    grassDetail: 0x20382b,
+    grassAccent: 0x65a376,
+    pathBase: 0x4e4a38,
+    pathStoneA: 0x6e6850,
+    pathStoneB: 0x605b45,
+    wallFace: 0x212b26,
+    wallTop: 0x35453d,
+    wallHighlight: 0x4f665a,
+    waterBase: 0x2f5241,
+    waterDeep: 0x1e382b,
+    waterHighlight: 0x84cc8c,
+    portalBase: 0x1e3a3a,
+    portalGlow: 0x34d399,
+    portalCore: 0xd1fae5,
+    eventTile: 0xf5b942,
+    eventGlow: 0xfef08a,
+  },
+  ruins: {
+    grassA: 0x4a4e42,
+    grassB: 0x53574a,
+    grassDetail: 0x393d32,
+    grassAccent: 0x849173,
+    pathBase: 0x6b665c,
+    pathStoneA: 0x8c8679,
+    pathStoneB: 0x7d776b,
+    wallFace: 0x2e2d2b,
+    wallTop: 0x4d4b46,
+    wallHighlight: 0x737068,
+    waterBase: 0x2b4c5e,
+    waterDeep: 0x1c3542,
+    waterHighlight: 0x7dd3fc,
+    portalBase: 0x2d2a4a,
+    portalGlow: 0x818cf8,
+    portalCore: 0xe0e7ff,
+    eventTile: 0xf5b942,
+    eventGlow: 0xfef08a,
+  },
+  ocean: {
+    grassA: 0xc9b382,
+    grassB: 0xd4be8d,
+    grassDetail: 0xb09968,
+    grassAccent: 0xf2dfb1,
+    pathBase: 0x9c865b,
+    pathStoneA: 0xc7b185,
+    pathStoneB: 0xb59f74,
+    wallFace: 0x3d3347,
+    wallTop: 0x66496b,
+    wallHighlight: 0xf472b6,
+    waterBase: 0x0e7490,
+    waterDeep: 0x155e75,
+    waterHighlight: 0x67e8f9,
+    portalBase: 0x164e63,
+    portalGlow: 0x22d3ee,
+    portalCore: 0xecfeff,
+    eventTile: 0xf5b942,
+    eventGlow: 0xfef08a,
+  },
+  cavern: {
+    grassA: 0x232036,
+    grassB: 0x2b2742,
+    grassDetail: 0x191626,
+    grassAccent: 0x8b5cf6,
+    pathBase: 0x373252,
+    pathStoneA: 0x524b78,
+    pathStoneB: 0x474169,
+    wallFace: 0x151224,
+    wallTop: 0x322a54,
+    wallHighlight: 0x67e8f9,
+    waterBase: 0x1e2959,
+    waterDeep: 0x121938,
+    waterHighlight: 0x60a5fa,
+    portalBase: 0x2e1065,
+    portalGlow: 0x38bdf8,
+    portalCore: 0xe0f2fe,
+    eventTile: 0xf5b942,
+    eventGlow: 0xfef08a,
+  },
 };
 
 function hash2D(x: number, y: number): number {
@@ -395,6 +475,8 @@ export class OverworldScene extends Phaser.Scene {
         tip = 'Combate (clic o camina aquí)';
       } else if (tile === 'shop') {
         tip = 'Tienda (clic o camina aquí)';
+      } else if (tile === 'minigame') {
+        tip = 'Minijuego (clic o camina aquí)';
       } else if (tile === 'chest') {
         const chest = this.room.map.chests?.find((c) => c.x === tx && c.y === ty);
         tip = chest ? `Cofre ${RARITY_LABELS[chest.rarity]} (clic o camina aquí)` : 'Cofre';
@@ -564,7 +646,14 @@ export class OverworldScene extends Phaser.Scene {
         const py = y * TILE_SIZE;
         const rnd = hash2D(x, y);
 
-        if (tile === 'grass' || tile === 'event' || tile === 'combat' || tile === 'shop' || tile === 'chest') {
+        if (
+          tile === 'grass' ||
+          tile === 'event' ||
+          tile === 'combat' ||
+          tile === 'shop' ||
+          tile === 'chest' ||
+          tile === 'minigame'
+        ) {
           const base = (x + y) % 2 === 0 ? palette.grassA : palette.grassB;
           g.fillStyle(base, 1);
           g.fillRect(px, py, TILE_SIZE, TILE_SIZE);
@@ -612,6 +701,8 @@ export class OverworldScene extends Phaser.Scene {
             this.spawnCombatMarker(px + TILE_SIZE / 2, py + TILE_SIZE / 2);
           } else if (tile === 'shop') {
             this.spawnShopMarker(px + TILE_SIZE / 2, py + TILE_SIZE / 2);
+          } else if (tile === 'minigame') {
+            this.spawnMinigameMarker(px + TILE_SIZE / 2, py + TILE_SIZE / 2);
           } else if (tile === 'chest') {
             const chest = map.chests?.find((c) => c.x === x && c.y === y);
             this.spawnChestMarker(px + TILE_SIZE / 2, py + TILE_SIZE / 2, chest?.rarity ?? 'comun');
@@ -808,6 +899,39 @@ export class OverworldScene extends Phaser.Scene {
       .setDepth(5);
 
     this.propObjects.push(base, coin, mark);
+  }
+
+  private spawnMinigameMarker(cx: number, cy: number): void {
+    const q = this.quality;
+    const base = this.add
+      .circle(cx, cy, q === 'low' ? 16 : 20, 0x312e81, 0.92)
+      .setStrokeStyle(2.5, 0x22d3ee, 0.95)
+      .setDepth(3);
+
+    const star = this.add
+      .polygon(
+        cx,
+        cy,
+        [0, -12, 3.5, -3.5, 12, 0, 3.5, 3.5, 0, 12, -3.5, 3.5, -12, 0, -3.5, -3.5],
+        0x22d3ee,
+        0.95
+      )
+      .setStrokeStyle(1.5, 0xe0f2fe, 0.95)
+      .setDepth(4);
+
+    if (q !== 'low') {
+      this.tweens.add({
+        targets: star,
+        scale: { from: 0.92, to: 1.12 },
+        angle: { from: -8, to: 8 },
+        duration: 900,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      });
+    }
+
+    this.propObjects.push(base, star);
   }
 
   private spawnChestMarker(cx: number, cy: number, rarity: ItemRarity): void {

@@ -10,6 +10,7 @@ export const PORTAL_COOLDOWN_MS = 700;
 export const EVENT_TILE_COOLDOWN_MS = 12_000;
 export const COMBAT_TILE_COOLDOWN_MS = 12_000;
 export const CHEST_RESPAWN_MS = 45_000;
+export const MINIGAME_COOLDOWN_MS = 20_000;
 export const STARTING_GOLD = 20;
 export const MAX_INVENTORY_SLOTS = 5;
 export const BOSS_PORTAL_MIN_LEVEL = 10;
@@ -310,3 +311,10 @@ export const PLAYER_CLASSES: Record<PlayerClass, ClassTemplate> = {
 };
 
 export const PLAYER_CLASS_LIST: PlayerClass[] = ['Fighter', 'Wizard', 'Rogue'];
+
+export const BOSS_KEY_BY_REGION: Record<string, { id: string; label: string }> = {
+  valderroble: { id: 'key_valderroble', label: 'Llave de Valderroble' },
+  solceniza: { id: 'key_solceniza', label: 'Llave de Solceniza' },
+  ventisca: { id: 'key_ventisca', label: 'Llave de Ventisca' },
+  'plano-astral': { id: 'key_astral', label: 'Llave Astral' },
+};
