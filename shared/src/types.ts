@@ -69,6 +69,7 @@ export interface PlayerState {
   level: number;
   luckBonus: number;
   inventory: Record<string, number>;
+  shopUpgrades?: Record<string, number>;
   equippedWeaponId: string | null;
   equippedArmorId: string | null;
   redeemedCodes: string[];
@@ -264,10 +265,12 @@ export interface ServerToClientEvents {
   combat_ended: (payload: CombatEndedPayload) => void;
   tavern_result: (payload: TavernResultPayload) => void;
   chest_opened: (payload: {
+    playerId: string;
     playerName: string;
     rarity: ItemRarity;
     gold: number;
     xp: number;
+    itemId?: string;
     itemName?: string;
     inventoryFull?: boolean;
     room: PublicRoomState;

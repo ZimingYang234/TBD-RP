@@ -21,6 +21,7 @@ import { ShopModal } from './ui/shopModal';
 import { TavernModal } from './ui/tavernModal';
 import { TutorialModal } from './ui/tutorialModal';
 import { InventoryModal } from './ui/inventoryModal';
+import { ChestModal } from './ui/chestModal';
 import { ICON_COIN, ICON_HEART, ICON_LUCK, ICON_SHIELD, ICON_SWORD } from './ui/icons';
 import { getSavedQuality, renderQualityControl } from './ui/quality';
 import { createPhaserGame } from './game/phaserGame';
@@ -164,6 +165,18 @@ const inventoryModal = new InventoryModal({
   },
 });
 
+const chestModal = new ChestModal({
+  onEquip: (itemId) => {
+    socket.emit('equip_item', { itemId });
+  },
+  onUse: (itemId) => {
+    socket.emit('use_item', { itemId });
+  },
+  onClosed: () => {
+    syncInputLock();
+  },
+});
+
 function syncInputLock(): void {
   const blocked =
     eventModal.isOpen() ||
@@ -172,6 +185,7 @@ function syncInputLock(): void {
     tavernModal.isOpen() ||
     tutorialModal.isOpen() ||
     inventoryModal.isOpen() ||
+    chestModal.isOpen() ||
     currentRoom?.phase !== 'playing';
   overworldScene?.setInputBlocked(blocked);
 }
@@ -184,6 +198,7 @@ function requestMove(dir: Direction): void {
     tavernModal.isOpen() ||
     tutorialModal.isOpen() ||
     inventoryModal.isOpen() ||
+    chestModal.isOpen() ||
     currentRoom?.phase !== 'playing'
   ) {
     return;
@@ -496,6 +511,7 @@ function renderApp(): void {
   shopModal.hide();
   tavernModal.hide();
   inventoryModal.hide();
+  chestModal.hide();
   destroyPhaser();
   lobbyUI.render(currentRoom, myPlayerId, lastError);
 }
@@ -650,6 +666,17 @@ socket.on('chest_opened', (payload) => {
   currentRoom = payload.room;
   updateGameHud(payload.room);
   inventoryModal.render(payload.room, myPlayerId);
+  if (payload.playerId === myPlayerId) {
+    chestModal.show({
+      rarity: payload.rarity,
+      gold: payload.gold,
+      xp: payload.xp,
+      itemId: payload.itemId,
+      itemName: payload.itemName,
+      inventoryFull: payload.inventoryFull,
+    });
+    syncInputLock();
+  }
 });
 
 socket.on('open_shop', () => {

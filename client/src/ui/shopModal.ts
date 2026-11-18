@@ -60,10 +60,11 @@ export class ShopModal {
 
     const myGold = me.gold ?? 0;
     const myInv = me.inventory ?? {};
+    const myUpgrades = me.shopUpgrades ?? {};
     const potionsOwned = myInv.potion ?? 0;
 
     const itemsHtml = SHOP_ITEMS.map((item) => {
-      const owned = myInv[item.id] ?? 0;
+      const owned = item.category === 'consumable' ? (myInv[item.id] ?? 0) : (myUpgrades[item.id] ?? 0);
       const maxed = owned >= item.maxOwned;
       const canAfford = myGold >= item.price;
       const disabled = maxed || !canAfford;

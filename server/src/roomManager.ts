@@ -85,10 +85,12 @@ export type MoveOutcome =
       isBossCombatTile: boolean;
       steppedOnShopTile: boolean;
       openedChest: {
+        playerId: string;
         playerName: string;
         rarity: ItemRarity;
         gold: number;
         xp: number;
+        itemId?: string;
         itemName?: string;
         inventoryFull?: boolean;
       } | null;
@@ -186,6 +188,18 @@ export class RoomManager {
             p.regionId === room.regionId && isTileWalkable(map, p.x, p.y)
               ? { x: p.x, y: p.y }
               : findWalkableNearby(map, map.spawn.x, map.spawn.y, idx);
+          const cleanInv: Record<string, number> = {};
+          const upgrades: Record<string, number> =
+            p.shopUpgrades && typeof p.shopUpgrades === 'object' ? { ...p.shopUpgrades } : {};
+          if (p.inventory && typeof p.inventory === 'object') {
+            for (const [k, v] of Object.entries(p.inventory)) {
+              if (k === 'weapon_upgrade' || k === 'armor_upgrade' || k === 'luck_charm') {
+                upgrades[k] = Math.max(upgrades[k] ?? 0, Number(v) || 0);
+              } else if (typeof v === 'number' && v > 0) {
+                cleanInv[k] = v;
+              }
+            }
+          }
           return {
             ...p,
             regionId: room.regionId,
@@ -195,7 +209,8 @@ export class RoomManager {
             xp: typeof p.xp === 'number' && Number.isFinite(p.xp) ? Math.max(0, p.xp) : 0,
             level: typeof p.level === 'number' && Number.isFinite(p.level) ? Math.max(1, p.level) : 1,
             luckBonus: typeof p.luckBonus === 'number' && Number.isFinite(p.luckBonus) ? Math.max(0, p.luckBonus) : 0,
-            inventory: p.inventory && typeof p.inventory === 'object' ? { ...p.inventory } : {},
+            inventory: cleanInv,
+            shopUpgrades: upgrades,
             equippedWeaponId: typeof p.equippedWeaponId === 'string' ? p.equippedWeaponId : null,
             equippedArmorId: typeof p.equippedArmorId === 'string' ? p.equippedArmorId : null,
             redeemedCodes: Array.isArray(p.redeemedCodes) ? [...p.redeemedCodes] : [],
@@ -303,6 +318,7 @@ export class RoomManager {
       level: 1,
       luckBonus: 0,
       inventory: {},
+      shopUpgrades: {},
       equippedWeaponId: null,
       equippedArmorId: null,
       redeemedCodes: [],
@@ -744,10 +760,12 @@ export class RoomManager {
     const added = itemDef ? this.addItemToInventory(player, pickedId) : false;
 
     return {
+      playerId: player.id,
       playerName: player.name,
       rarity,
       gold: table.gold,
       xp: table.xp,
+      itemId: itemDef?.id,
       itemName: itemDef?.name,
       inventoryFull: itemDef ? !added : false,
     };
@@ -1857,20 +1875,25 @@ export class RoomManager {
     }
 
     player.inventory = player.inventory ?? {};
-    const owned = player.inventory[item.id] ?? 0;
-    if (owned >= item.maxOwned) {
-      return { error: `Ya alcanzaste el límite máximo de "${item.name}" (${item.maxOwned}).` };
-    }
+    player.shopUpgrades = player.shopUpgrades ?? {};
 
     if (item.category === 'consumable') {
+      const owned = player.inventory[item.id] ?? 0;
+      if (owned >= item.maxOwned) {
+        return { error: `Ya alcanzaste el límite máximo de "${item.name}" (${item.maxOwned}).` };
+      }
       if (owned === 0 && this.countInventorySlots(player) >= MAX_INVENTORY_SLOTS) {
         return { error: `Tu mochila (${MAX_INVENTORY_SLOTS}/${MAX_INVENTORY_SLOTS}) está llena. Usa o suelta algo antes.` };
       }
       player.gold -= item.price;
       player.inventory[item.id] = owned + 1;
     } else {
+      const ownedUpgrades = player.shopUpgrades[item.id] ?? 0;
+      if (ownedUpgrades >= item.maxOwned) {
+        return { error: `Ya alcanzaste el límite máximo de "${item.name}" (${item.maxOwned}).` };
+      }
       player.gold -= item.price;
-      player.inventory[item.id] = owned + 1;
+      player.shopUpgrades[item.id] = ownedUpgrades + 1;
       if (item.id === 'weapon_upgrade') {
         player.attackMod += 2;
       } else if (item.id === 'armor_upgrade') {
