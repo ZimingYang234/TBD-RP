@@ -106,6 +106,9 @@ async function triggerAndBroadcastEvent(params: {
   triggerContext?: string;
 }): Promise<void> {
   try {
+    io.to(params.roomCode).emit('system_notice', {
+      message: 'El Dungeon Master está narrando el encuentro...',
+    });
     const triggered = await roomManager.triggerEventForRoom(params);
     if (!triggered) return;
 

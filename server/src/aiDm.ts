@@ -64,7 +64,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const DEFAULT_GEMINI_MODEL = 'gemini-3.5-flash-lite';
-const GEMINI_TIMEOUT_MS = 9000;
+const GEMINI_TIMEOUT_MS = 4500;
 const MAX_NARRATION_WORDS = 120;
 const MIN_HP_DELTA = -10;
 const MAX_HP_DELTA = 10;
@@ -556,9 +556,10 @@ async function callGeminiOnce(
           },
         ],
         generationConfig: {
-          temperature: 0.9,
-          maxOutputTokens: 1024,
+          temperature: 0.85,
+          maxOutputTokens: 450,
           responseMimeType: 'application/json',
+          thinkingConfig: { thinkingBudget: 0 },
         },
       }),
       signal: AbortSignal.timeout(GEMINI_TIMEOUT_MS),
