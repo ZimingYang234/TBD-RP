@@ -291,16 +291,21 @@ io.on('connection', (socket) => {
         outcome.room.code,
         outcome.tileX,
         outcome.tileY,
-        outcome.isBossCombatTile
+        outcome.isBossCombatTile,
+        outcome.hitBlueCreature
       );
       if (combatRoom) {
         const publicRoom = roomManager.toPublicRoom(combatRoom);
         io.to(publicRoom.code).emit('combat_started', { room: publicRoom });
         io.to(publicRoom.code).emit('system_notice', {
-          message: `¡${outcome.player.name} encontró enemigos! Comienza el combate por turnos.`,
+          message: outcome.hitBlueCreature
+            ? `¡${outcome.player.name} atrapó a ? (Criatura Celeste)!`
+            : `¡${outcome.player.name} encontró enemigos! Comienza el combate por turnos.`,
         });
         scheduleEnemyTurnIfNeeded(publicRoom.code);
       }
+    } else if (outcome.steppedOnSecretQuestionTile) {
+      socket.emit('open_secret_question', roomManager.getSecretQuestion());
     } else if (outcome.steppedOnShopTile) {
       socket.emit('open_shop');
     } else if (outcome.steppedOnMinigameTile) {
@@ -603,6 +608,40 @@ io.on('connection', (socket) => {
     io.to(publicRoom.code).emit('system_notice', { message: result.notice });
   });
 
+  socket.on('answer_secret_question', (payload) => {
+    if (!payload || typeof payload.choiceIndex !== 'number') return;
+    const result = roomManager.answerSecretQuestion(socket.id, payload.choiceIndex);
+    if ('error' in result) {
+      socket.emit('room_error', { message: result.error });
+      return;
+    }
+
+    if (result.correct) {
+      const publicRoom = roomManager.toPublicRoom(result.room);
+      io.to(publicRoom.code).emit('room_state', publicRoom);
+    }
+    socket.emit('secret_question_result', {
+      correct: result.correct,
+      message: result.message,
+      canCustomize: result.correct,
+    });
+  });
+
+  socket.on('set_secret_question', (payload) => {
+    if (!payload || typeof payload.question !== 'string' || !Array.isArray(payload.options) || payload.options.length !== 3) {
+      return;
+    }
+    const result = roomManager.setSecretQuestion(socket.id, payload);
+    if ('error' in result) {
+      socket.emit('room_error', { message: result.error });
+      return;
+    }
+    const binding = roomManager.getBinding(socket.id);
+    if (binding) {
+      io.to(binding.roomCode).emit('system_notice', { message: result.notice });
+    }
+  });
+
   socket.on('play_tavern_dice', (payload) => {
     if (!payload || typeof payload.bet !== 'number') return;
     const result = roomManager.playTavernDice(socket.id, payload.bet);
@@ -697,8 +736,16 @@ const roamingInterval = setInterval(() => {
   }
 }, 5000);
 
+const blueCreatureInterval = setInterval(() => {
+  const updates = roomManager.tickBlueCreature();
+  for (const item of updates) {
+    io.to(item.code).emit('blue_creature_moved', item.creature);
+  }
+}, 1600);
+
 process.on('SIGINT', () => {
   clearInterval(roamingInterval);
+  clearInterval(blueCreatureInterval);
   roomManager.saveNow();
   process.exit(0);
 });

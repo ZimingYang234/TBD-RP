@@ -26,6 +26,7 @@ import { SkillTreeModal } from './ui/skillTreeModal';
 import { MinigameModal } from './ui/minigameModal';
 import { ArenaModal } from './ui/arenaModal';
 import { ProgressModal } from './ui/progressModal';
+import { SecretQuestionModal } from './ui/secretQuestionModal';
 import { ICON_COIN, ICON_HEART, ICON_LUCK, ICON_SHIELD, ICON_SWORD } from './ui/icons';
 import { getSavedQuality, renderQualityControl } from './ui/quality';
 import type { OverworldScene } from './game/OverworldScene';
@@ -232,6 +233,18 @@ const progressModal = new ProgressModal({
   },
 });
 
+const secretQuestionModal = new SecretQuestionModal({
+  onAnswer: (choiceIndex) => {
+    socket.emit('answer_secret_question', { choiceIndex });
+  },
+  onSetCustomQuestion: (payload) => {
+    socket.emit('set_secret_question', payload);
+  },
+  onClosed: () => {
+    syncInputLock();
+  },
+});
+
 function syncInputLock(): void {
   const blocked =
     eventModal.isOpen() ||
@@ -245,6 +258,7 @@ function syncInputLock(): void {
     minigameModal.isOpen() ||
     arenaModal.isOpen() ||
     progressModal.isOpen() ||
+    secretQuestionModal.isOpen() ||
     currentRoom?.phase !== 'playing';
   overworldScene?.setInputBlocked(blocked);
 }
@@ -262,6 +276,7 @@ function requestMove(dir: Direction): void {
     minigameModal.isOpen() ||
     arenaModal.isOpen() ||
     progressModal.isOpen() ||
+    secretQuestionModal.isOpen() ||
     currentRoom?.phase !== 'playing'
   ) {
     return;
@@ -636,6 +651,7 @@ function renderApp(): void {
   minigameModal.hide();
   arenaModal.hide();
   progressModal.hide();
+  secretQuestionModal.hide();
   destroyPhaser();
   lobbyUI.render(currentRoom, myPlayerId, lastError);
 }
@@ -808,6 +824,23 @@ socket.on('chest_opened', (payload) => {
     });
     syncInputLock();
   }
+});
+
+socket.on('blue_creature_moved', (creature) => {
+  if (!currentRoom) return;
+  currentRoom.blueCreature = creature;
+  overworldScene?.syncBlueCreature(creature);
+});
+
+socket.on('open_secret_question', (payload) => {
+  if (currentRoom && currentRoom.phase === 'playing') {
+    secretQuestionModal.show(payload);
+    syncInputLock();
+  }
+});
+
+socket.on('secret_question_result', (payload) => {
+  secretQuestionModal.setResult(payload);
 });
 
 socket.on('save_code_generated', ({ saveCode }) => {

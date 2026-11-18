@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import {
   BOSS_PORTAL_MIN_LEVEL,
+  type BlueCreatureState,
   type ChestDef,
   type PortalDef,
   type RegionMap,
@@ -22,6 +23,7 @@ const CHAR_TO_TILE: Record<string, TileType> = {
   M: 'minigame',
   F: 'spring',
   X: 'trap',
+  Q: 'secret_question',
 };
 
 function parseGrid(rows: string[]): TileType[][] {
@@ -83,10 +85,19 @@ export const REGIONS: Record<string, RegionMap> = {
       '#..#..E..,,..#H..#.#',
       '#........,,..#.#C..#',
       '#....~~..,,..#~~~#.#',
-      '#........,P........#',
+      '#........,P......P.#',
       '####################',
     ],
     portals: [
+      {
+        x: 17,
+        y: 13,
+        label: '→ Sala Secreta (?)',
+        targetRegionId: 'sala-secreta',
+        targetX: 2,
+        targetY: 1,
+        requiresFinalUnlock: true,
+      },
       {
         x: 1,
         y: 7,
@@ -718,6 +729,43 @@ export const REGIONS: Record<string, RegionMap> = {
       { x: 16, y: 12, rarity: 'legendario' },
     ],
   }),
+
+  'sala-secreta': makeRegion({
+    id: 'sala-secreta',
+    name: 'Santuario Secreto de Ziming',
+    subtitle: 'Laberinto del Enigma Final',
+    modifierLabel: 'Prueba Secreta: Llega al final del laberinto',
+    theme: 'astral',
+    spawn: { x: 2, y: 1 },
+    rows: [
+      '####################',
+      '#P.,#......#.......#',
+      '#.##.#.####.#.####.#',
+      '#....#....#.#....X.#',
+      '#.######.#.#.####.##',
+      '#.#......#.#.#.....#',
+      '#.#.######.#.#.###.#',
+      '#.#........#...#...#',
+      '#.############.#.###',
+      '#....X.......#.#...#',
+      '####.#######.#.###.#',
+      '#....#.....#.#...#.#',
+      '#.####.###.#.###.#.#',
+      '#......#...#..X..,Q#',
+      '####################',
+    ],
+    portals: [
+      {
+        x: 1,
+        y: 1,
+        label: '→ Valderroble',
+        targetRegionId: 'valderroble',
+        targetX: 16,
+        targetY: 13,
+      },
+    ],
+    chests: [],
+  }),
 };
 
 export function findChestAt(map: RegionMap, x: number, y: number): ChestDef | undefined {
@@ -796,4 +844,33 @@ export function spawnRoamingMonstersForRegion(map: RegionMap): RoamingMonster[] 
     });
   }
   return result;
+}
+
+const BLUE_CREATURE_KINGDOMS = [
+  'valderroble',
+  'solceniza',
+  'ventisca',
+  'plano-astral',
+  'pantano-bruma',
+  'ruinas-olvido',
+  'archipielago-coral',
+  'abismo-cristal',
+];
+
+export function spawnBlueCreature(excludeRegionId?: string): BlueCreatureState {
+  const pool = BLUE_CREATURE_KINGDOMS.filter((id) => id !== excludeRegionId);
+  const regionId = pool[Math.floor(Math.random() * pool.length)] ?? 'valderroble';
+  const map = getRegion(regionId);
+
+  const candidates: Array<{ x: number; y: number }> = [];
+  for (let y = 1; y < map.height - 1; y++) {
+    for (let x = 1; x < map.width - 1; x++) {
+      const t = map.tiles[y]?.[x];
+      if ((t === 'grass' || t === 'path') && Math.abs(x - map.spawn.x) + Math.abs(y - map.spawn.y) >= 3) {
+        candidates.push({ x, y });
+      }
+    }
+  }
+  const pos = candidates[Math.floor(Math.random() * candidates.length)] ?? map.spawn;
+  return { regionId, x: pos.x, y: pos.y };
 }

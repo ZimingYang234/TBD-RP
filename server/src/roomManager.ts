@@ -22,6 +22,7 @@ import {
   TAVERN_WINDOW_MS,
   xpForNextLevel,
   type ActiveEventState,
+  type BlueCreatureState,
   type CombatEndedPayload,
   type CombatState,
   type CombatStatus,
@@ -39,13 +40,14 @@ import {
   type QuestState,
   type RoamingMonster,
   type RoomPhase,
+  type SecretQuestionState,
   type SkillNodeId,
   type StatusKind,
   type TavernResultPayload,
 } from '@tbd/shared';
 import { generateEventForParty, type DmEvent } from './aiDm.js';
 import { rollD20, rollDiceExpression, rollDie } from './dice.js';
-import { spawnBossForRegion, spawnEnemiesForParty } from './enemies.js';
+import { spawnBlueCreatureEnemy, spawnBossForRegion, spawnEnemiesForParty } from './enemies.js';
 import {
   REGIONS,
   STARTING_REGION_ID,
@@ -54,6 +56,7 @@ import {
   findWalkableNearby,
   getRegion,
   isTileWalkable,
+  spawnBlueCreature,
   spawnRoamingMonstersForRegion,
 } from './worldMap.js';
 
@@ -79,6 +82,8 @@ export interface InternalRoom {
   quest: QuestState | null;
   bossKeys: string[];
   roamingMonsters?: RoamingMonster[];
+  blueCreature?: BlueCreatureState | null;
+  secretRoomUnlocked?: boolean;
   recentEventIds?: string[];
 }
 
@@ -97,6 +102,8 @@ export type MoveOutcome =
       isBossCombatTile: boolean;
       steppedOnShopTile: boolean;
       steppedOnMinigameTile: boolean;
+      steppedOnSecretQuestionTile: boolean;
+      hitBlueCreature: boolean;
       mapNotice?: string;
       openedChest: {
         playerId: string;
@@ -181,10 +188,47 @@ export class RoomManager {
   private pendingEnemyTarget = new Map<string, { targetId: string; dodgeReduction: 0 | 15 | 30 }>();
   private saveTimer: NodeJS.Timeout | null = null;
   private readonly storePath: string;
+  private readonly secretQuestionPath: string;
+  private secretQuestion: SecretQuestionState = {
+    question: '¿Cuál es la carta Pokémon que más vale que tiene Ziming?',
+    options: ['a) Bulbasaur', 'b) Leafeon', 'c) Mew'],
+    correctIndex: 1,
+    authorName: 'Ziming',
+  };
 
   constructor(dataDir: string) {
     this.storePath = path.join(dataDir, 'rooms.json');
+    this.secretQuestionPath = path.join(dataDir, 'secretQuestion.json');
     this.loadFromDisk();
+    this.loadSecretQuestion();
+  }
+
+  private loadSecretQuestion(): void {
+    try {
+      if (!fs.existsSync(this.secretQuestionPath)) return;
+      const raw = fs.readFileSync(this.secretQuestionPath, 'utf-8');
+      const parsed = JSON.parse(raw) as SecretQuestionState;
+      if (
+        parsed &&
+        typeof parsed.question === 'string' &&
+        Array.isArray(parsed.options) &&
+        parsed.options.length === 3 &&
+        typeof parsed.correctIndex === 'number'
+      ) {
+        this.secretQuestion = parsed;
+      }
+    } catch {
+      // keep default
+    }
+  }
+
+  private saveSecretQuestion(): void {
+    try {
+      fs.mkdirSync(path.dirname(this.secretQuestionPath), { recursive: true });
+      fs.writeFileSync(this.secretQuestionPath, JSON.stringify(this.secretQuestion, null, 2), 'utf-8');
+    } catch {
+      // ignore
+    }
   }
 
   private loadFromDisk(): void {
@@ -271,6 +315,8 @@ export class RoomManager {
         room.roamingMonsters = Array.isArray(room.roamingMonsters)
           ? room.roamingMonsters
           : spawnRoamingMonstersForRegion(map);
+        room.blueCreature = room.blueCreature ?? spawnBlueCreature();
+        room.secretRoomUnlocked = Boolean(room.secretRoomUnlocked);
         if (!room.quest || typeof room.quest.target !== 'number') {
           room.quest = createQuestByIndex(0);
         }
@@ -396,6 +442,8 @@ export class RoomManager {
       quest: room.quest ?? null,
       bossKeys: [...(room.bossKeys ?? [])],
       roamingMonsters: room.roamingMonsters ?? [],
+      blueCreature: room.blueCreature ?? null,
+      secretRoomUnlocked: Boolean(room.secretRoomUnlocked),
     };
   }
 
@@ -432,6 +480,8 @@ export class RoomManager {
       quest: createQuestByIndex(0),
       bossKeys: [],
       roamingMonsters: spawnRoamingMonstersForRegion(getRegion(STARTING_REGION_ID)),
+      blueCreature: spawnBlueCreature(),
+      secretRoomUnlocked: false,
       recentEventIds: [],
     };
 
@@ -698,6 +748,28 @@ export class RoomManager {
         }
       }
 
+      if (portal.requiresFinalUnlock && !room.secretRoomUnlocked) {
+        const missing: string[] = [];
+        if (!(room.bossKeys ?? []).includes('key_final_boss')) {
+          missing.push('Llave del Emperador (derrota al Jefe Final)');
+        }
+        if (!(room.bossKeys ?? []).includes('key_blue_creature')) {
+          missing.push('Esencia de ? (derrota a la criatura azul)');
+        }
+        if ((player.gold ?? 0) < 1000) {
+          missing.push('1000 monedas');
+        }
+        if (missing.length > 0) {
+          return {
+            type: 'portal_blocked',
+            room,
+            message: `Sala Secreta bloqueada. Te falta: ${missing.join(', ')}.`,
+          };
+        }
+        player.gold -= 1000;
+        room.secretRoomUnlocked = true;
+      }
+
       const prevPortal = this.lastPortalAt.get(room.code) ?? 0;
       if (now - prevPortal >= PORTAL_COOLDOWN_MS) {
         this.lastPortalAt.set(room.code, now);
@@ -785,16 +857,28 @@ export class RoomManager {
       }
     }
 
+    let hitBlueCreature = false;
+    if (
+      room.blueCreature &&
+      room.blueCreature.regionId === currentMap.id &&
+      room.blueCreature.x === nextX &&
+      room.blueCreature.y === nextY
+    ) {
+      hitBlueCreature = true;
+    }
+
     this.scheduleSave();
     return {
       type: 'moved',
       room,
       player,
       steppedOnEventTile: landedTile === 'event',
-      steppedOnCombatTile: landedTile === 'combat' || hitRoamingMonster,
+      steppedOnCombatTile: landedTile === 'combat' || hitRoamingMonster || hitBlueCreature,
       isBossCombatTile: currentMap.id === 'camara-final' && landedTile === 'combat',
       steppedOnShopTile: landedTile === 'shop',
       steppedOnMinigameTile: landedTile === 'minigame',
+      steppedOnSecretQuestionTile: landedTile === 'secret_question',
+      hitBlueCreature,
       mapNotice,
       openedChest,
       tileX: nextX,
@@ -1213,7 +1297,8 @@ export class RoomManager {
     roomCode: string,
     tileX?: number,
     tileY?: number,
-    isBoss = false
+    isBoss = false,
+    isBlueCreature = false
   ): InternalRoom | null {
     const room = this.rooms.get(roomCode);
     if (!room || room.phase !== 'playing' || room.combat || room.activeInternalEvent) {
@@ -1221,7 +1306,7 @@ export class RoomManager {
     }
 
     const now = Date.now();
-    if (tileX !== undefined && tileY !== undefined) {
+    if (!isBlueCreature && tileX !== undefined && tileY !== undefined) {
       const tileKey = `${room.code}:${room.regionId}:${tileX},${tileY}`;
       const cooldownUntil = this.combatTileCooldowns.get(tileKey) ?? 0;
       if (now < cooldownUntil) return null;
@@ -1231,9 +1316,11 @@ export class RoomManager {
     const avgLevel =
       room.players.reduce((sum, p) => sum + (p.level ?? 1), 0) /
       Math.max(1, room.players.length);
-    const enemies = isBoss
-      ? [spawnBossForRegion(room.regionId, room.players.length, Math.round(avgLevel))]
-      : spawnEnemiesForParty(room.regionId, room.players.length, Math.round(avgLevel));
+    const enemies = isBlueCreature
+      ? [spawnBlueCreatureEnemy()]
+      : isBoss
+        ? [spawnBossForRegion(room.regionId, room.players.length, Math.round(avgLevel))]
+        : spawnEnemiesForParty(room.regionId, room.players.length, Math.round(avgLevel));
     const turnEntries: CombatTurnEntry[] = [];
 
     for (const p of room.players) {
@@ -1277,6 +1364,7 @@ export class RoomManager {
       id: crypto.randomUUID(),
       mode: 'pve',
       isBoss,
+      isBlueCreature,
       round: 1,
       enemies,
       turnOrder: turnEntries,
@@ -2104,6 +2192,7 @@ export class RoomManager {
       solceniza: { id: 'key_solceniza', label: 'Llave de Ceniza' },
       ventisca: { id: 'key_ventisca', label: 'Llave de Escarcha' },
       'plano-astral': { id: 'key_astral', label: 'Llave Astral' },
+      'camara-final': { id: 'key_final_boss', label: 'Llave del Emperador' },
     };
     const keyDef = BOSS_KEY_BY_REGION[room.regionId];
     let keyNotice = '';
@@ -2365,13 +2454,28 @@ export class RoomManager {
         p.gold = (p.gold ?? 0) + goldGained;
         if (p.hp <= 0) p.hp = 1;
       }
-      if (combat.isBoss) {
-        const keyDef = BOSS_KEY_BY_REGION[room.regionId];
-        if (keyDef) {
+      if (combat.isBlueCreature) {
+        room.bossKeys = room.bossKeys ?? [];
+        if (!room.bossKeys.includes('key_blue_creature')) {
+          room.bossKeys.push('key_blue_creature');
+          earnedBossKeyLabel = 'Esencia de ?';
+        }
+        room.blueCreature = spawnBlueCreature(room.regionId);
+      } else if (combat.isBoss) {
+        if (room.regionId === 'camara-final') {
           room.bossKeys = room.bossKeys ?? [];
-          if (!room.bossKeys.includes(keyDef.id)) {
-            room.bossKeys.push(keyDef.id);
-            earnedBossKeyLabel = keyDef.label;
+          if (!room.bossKeys.includes('key_final_boss')) {
+            room.bossKeys.push('key_final_boss');
+            earnedBossKeyLabel = 'Llave del Emperador';
+          }
+        } else {
+          const keyDef = BOSS_KEY_BY_REGION[room.regionId];
+          if (keyDef) {
+            room.bossKeys = room.bossKeys ?? [];
+            if (!room.bossKeys.includes(keyDef.id)) {
+              room.bossKeys.push(keyDef.id);
+              earnedBossKeyLabel = keyDef.label;
+            }
           }
         }
       }
@@ -3053,6 +3157,106 @@ export class RoomManager {
         summary,
         room: this.toPublicRoom(room),
       },
+    };
+  }
+
+  private blueCreatureTicks = 0;
+
+  public tickBlueCreature(): Array<{ code: string; creature: BlueCreatureState }> {
+    this.blueCreatureTicks += 1;
+    const shouldJumpWorld = this.blueCreatureTicks % 6 === 0;
+    const updated: Array<{ code: string; creature: BlueCreatureState }> = [];
+    const dirs = [
+      { dx: 0, dy: -1 },
+      { dx: 0, dy: 1 },
+      { dx: -1, dy: 0 },
+      { dx: 1, dy: 0 },
+    ];
+
+    for (const room of this.rooms.values()) {
+      if (room.phase !== 'playing') continue;
+      if (!room.players.some((p) => p.connected)) continue;
+
+      if (!room.blueCreature || shouldJumpWorld) {
+        room.blueCreature = spawnBlueCreature(room.blueCreature?.regionId);
+        updated.push({ code: room.code, creature: room.blueCreature });
+        continue;
+      }
+
+      const map = getRegion(room.blueCreature.regionId);
+      const d = dirs[Math.floor(Math.random() * dirs.length)];
+      const nx = room.blueCreature.x + d.dx;
+      const ny = room.blueCreature.y + d.dy;
+      const tile = map.tiles[ny]?.[nx];
+      if (tile === 'grass' || tile === 'path') {
+        room.blueCreature.x = nx;
+        room.blueCreature.y = ny;
+        updated.push({ code: room.code, creature: room.blueCreature });
+      }
+    }
+    return updated;
+  }
+
+  public getSecretQuestion(): SecretQuestionState {
+    return this.secretQuestion;
+  }
+
+  public answerSecretQuestion(
+    socketId: string,
+    choiceIndex: number
+  ): { room: InternalRoom; correct: boolean; message: string } | { error: string } {
+    const binding = this.socketToBinding.get(socketId);
+    if (!binding) return { error: 'No estás en ninguna sala.' };
+
+    const room = this.rooms.get(binding.roomCode);
+    const player = room?.players.find((p) => p.id === binding.playerId);
+    if (!room || !player) return { error: 'Sala o personaje no encontrado.' };
+
+    const correct = choiceIndex === this.secretQuestion.correctIndex;
+    if (correct) {
+      player.gold = (player.gold ?? 0) + 500;
+      this.grantXp(player, 300);
+      this.scheduleSave();
+      return {
+        room,
+        correct: true,
+        message: '¡Correcto! +500 monedas y +300 EXP. Ahora puedes escribir la próxima pregunta secreta.',
+      };
+    }
+
+    return {
+      room,
+      correct: false,
+      message: '¡Respuesta incorrecta! Vuelve a intentarlo.',
+    };
+  }
+
+  public setSecretQuestion(
+    socketId: string,
+    payload: { question: string; options: [string, string, string]; correctIndex: number }
+  ): { notice: string } | { error: string } {
+    const binding = this.socketToBinding.get(socketId);
+    if (!binding) return { error: 'No estás en ninguna sala.' };
+
+    const room = this.rooms.get(binding.roomCode);
+    const player = room?.players.find((p) => p.id === binding.playerId);
+    if (!room || !player) return { error: 'Sala o personaje no encontrado.' };
+
+    const q = payload.question.trim().slice(0, 140);
+    const opts = payload.options.map((o) => o.trim().slice(0, 60)) as [string, string, string];
+    if (!q || opts.some((o) => !o)) {
+      return { error: 'Escribe la pregunta y las 3 opciones.' };
+    }
+    const idx = Math.max(0, Math.min(2, Math.floor(payload.correctIndex)));
+    this.secretQuestion = {
+      question: q,
+      options: opts,
+      correctIndex: idx,
+      authorName: player.name,
+    };
+    this.saveSecretQuestion();
+    return {
+      notice: `${player.name} dejó una nueva pregunta secreta para los próximos aventureros.`,
     };
   }
 }

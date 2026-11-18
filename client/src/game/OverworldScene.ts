@@ -245,6 +245,7 @@ export class OverworldScene extends Phaser.Scene {
   private shadowLayer: Phaser.GameObjects.Graphics | null = null;
   private propObjects: Phaser.GameObjects.GameObject[] = [];
   private roamingSprites = new Map<string, Phaser.GameObjects.Container>();
+  private blueCreatureSprite: Phaser.GameObjects.Container | null = null;
   private playerSprites = new Map<string, PlayerSpriteBundle>();
   private lastHoverTileKey = '';
   private bannerContainer: Phaser.GameObjects.Container | null = null;
@@ -325,6 +326,7 @@ export class OverworldScene extends Phaser.Scene {
       }
       this.syncPlayers(room.players, regionChanged);
       this.syncRoamingMonsters(room.roamingMonsters ?? []);
+      this.syncBlueCreature(room.blueCreature ?? null);
     }
   }
 
@@ -488,6 +490,8 @@ export class OverworldScene extends Phaser.Scene {
         tip = 'Fuente Curativa (+8 Vida)';
       } else if (tile === 'trap') {
         tip = 'Trampa oculta';
+      } else if (tile === 'secret_question') {
+        tip = 'Enigma Secreto (?)';
       } else if (tile === 'chest') {
         const chest = this.room.map.chests?.find((c) => c.x === tx && c.y === ty);
         tip = chest ? `Cofre ${RARITY_LABELS[chest.rarity]} (clic o camina aquí)` : 'Cofre';
@@ -516,6 +520,7 @@ export class OverworldScene extends Phaser.Scene {
       this.redrawMap();
       this.syncPlayers(this.room.players, true);
       this.syncRoamingMonsters(this.room.roamingMonsters ?? []);
+      this.syncBlueCreature(this.room.blueCreature ?? null);
       this.showRegionBanner(this.room.map.name, this.room.map.subtitle);
     }
   }
@@ -667,7 +672,8 @@ export class OverworldScene extends Phaser.Scene {
           tile === 'chest' ||
           tile === 'minigame' ||
           tile === 'spring' ||
-          tile === 'trap'
+          tile === 'trap' ||
+          tile === 'secret_question'
         ) {
           const base = (x + y) % 2 === 0 ? palette.grassA : palette.grassB;
           g.fillStyle(base, 1);
@@ -722,6 +728,8 @@ export class OverworldScene extends Phaser.Scene {
             this.spawnSpringMarker(px + TILE_SIZE / 2, py + TILE_SIZE / 2);
           } else if (tile === 'trap') {
             this.spawnTrapMarker(px + TILE_SIZE / 2, py + TILE_SIZE / 2);
+          } else if (tile === 'secret_question') {
+            this.spawnSecretQuestionMarker(px + TILE_SIZE / 2, py + TILE_SIZE / 2);
           } else if (tile === 'chest') {
             const chest = map.chests?.find((c) => c.x === x && c.y === y);
             this.spawnChestMarker(px + TILE_SIZE / 2, py + TILE_SIZE / 2, chest?.rarity ?? 'comun');
@@ -969,6 +977,49 @@ export class OverworldScene extends Phaser.Scene {
     g.lineBetween(cx - 8, cy - 8, cx + 8, cy + 8);
     g.lineBetween(cx - 8, cy + 8, cx + 8, cy - 8);
     this.propObjects.push(g);
+  }
+
+  private spawnSecretQuestionMarker(cx: number, cy: number): void {
+    const aura = this.add
+      .circle(cx, cy, 22, 0x38bdf8, 0.25)
+      .setStrokeStyle(2, 0xfbbf24, 0.95)
+      .setDepth(4);
+    const qText = this.add
+      .text(cx, cy, '?', {
+        fontFamily: CANVAS_FONT_FAMILY,
+        fontSize: '20px',
+        fontStyle: 'bold',
+        color: '#fef08a',
+        resolution: this.getTextResolution(),
+      })
+      .setOrigin(0.5)
+      .setDepth(5);
+    this.propObjects.push(aura, qText);
+  }
+
+  public syncBlueCreature(creature: { regionId: string; x: number; y: number } | null): void {
+    if (!this.isSceneReady || !this.room) return;
+    if (!creature || creature.regionId !== this.room.regionId) {
+      if (this.blueCreatureSprite) {
+        this.blueCreatureSprite.destroy();
+        this.blueCreatureSprite = null;
+      }
+      return;
+    }
+
+    const cx = creature.x * TILE_SIZE + TILE_SIZE / 2;
+    const cy = creature.y * TILE_SIZE + TILE_SIZE / 2;
+    if (!this.blueCreatureSprite) {
+      // Small light-blue creature with bright white eyes
+      const body = this.add
+        .circle(0, 2, 12, 0x38bdf8, 1)
+        .setStrokeStyle(2, 0xe0f2fe, 0.95);
+      const eyeL = this.add.circle(-4, -1, 3, 0xffffff, 1);
+      const eyeR = this.add.circle(4, -1, 3, 0xffffff, 1);
+      this.blueCreatureSprite = this.add.container(cx, cy, [body, eyeL, eyeR]).setDepth(16);
+    } else {
+      this.blueCreatureSprite.setPosition(cx, cy);
+    }
   }
 
   public syncRoamingMonsters(monsters: Array<{ id: string; name: string; x: number; y: number }>): void {

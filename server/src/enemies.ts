@@ -354,3 +354,19 @@ export function spawnBossForRegion(
     goldReward: tpl.goldReward + lvAbove1 * 10,
   };
 }
+
+export function spawnBlueCreatureEnemy(): CombatEnemy {
+  return {
+    id: crypto.randomUUID(),
+    name: '? (Criatura Celeste)',
+    isBoss: true,
+    hp: 75,
+    maxHp: 75,
+    ac: 17,
+    attackMod: 9,
+    initiativeMod: 8,
+    damageDice: '2d8+4',
+    xpReward: 200,
+    goldReward: 150,
+  };
+}

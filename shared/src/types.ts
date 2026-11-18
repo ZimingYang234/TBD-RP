@@ -14,7 +14,8 @@ export type TileType =
   | 'chest'
   | 'minigame'
   | 'spring'
-  | 'trap';
+  | 'trap'
+  | 'secret_question';
 
 export type RegionTheme =
   | 'verdant'
@@ -59,6 +60,20 @@ export interface PortalDef {
   minLevel?: number;
   requiredKey?: string;
   requiredKeyLabel?: string;
+  requiresFinalUnlock?: boolean;
+}
+
+export interface BlueCreatureState {
+  regionId: string;
+  x: number;
+  y: number;
+}
+
+export interface SecretQuestionState {
+  question: string;
+  options: [string, string, string];
+  correctIndex: number;
+  authorName: string;
 }
 
 export interface RoamingMonster {
@@ -203,6 +218,7 @@ export interface CombatState {
   id: string;
   mode: 'pve' | 'pvp';
   isBoss?: boolean;
+  isBlueCreature?: boolean;
   round: number;
   enemies: CombatEnemy[];
   turnOrder: CombatTurnEntry[];
@@ -293,6 +309,8 @@ export interface PublicRoomState {
   quest: QuestState | null;
   bossKeys: string[];
   roamingMonsters?: RoamingMonster[];
+  blueCreature?: BlueCreatureState | null;
+  secretRoomUnlocked?: boolean;
 }
 
 export interface JoinSuccessPayload {
@@ -334,6 +352,7 @@ export interface ServerToClientEvents {
   room_state: (room: PublicRoomState) => void;
   player_moved: (payload: { playerId: string; x: number; y: number; regionId: string }) => void;
   roaming_moved: (monsters: RoamingMonster[]) => void;
+  blue_creature_moved: (creature: BlueCreatureState | null) => void;
   party_teleported: (payload: PartyTeleportedPayload) => void;
   event_started: (payload: { room: PublicRoomState }) => void;
   event_updated: (payload: { activeEvent: ActiveEventState }) => void;
@@ -361,6 +380,8 @@ export interface ServerToClientEvents {
   }) => void;
   open_shop: () => void;
   open_minigame: (payload: { game: 'memory' | 'reflex' | 'chest_guess' | 'riddle' | 'arena' }) => void;
+  open_secret_question: (payload: SecretQuestionState) => void;
+  secret_question_result: (payload: { correct: boolean; message: string; canCustomize: boolean }) => void;
   save_code_generated: (payload: { saveCode: string }) => void;
   room_error: (payload: { message: string; code?: string }) => void;
   system_notice: (payload: { message: string }) => void;
@@ -407,6 +428,12 @@ export interface ClientToServerEvents {
   export_save_code: () => void;
   load_save_code: (payload: { saveCode: string }) => void;
   reset_progress: () => void;
+  answer_secret_question: (payload: { choiceIndex: number }) => void;
+  set_secret_question: (payload: {
+    question: string;
+    options: [string, string, string];
+    correctIndex: number;
+  }) => void;
   complete_minigame: (payload: {
     game: 'memory' | 'reflex' | 'chest_guess' | 'riddle' | 'arena';
     difficulty: 'normal' | 'dificil';
