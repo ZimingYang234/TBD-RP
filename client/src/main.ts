@@ -121,8 +121,8 @@ const combatModal = new CombatModal({
   onAction: (action, targetId, qteScore) => {
     socket.emit('combat_action', { action, targetId, qteScore });
   },
-  onDodge: () => {
-    socket.emit('combat_dodge');
+  onDodge: (quality) => {
+    socket.emit('combat_dodge', { quality });
   },
   onSkipTurn: () => {
     socket.emit('skip_combat_turn');
@@ -608,7 +608,7 @@ function renderApp(): void {
 // Socket lifecycle
 socket.on('connect', () => {
   const saved = loadSavedSession();
-  if (saved && !currentRoom) {
+  if (saved) {
     socket.emit('reconnect_room', {
       roomCode: saved.roomCode,
       playerToken: saved.playerToken,

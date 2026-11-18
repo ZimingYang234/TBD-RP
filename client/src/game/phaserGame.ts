@@ -11,7 +11,7 @@ export function createPhaserGame(
   const scene = new OverworldScene(quality);
 
   const game = new Phaser.Game({
-    type: Phaser.AUTO,
+    type: quality === 'low' ? Phaser.CANVAS : Phaser.AUTO,
     parent,
     width: room.map.width * TILE_SIZE,
     height: room.map.height * TILE_SIZE,

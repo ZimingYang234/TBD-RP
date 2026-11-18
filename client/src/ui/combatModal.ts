@@ -22,7 +22,7 @@ export type CombatActionType =
 
 export interface CombatModalCallbacks {
   onAction: (action: CombatActionType, targetId?: string, qteScore?: number) => void;
-  onDodge: () => void;
+  onDodge: (quality: 'perfect' | 'medium' | 'bad') => void;
   onSkipTurn: () => void;
   onOutcomeClosed: () => void;
 }
@@ -34,6 +34,7 @@ export class CombatModal {
   private lastAnimatedSignature: string | null = null;
   private diceTimer: number | null = null;
   private dodgeTimer: number | null = null;
+  private dodgeRaf: number | null = null;
   private qteTimer: number | null = null;
   private qteKeyListener: ((e: KeyboardEvent) => void) | null = null;
   private dodgeKeyListener: ((e: KeyboardEvent) => void) | null = null;
@@ -69,6 +70,10 @@ export class CombatModal {
     if (this.dodgeTimer !== null) {
       window.clearTimeout(this.dodgeTimer);
       this.dodgeTimer = null;
+    }
+    if (this.dodgeRaf !== null) {
+      cancelAnimationFrame(this.dodgeRaf);
+      this.dodgeRaf = null;
     }
     if (this.qteTimer !== null) {
       window.clearTimeout(this.qteTimer);
@@ -644,18 +649,57 @@ export class CombatModal {
     }
 
     let dodged = false;
+    let pos = 10;
+    let dir = 1;
+    let lastTs = performance.now();
+
     slot.innerHTML = `
-      <button type="button" id="combat-dodge-now-btn" class="qte-dodge-btn">
-        ¡ESQUIVA AHORA! Pulsa <strong>ESPACIO</strong> o haz <strong>CLIC AQUÍ</strong> (${this.escapeHtml(enemyName)} ataca)
-      </button>
+      <div class="dodge-bar-wrap">
+        <div class="dodge-bar-title">
+          ¡${this.escapeHtml(enemyName)} ataca! Pulsa <strong>ESPACIO</strong> o <strong>CLIC</strong> en la zona central
+        </div>
+        <button type="button" id="combat-dodge-now-btn" class="dodge-track" aria-label="Barra de esquiva">
+          <span class="dodge-zone-med"></span>
+          <span class="dodge-zone-perf"></span>
+          <span class="dodge-cursor" id="dodge-cursor" style="left:10%"></span>
+        </button>
+      </div>
     `;
+
+    const cursorEl = slot.querySelector<HTMLElement>('#dodge-cursor');
+    const stepCursor = (now: number) => {
+      if (dodged) return;
+      const dt = Math.min(50, Math.max(1, now - lastTs)) / 1000;
+      lastTs = now;
+      pos += dir * 215 * dt;
+      if (pos >= 98) {
+        pos = 98;
+        dir = -1;
+      } else if (pos <= 2) {
+        pos = 2;
+        dir = 1;
+      }
+      if (cursorEl) cursorEl.style.left = `${pos}%`;
+      this.dodgeRaf = requestAnimationFrame(stepCursor);
+    };
+    this.dodgeRaf = requestAnimationFrame(stepCursor);
 
     const triggerDodge = () => {
       if (dodged) return;
       dodged = true;
+      const quality: 'perfect' | 'medium' | 'bad' =
+        pos >= 43 && pos <= 57 ? 'perfect' : pos >= 28 && pos <= 72 ? 'medium' : 'bad';
       this.clearActionListeners();
-      this.callbacks.onDodge();
-      slot.innerHTML = `<div class="qte-banner qte-success">¡Esquiva lista! Esperando impacto...</div>`;
+      this.callbacks.onDodge(quality);
+
+      const label =
+        quality === 'perfect'
+          ? '¡Esquiva PERFECTA! (-30% daño)'
+          : quality === 'medium'
+            ? '¡Esquiva MEDIA! (-15% daño)'
+            : '¡Mala esquiva! (0% reducción)';
+      const cls = quality === 'bad' ? 'qte-watch' : 'qte-success';
+      slot.innerHTML = `<div class="qte-banner ${cls}">${label}</div>`;
     };
 
     slot.querySelector('#combat-dodge-now-btn')?.addEventListener('click', triggerDodge);

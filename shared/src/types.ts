@@ -391,7 +391,7 @@ export interface ClientToServerEvents {
     targetId?: string;
     qteScore?: number;
   }) => void;
-  combat_dodge: () => void;
+  combat_dodge: (payload: { quality: 'perfect' | 'medium' | 'bad' }) => void;
   complete_boss_arena: (payload: { victory: boolean; regionId: string }) => void;
   skip_combat_turn: () => void;
   play_tavern_dice: (payload: { bet: number }) => void;

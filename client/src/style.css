@@ -1462,6 +1462,64 @@ body {
   color: #0e1410;
 }
 
+.dodge-bar-wrap {
+  background: var(--panel-alt);
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dodge-bar-title {
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--accent-hover);
+  text-align: center;
+}
+
+.dodge-track {
+  position: relative;
+  width: 100%;
+  height: 28px;
+  border-radius: 999px;
+  background: #141824;
+  border: 2px solid var(--border);
+  cursor: pointer;
+  overflow: hidden;
+  padding: 0;
+}
+
+.dodge-zone-med {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 28%;
+  width: 44%;
+  background: rgba(72, 184, 120, 0.32);
+}
+
+.dodge-zone-perf {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 43%;
+  width: 14%;
+  background: rgba(251, 191, 36, 0.55);
+}
+
+.dodge-cursor {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  width: 6px;
+  transform: translateX(-50%);
+  border-radius: 3px;
+  background: #ffffff;
+  box-shadow: 0 0 8px #ffffff;
+}
+
 .equip-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;

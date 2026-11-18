@@ -47,6 +47,8 @@ const io = new Server<ClientToServerEvents, ServerToClientEvents>(server, {
   },
   transports: ['polling', 'websocket'],
   allowUpgrades: true,
+  pingTimeout: 45_000,
+  pingInterval: 20_000,
 });
 
 const roomManager = new RoomManager(DATA_DIR);
@@ -60,7 +62,7 @@ function scheduleEnemyTurnIfNeeded(roomCode: string): void {
   if (telegraph) {
     io.to(roomCode).emit('enemy_telegraph', {
       ...telegraph,
-      windowMs: 1450,
+      windowMs: 1700,
     });
   }
 
@@ -83,7 +85,7 @@ function scheduleEnemyTurnIfNeeded(roomCode: string): void {
       roll: outcome.roll,
     });
     scheduleEnemyTurnIfNeeded(roomCode);
-  }, 1600);
+  }, 1850);
 
   enemyTurnTimers.set(roomCode, timer);
 }
@@ -438,8 +440,10 @@ io.on('connection', (socket) => {
     emitEventResolved(result.outcome.room.code, result.outcome);
   });
 
-  socket.on('combat_dodge', () => {
-    roomManager.markPlayerDodged(socket.id);
+  socket.on('combat_dodge', (payload) => {
+    const quality =
+      payload?.quality === 'perfect' || payload?.quality === 'medium' ? payload.quality : 'bad';
+    roomManager.markPlayerDodged(socket.id, quality);
   });
 
   socket.on('complete_boss_arena', (payload) => {

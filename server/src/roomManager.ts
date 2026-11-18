@@ -178,7 +178,7 @@ export class RoomManager {
   private springCooldowns = new Map<string, number>();
   private surpriseCooldowns = new Map<string, number>();
   private pendingEventRooms = new Set<string>();
-  private pendingEnemyTarget = new Map<string, { targetId: string; dodged: boolean }>();
+  private pendingEnemyTarget = new Map<string, { targetId: string; dodgeReduction: 0 | 15 | 30 }>();
   private saveTimer: NodeJS.Timeout | null = null;
   private readonly storePath: string;
 
@@ -2028,7 +2028,7 @@ export class RoomManager {
     if (!enemy || livingPlayers.length === 0) return null;
 
     const target = livingPlayers[Math.floor(Math.random() * livingPlayers.length)];
-    this.pendingEnemyTarget.set(roomCode, { targetId: target.id, dodged: false });
+    this.pendingEnemyTarget.set(roomCode, { targetId: target.id, dodgeReduction: 0 });
     return {
       enemyName: enemy.name,
       targetPlayerId: target.id,
@@ -2036,12 +2036,12 @@ export class RoomManager {
     };
   }
 
-  public markPlayerDodged(socketId: string): boolean {
+  public markPlayerDodged(socketId: string, quality: 'perfect' | 'medium' | 'bad'): boolean {
     const binding = this.socketToBinding.get(socketId);
     if (!binding) return false;
     const pending = this.pendingEnemyTarget.get(binding.roomCode);
     if (!pending || pending.targetId !== binding.playerId) return false;
-    pending.dodged = true;
+    pending.dodgeReduction = quality === 'perfect' ? 30 : quality === 'medium' ? 15 : 0;
     return true;
   }
 
@@ -2212,27 +2212,7 @@ export class RoomManager {
     const target =
       (pending ? livingPlayers.find((p) => p.id === pending.targetId) : undefined) ??
       livingPlayers[Math.floor(Math.random() * livingPlayers.length)];
-
-    if (pending && pending.targetId === target.id && pending.dodged) {
-      const roll: DiceRollBreakdown = {
-        actorId: enemy.id,
-        actorName: enemy.name,
-        actorKind: 'enemy',
-        targetId: target.id,
-        targetName: target.name,
-        actionType: 'attack',
-        headline: `¡Esquiva perfecta! 0 de daño`,
-        hit: false,
-        critical: false,
-        fumble: false,
-        summary: `¡Reflejos felinos! ${target.name} esquivó el golpe de ${enemy.name} a tiempo.`,
-      };
-      combat.lastRoll = roll;
-      combat.log = [...combat.log, roll.summary].slice(-20);
-      this.advanceTurnIndex(room);
-      this.scheduleSave();
-      return { type: 'updated', room, roll };
-    }
+    const dodgeReduction = pending && pending.targetId === target.id ? pending.dodgeReduction : 0;
 
     const isDefending = combat.defendingIds.includes(target.id);
     const frostBonus = room.regionId === 'ventisca' ? 1 : 0;
@@ -2247,7 +2227,11 @@ export class RoomManager {
     let roll: DiceRollBreakdown;
     if (hit) {
       const dmg = rollDiceExpression(enemy.damageDice, critical);
-      target.hp = Math.max(0, target.hp - dmg.total);
+      const finalDmg =
+        dodgeReduction > 0
+          ? Math.max(1, Math.round(dmg.total * (1 - dodgeReduction / 100)))
+          : dmg.total;
+      target.hp = Math.max(0, target.hp - finalDmg);
       let statusNote = '';
       if (Math.random() < 0.25) {
         const applied: StatusKind =
@@ -2266,9 +2250,15 @@ export class RoomManager {
         ];
         statusNote = applied === 'poison' ? ' (+Veneno)' : ' (+Quemadura)';
       }
+      const dodgeNote =
+        dodgeReduction === 30
+          ? ' (Esquiva perfecta -30%)'
+          : dodgeReduction === 15
+            ? ' (Esquiva media -15%)'
+            : '';
       const headline = critical
-        ? `¡Golpe crítico! ${dmg.total} de daño${statusNote}`
-        : `¡Impacto enemigo! ${dmg.total} de daño${statusNote}`;
+        ? `¡Golpe crítico! ${finalDmg} de daño${dodgeNote}${statusNote}`
+        : `¡Impacto enemigo! ${finalDmg} de daño${dodgeNote}${statusNote}`;
       roll = {
         actorId: enemy.id,
         actorName: enemy.name,
@@ -2287,7 +2277,7 @@ export class RoomManager {
         damageDice: enemy.damageDice,
         damageRolls: dmg.rolls,
         damageMod: dmg.modifier,
-        damageTotal: dmg.total,
+        damageTotal: finalDmg,
         summary: `${headline} — ${enemy.name} hiere a ${target.name}.`,
       };
     } else {
