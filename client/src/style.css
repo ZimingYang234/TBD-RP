@@ -326,11 +326,12 @@ body {
 .game-main {
   flex: 1;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 285px;
+  grid-template-columns: minmax(0, 1fr) clamp(280px, 26vw, 340px);
   min-height: 0;
 }
 
 .canvas-host {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -347,14 +348,95 @@ body {
   box-shadow: 0 14px 40px rgba(0, 0, 0, 0.55);
 }
 
+.map-dom-overlay {
+  position: absolute;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 10;
+}
+
+.map-portal-label,
+.map-player-label,
+.map-tooltip-label {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-weight: 700;
+  font-size: clamp(11px, 1.05vw, 14px);
+  line-height: 1.2;
+  white-space: nowrap;
+  border-radius: 6px;
+  padding: 3px 8px;
+  -webkit-font-smoothing: antialiased;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
+}
+
+.map-portal-label {
+  background: rgba(22, 14, 38, 0.92);
+  color: #f8f0ff;
+  border: 1px solid rgba(167, 139, 250, 0.55);
+}
+
+.map-player-label {
+  background: rgba(14, 17, 26, 0.92);
+  color: #f8fafc;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.map-player-label.me {
+  border-color: rgba(240, 180, 76, 0.75);
+  color: #fde68a;
+}
+
+.map-tooltip-label {
+  transform: translate(-50%, -100%);
+  background: rgba(15, 18, 27, 0.96);
+  color: #f8fafc;
+  border: 1px solid rgba(240, 180, 76, 0.65);
+  z-index: 20;
+}
+
+.map-banner-dom {
+  position: absolute;
+  left: 50%;
+  top: 14px;
+  transform: translateX(-50%);
+  background: rgba(15, 18, 27, 0.94);
+  border: 2px solid rgba(240, 180, 76, 0.9);
+  border-radius: 10px;
+  padding: 8px 20px;
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+  transition: opacity 0.25s ease;
+  z-index: 25;
+  max-width: 90%;
+}
+
+.map-banner-dom.fade-out {
+  opacity: 0;
+}
+
+.map-banner-title {
+  font-size: clamp(14px, 1.5vw, 20px);
+  font-weight: 800;
+  color: #f7c45f;
+}
+
+.map-banner-sub {
+  font-size: clamp(11px, 1vw, 13px);
+  color: #e2e8f5;
+  margin-top: 2px;
+}
+
 .sidebar {
   background: var(--panel);
   border-left: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  padding: 14px;
-  gap: 12px;
+  padding: 12px;
+  gap: 10px;
   min-height: 0;
+  overflow-y: auto;
 }
 
 .sidebar h3 {
@@ -423,15 +505,25 @@ body {
   padding: 9px 10px;
 }
 
-@media (max-width: 820px) {
+@media (max-width: 960px) {
+  .game-shell {
+    height: auto;
+    min-height: 100vh;
+    overflow-y: auto;
+  }
   .class-grid,
   .actions-row,
   .game-main {
     grid-template-columns: 1fr;
   }
+  .canvas-host {
+    height: 54vh;
+    min-height: 280px;
+  }
   .sidebar {
     border-left: none;
     border-top: 1px solid var(--border);
+    overflow-y: visible;
   }
 }
 

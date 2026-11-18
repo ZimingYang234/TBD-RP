@@ -18,7 +18,7 @@ interface PlayerSpriteBundle {
   container: Phaser.GameObjects.Container;
   avatar: Phaser.GameObjects.Container;
   ring: Phaser.GameObjects.Ellipse | null;
-  label: Phaser.GameObjects.Text;
+  labelEl: HTMLDivElement | null;
   tileX: number;
   tileY: number;
 }
@@ -147,7 +147,11 @@ export class OverworldScene extends Phaser.Scene {
 
   private clickTarget: { x: number; y: number } | null = null;
   private clickMarker: Phaser.GameObjects.Arc | null = null;
-  private hoverTooltip: Phaser.GameObjects.Text | null = null;
+  private domOverlayEl: HTMLDivElement | null = null;
+  private domTooltipEl: HTMLDivElement | null = null;
+  private domBannerEl: HTMLDivElement | null = null;
+  private domPortalEls: HTMLDivElement[] = [];
+  private domBannerTimer: number | null = null;
 
   private cursors: Phaser.Types.Input.Keyboard.CursorKeys | null = null;
   private wasd: {
@@ -221,67 +225,76 @@ export class OverworldScene extends Phaser.Scene {
 
   public showRegionBanner(title: string, subtitle: string): void {
     if (!this.isSceneReady) return;
-    if (this.bannerContainer) {
-      this.tweens.killTweensOf(this.bannerContainer);
-      this.bannerContainer.destroy();
-      this.bannerContainer = null;
+    const overlay = this.ensureDomOverlay();
+    if (!overlay) return;
+
+    if (this.domBannerTimer !== null) {
+      window.clearTimeout(this.domBannerTimer);
+      this.domBannerTimer = null;
     }
+    this.domBannerEl?.remove();
 
-    const res = this.getTextResolution();
-    const centerX = (this.room?.map.width ?? 20) * TILE_SIZE * 0.5;
-    const bg = this.add
-      .rectangle(0, 0, 540, 86, 0x10131e, 0.94)
-      .setStrokeStyle(2, 0xf0b44c);
-    const innerLine = this.add
-      .rectangle(0, 0, 526, 72)
-      .setStrokeStyle(1, 0xf0b44c, 0.32);
-
-    const titleText = this.add
-      .text(0, -14, title, {
-        fontFamily: CANVAS_FONT_FAMILY,
-        fontSize: '24px',
-        fontStyle: 'bold',
-        color: '#f7c45f',
-        stroke: '#090b10',
-        strokeThickness: 3,
-        resolution: res,
-      })
-      .setOrigin(0.5);
-    const subText = this.add
-      .text(0, 17, subtitle, {
-        fontFamily: CANVAS_FONT_FAMILY,
-        fontSize: '15px',
-        color: '#e2e8f5',
-        stroke: '#090b10',
-        strokeThickness: 2,
-        resolution: res,
-      })
-      .setOrigin(0.5);
-
-    const container = this.add.container(centerX, 72, [bg, innerLine, titleText, subText]);
-    container.setDepth(50);
-    container.setAlpha(0);
-    this.bannerContainer = container;
+    const banner = document.createElement('div');
+    banner.className = 'map-banner-dom';
+    banner.innerHTML = `<div class="map-banner-title"></div><div class="map-banner-sub"></div>`;
+    banner.querySelector('.map-banner-title')!.textContent = title;
+    banner.querySelector('.map-banner-sub')!.textContent = subtitle;
+    overlay.appendChild(banner);
+    this.domBannerEl = banner;
 
     if (this.quality !== 'low') {
-      this.cameras.main.flash(220, 167, 139, 250, false);
+      this.cameras.main.flash(200, 167, 139, 250, false);
     }
 
-    this.tweens.add({
-      targets: container,
-      alpha: 1,
-      y: 80,
-      duration: 240,
-      hold: 2000,
-      yoyo: true,
-      ease: 'Sine.easeOut',
-      onComplete: () => {
-        if (this.bannerContainer === container) {
-          container.destroy();
-          this.bannerContainer = null;
+    this.domBannerTimer = window.setTimeout(() => {
+      banner.classList.add('fade-out');
+      window.setTimeout(() => {
+        if (this.domBannerEl === banner) {
+          banner.remove();
+          this.domBannerEl = null;
         }
-      },
-    });
+      }, 280);
+    }, 2200);
+  }
+
+  private ensureDomOverlay(): HTMLDivElement | null {
+    const canvas = this.game?.canvas;
+    const parent = canvas?.parentElement;
+    if (!canvas || !parent) return null;
+
+    if (!this.domOverlayEl) {
+      const overlay = document.createElement('div');
+      overlay.className = 'map-dom-overlay';
+      parent.appendChild(overlay);
+      this.domOverlayEl = overlay;
+
+      const tooltip = document.createElement('div');
+      tooltip.className = 'map-tooltip-label';
+      tooltip.style.display = 'none';
+      overlay.appendChild(tooltip);
+      this.domTooltipEl = tooltip;
+    }
+
+    this.syncDomOverlayBounds();
+    return this.domOverlayEl;
+  }
+
+  private syncDomOverlayBounds(): void {
+    const canvas = this.game?.canvas;
+    if (!canvas || !this.domOverlayEl) return;
+    this.domOverlayEl.style.left = `${canvas.offsetLeft}px`;
+    this.domOverlayEl.style.top = `${canvas.offsetTop}px`;
+    this.domOverlayEl.style.width = `${canvas.clientWidth}px`;
+    this.domOverlayEl.style.height = `${canvas.clientHeight}px`;
+  }
+
+  private positionDomLabel(el: HTMLElement, worldX: number, worldY: number): void {
+    const map = this.room?.map;
+    if (!map) return;
+    const mapW = map.width * TILE_SIZE;
+    const mapH = map.height * TILE_SIZE;
+    el.style.left = `${(worldX / mapW) * 100}%`;
+    el.style.top = `${(worldY / mapH) * 100}%`;
   }
 
   public create(): void {
@@ -290,6 +303,19 @@ export class OverworldScene extends Phaser.Scene {
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.isSceneReady = false;
+      if (this.domBannerTimer !== null) {
+        window.clearTimeout(this.domBannerTimer);
+        this.domBannerTimer = null;
+      }
+      this.domOverlayEl?.remove();
+      this.domOverlayEl = null;
+      this.domTooltipEl = null;
+      this.domBannerEl = null;
+      this.domPortalEls = [];
+    });
+
+    this.scale.on('resize', () => {
+      this.syncDomOverlayBounds();
     });
 
     if (this.input.keyboard) {
@@ -311,19 +337,7 @@ export class OverworldScene extends Phaser.Scene {
       .setDepth(8)
       .setVisible(false);
 
-    this.hoverTooltip = this.add
-      .text(0, 0, '', {
-        fontFamily: CANVAS_FONT_FAMILY,
-        fontSize: '14px',
-        fontStyle: 'bold',
-        color: '#f8fafc',
-        backgroundColor: '#0f121be6',
-        padding: { x: 8, y: 4 },
-      })
-      .setOrigin(0.5, 1)
-      .setDepth(45)
-      .setResolution(this.getTextResolution())
-      .setVisible(false);
+    this.ensureDomOverlay();
 
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
       if (this.inputBlocked || !this.room || this.room.phase !== 'playing') return;
@@ -340,11 +354,11 @@ export class OverworldScene extends Phaser.Scene {
     });
 
     this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
-      if (!this.room || !this.hoverTooltip) return;
+      if (!this.room || !this.domTooltipEl) return;
       const tx = Math.floor(pointer.worldX / TILE_SIZE);
       const ty = Math.floor(pointer.worldY / TILE_SIZE);
       if (tx < 0 || ty < 0 || tx >= this.room.map.width || ty >= this.room.map.height) {
-        this.hoverTooltip.setVisible(false);
+        this.domTooltipEl.style.display = 'none';
         return;
       }
 
@@ -354,25 +368,29 @@ export class OverworldScene extends Phaser.Scene {
         const portal = this.room.map.portals.find((p) => p.x === tx && p.y === ty);
         tip = portal ? `Portal ${portal.label}` : 'Portal';
       } else if (tile === 'event') {
-        tip = 'Evento (haz clic o camina aquí)';
+        tip = 'Evento (clic o camina aquí)';
       } else if (tile === 'combat') {
-        tip = 'Combate (haz clic o camina aquí)';
+        tip = 'Combate (clic o camina aquí)';
       } else if (tile === 'shop') {
-        tip = 'Tienda (haz clic o camina aquí)';
+        tip = 'Tienda (clic o camina aquí)';
       }
 
       if (!tip) {
-        this.hoverTooltip.setVisible(false);
+        this.domTooltipEl.style.display = 'none';
         return;
       }
 
-      const px = Phaser.Math.Clamp(
+      this.domTooltipEl.textContent = tip;
+      this.positionDomLabel(
+        this.domTooltipEl,
         tx * TILE_SIZE + TILE_SIZE / 2,
-        90,
-        this.room.map.width * TILE_SIZE - 90
+        ty * TILE_SIZE - 8
       );
-      const py = Math.max(36, ty * TILE_SIZE - 4);
-      this.hoverTooltip.setText(tip).setPosition(px, py).setVisible(true);
+      this.domTooltipEl.style.display = 'block';
+    });
+
+    this.input.on('gameout', () => {
+      if (this.domTooltipEl) this.domTooltipEl.style.display = 'none';
     });
 
     if (this.room) {
@@ -478,12 +496,17 @@ export class OverworldScene extends Phaser.Scene {
       obj.destroy();
     }
     this.propObjects = [];
+    for (const el of this.domPortalEls) {
+      el.remove();
+    }
+    this.domPortalEls = [];
   }
 
   private rebuildPlayerSprites(): void {
     for (const bundle of this.playerSprites.values()) {
       this.tweens.killTweensOf(bundle.avatar);
       this.tweens.killTweensOf(bundle.container);
+      bundle.labelEl?.remove();
       bundle.container.destroy();
     }
     this.playerSprites.clear();
@@ -721,26 +744,15 @@ export class OverworldScene extends Phaser.Scene {
       const labelY = placeBelow ? cy + 40 : cy - 40;
       const labelX = Math.max(76, Math.min(mapPixelWidth - 76, cx));
 
-      const label = this.add
-        .text(labelX, labelY, portal.label, {
-          fontFamily: CANVAS_FONT_FAMILY,
-          fontSize: '14px',
-          fontStyle: 'bold',
-          color: '#f8f0ff',
-          backgroundColor: '#160e26eb',
-          stroke: '#090512',
-          strokeThickness: 2,
-          padding: { x: 8, y: 4 },
-          resolution: textRes,
-          shadow:
-            q === 'low'
-              ? undefined
-              : { offsetX: 0, offsetY: 1, color: '#000000', blur: 3, stroke: true, fill: true },
-        })
-        .setOrigin(0.5)
-        .setDepth(25);
-
-      this.propObjects.push(label);
+      const overlay = this.ensureDomOverlay();
+      if (overlay) {
+        const portalEl = document.createElement('div');
+        portalEl.className = 'map-portal-label';
+        portalEl.textContent = portal.label;
+        this.positionDomLabel(portalEl, labelX, labelY);
+        overlay.appendChild(portalEl);
+        this.domPortalEls.push(portalEl);
+      }
     }
   }
 
@@ -951,13 +963,13 @@ export class OverworldScene extends Phaser.Scene {
       if (!activeIds.has(id)) {
         this.tweens.killTweensOf(bundle.avatar);
         this.tweens.killTweensOf(bundle.container);
+        bundle.labelEl?.remove();
         bundle.container.destroy();
         this.playerSprites.delete(id);
       }
     }
 
-    const res = this.getTextResolution();
-    const useShadow = this.quality !== 'low';
+    const overlay = this.ensureDomOverlay();
 
     for (const player of players) {
       let bundle = this.playerSprites.get(player.id);
@@ -976,32 +988,23 @@ export class OverworldScene extends Phaser.Scene {
 
         const avatar = this.createHeroAvatar(player.playerClass);
 
-        const label = this.add
-          .text(0, -TILE_SIZE * 0.6, player.name, {
-            fontFamily: CANVAS_FONT_FAMILY,
-            fontSize: '15px',
-            fontStyle: 'bold',
-            color: '#f8fafc',
-            backgroundColor: '#0e111ae6',
-            stroke: '#090b10',
-            strokeThickness: 2,
-            padding: { x: 8, y: 3 },
-            resolution: res,
-            shadow: useShadow
-              ? { offsetX: 0, offsetY: 1, color: '#000000', blur: 3, stroke: true, fill: true }
-              : undefined,
-          })
-          .setOrigin(0.5);
-
         if (ring) container.add(ring);
-        container.add([avatar, label]);
+        container.add([avatar]);
         container.setDepth(isMe ? 20 : 12);
+
+        let labelEl: HTMLDivElement | null = null;
+        if (overlay) {
+          labelEl = document.createElement('div');
+          labelEl.className = `map-player-label${isMe ? ' me' : ''}`;
+          overlay.appendChild(labelEl);
+          this.positionDomLabel(labelEl, targetX, targetY - TILE_SIZE * 0.6);
+        }
 
         bundle = {
           container,
           avatar,
           ring,
-          label,
+          labelEl,
           tileX: player.x,
           tileY: player.y,
         };
@@ -1009,7 +1012,10 @@ export class OverworldScene extends Phaser.Scene {
       }
 
       bundle.container.setAlpha(player.connected ? 1 : 0.45);
-      bundle.label.setText(player.connected ? player.name : `${player.name} (desc.)`);
+      if (bundle.labelEl) {
+        bundle.labelEl.textContent = player.connected ? player.name : `${player.name} (desc.)`;
+        bundle.labelEl.style.opacity = player.connected ? '1' : '0.6';
+      }
 
       if (bundle.tileX !== player.x || bundle.tileY !== player.y) {
         if (snapImmediately) {
@@ -1017,6 +1023,9 @@ export class OverworldScene extends Phaser.Scene {
           bundle.tileX = player.x;
           bundle.tileY = player.y;
           bundle.container.setPosition(targetX, targetY);
+          if (bundle.labelEl) {
+            this.positionDomLabel(bundle.labelEl, targetX, targetY - TILE_SIZE * 0.6);
+          }
         } else {
           this.movePlayerSprite(player.id, player.x, player.y);
         }
@@ -1040,6 +1049,20 @@ export class OverworldScene extends Phaser.Scene {
       y: targetY,
       duration: 105,
       ease: 'Sine.easeOut',
+      onUpdate: () => {
+        if (bundle.labelEl) {
+          this.positionDomLabel(
+            bundle.labelEl,
+            bundle.container.x,
+            bundle.container.y - TILE_SIZE * 0.6
+          );
+        }
+      },
+      onComplete: () => {
+        if (bundle.labelEl) {
+          this.positionDomLabel(bundle.labelEl, targetX, targetY - TILE_SIZE * 0.6);
+        }
+      },
     });
   }
 }
