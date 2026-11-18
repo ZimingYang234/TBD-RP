@@ -73,6 +73,7 @@ export interface PlayerState {
   equippedWeaponId: string | null;
   equippedArmorId: string | null;
   redeemedCodes: string[];
+  tavernPlays?: number[];
   connected: boolean;
 }
 

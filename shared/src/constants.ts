@@ -13,6 +13,8 @@ export const CHEST_RESPAWN_MS = 45_000;
 export const STARTING_GOLD = 20;
 export const MAX_INVENTORY_SLOTS = 5;
 export const BOSS_PORTAL_MIN_LEVEL = 10;
+export const TAVERN_MAX_PLAYS = 3;
+export const TAVERN_WINDOW_MS = 15 * 60 * 1000;
 
 export function xpForNextLevel(level: number): number {
   return Math.round(100 * Math.pow(1.1, Math.max(0, level - 1)));

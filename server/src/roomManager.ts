@@ -15,6 +15,8 @@ import {
   ROOM_CODE_LENGTH,
   SHOP_ITEMS,
   STARTING_GOLD,
+  TAVERN_MAX_PLAYS,
+  TAVERN_WINDOW_MS,
   xpForNextLevel,
   type ActiveEventState,
   type CombatEndedPayload,
@@ -214,6 +216,7 @@ export class RoomManager {
             equippedWeaponId: typeof p.equippedWeaponId === 'string' ? p.equippedWeaponId : null,
             equippedArmorId: typeof p.equippedArmorId === 'string' ? p.equippedArmorId : null,
             redeemedCodes: Array.isArray(p.redeemedCodes) ? [...p.redeemedCodes] : [],
+            tavernPlays: Array.isArray(p.tavernPlays) ? p.tavernPlays.filter((t) => typeof t === 'number') : [],
             connected: false,
           };
         });
@@ -322,6 +325,7 @@ export class RoomManager {
       equippedWeaponId: null,
       equippedArmorId: null,
       redeemedCodes: [],
+      tavernPlays: [],
       connected: true,
     };
   }
@@ -2153,6 +2157,19 @@ export class RoomManager {
     if ((player.gold ?? 0) < bet) {
       return { error: `No tienes suficientes monedas para apostar ${bet}.` };
     }
+
+    const now = Date.now();
+    const recentPlays = (player.tavernPlays ?? []).filter((ts) => now - ts < TAVERN_WINDOW_MS);
+    if (recentPlays.length >= TAVERN_MAX_PLAYS) {
+      const oldest = Math.min(...recentPlays);
+      const waitMin = Math.max(1, Math.ceil((oldest + TAVERN_WINDOW_MS - now) / 60_000));
+      return {
+        error: `Has agotado tus ${TAVERN_MAX_PLAYS} tiradas de Taberna. Vuelve en ${waitMin} min.`,
+      };
+    }
+
+    recentPlays.push(now);
+    player.tavernPlays = recentPlays;
 
     const die1 = rollDie(6);
     const die2 = rollDie(6);

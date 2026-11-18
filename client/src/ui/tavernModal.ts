@@ -1,4 +1,9 @@
-import type { PublicRoomState, TavernResultPayload } from '@tbd/shared';
+import {
+  TAVERN_MAX_PLAYS,
+  TAVERN_WINDOW_MS,
+  type PublicRoomState,
+  type TavernResultPayload,
+} from '@tbd/shared';
 
 export interface TavernModalCallbacks {
   onPlay: (bet: number) => void;
@@ -63,8 +68,16 @@ export class TavernModal {
     }
 
     const myGold = me.gold ?? 0;
+    const now = Date.now();
+    const recentPlays = (me.tavernPlays ?? []).filter((ts) => now - ts < TAVERN_WINDOW_MS);
+    const playsLeft = Math.max(0, TAVERN_MAX_PLAYS - recentPlays.length);
+    const waitMin =
+      playsLeft === 0 && recentPlays.length > 0
+        ? Math.max(1, Math.ceil((Math.min(...recentPlays) + TAVERN_WINDOW_MS - now) / 60_000))
+        : 0;
+
     const betButtonsHtml = BET_OPTIONS.map((bet) => {
-      const disabled = myGold < bet;
+      const disabled = myGold < bet || playsLeft <= 0;
       return `
         <button type="button" class="btn tavern-bet-btn" data-bet="${bet}" ${disabled ? 'disabled' : ''}>
           Apostar ${bet}
@@ -106,8 +119,17 @@ export class TavernModal {
             <div class="modal-kicker">Minijuego de Taberna</div>
             <h2 id="tavern-title" class="modal-title">Dados de la Fortuna</h2>
           </div>
-          <span class="gold-badge">${myGold} monedas</span>
+          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+            <span class="badge">Tiradas: ${playsLeft}/${TAVERN_MAX_PLAYS}</span>
+            <span class="gold-badge">${myGold} monedas</span>
+          </div>
         </div>
+
+        ${
+          playsLeft === 0
+            ? `<div class="error-banner" style="margin-bottom:0;">Has usado tus ${TAVERN_MAX_PLAYS} tiradas (15 min). Podrás volver a tirar en ~${waitMin} min.</div>`
+            : ''
+        }
 
         ${resultHtml}
 
