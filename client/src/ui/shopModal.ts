@@ -1,4 +1,5 @@
 import { SHOP_ITEMS, type PublicRoomState } from '@tbd/shared';
+import { ICON_COIN, ICON_HEART, ICON_LUCK, ICON_SHIELD, ICON_SWORD } from './icons';
 
 export interface ShopModalCallbacks {
   onBuy: (itemId: string) => void;
@@ -96,14 +97,14 @@ export class ShopModal {
             <div class="modal-kicker">Mercader del Reino</div>
             <h2 id="shop-title" class="modal-title">Tienda de Objetos</h2>
           </div>
-          <span class="gold-badge">${myGold} monedas</span>
+          <span class="gold-badge stat-row-inline">${ICON_COIN} ${myGold} monedas</span>
         </div>
 
         <div class="shop-stats-bar">
-          <span>PV: <strong>${me.hp}/${me.maxHp}</strong></span>
-          <span>Ataque: <strong>+${me.attackMod}</strong></span>
-          <span>CA: <strong>${me.ac}</strong></span>
-          <span>Suerte: <strong>+${me.luckBonus ?? 0}</strong></span>
+          <span class="stat-row-inline">${ICON_HEART} Vida: <strong>${me.hp}/${me.maxHp}</strong></span>
+          <span class="stat-row-inline">${ICON_SWORD} Ataque: <strong>+${me.attackMod}</strong></span>
+          <span class="stat-row-inline">${ICON_SHIELD} Defensa: <strong>${me.ac}</strong></span>
+          <span class="stat-row-inline">${ICON_LUCK} Suerte: <strong>+${me.luckBonus ?? 0}</strong></span>
         </div>
 
         <div class="shop-items-list">${itemsHtml}</div>

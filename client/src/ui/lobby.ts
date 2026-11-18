@@ -13,6 +13,7 @@ export interface LobbyCallbacks {
   onJoinRoom: (roomCode: string, playerName: string, playerClass: PlayerClass) => void;
   onStartGame: () => void;
   onLeaveRoom: () => void;
+  onOpenTutorial: () => void;
 }
 
 export class LobbyUI {
@@ -102,6 +103,7 @@ export class LobbyUI {
           </div>
 
           <div class="lobby-footer-row">
+            <button type="button" class="btn btn-secondary lobby-tutorial-btn">? Cómo jugar</button>
             <div id="lobby-quality-slot"></div>
           </div>
         </div>
@@ -141,6 +143,10 @@ export class LobbyUI {
 
     this.container.querySelector('#join-room-btn')?.addEventListener('click', () => {
       this.callbacks.onJoinRoom(this.roomCodeInput, this.playerName, this.selectedClass);
+    });
+
+    this.container.querySelector('.lobby-tutorial-btn')?.addEventListener('click', () => {
+      this.callbacks.onOpenTutorial();
     });
   }
 

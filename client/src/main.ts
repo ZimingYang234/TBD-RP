@@ -17,6 +17,8 @@ import { EventModal } from './ui/eventModal';
 import { CombatModal } from './ui/combatModal';
 import { ShopModal } from './ui/shopModal';
 import { TavernModal } from './ui/tavernModal';
+import { TutorialModal } from './ui/tutorialModal';
+import { ICON_COIN, ICON_HEART, ICON_LUCK, ICON_SHIELD, ICON_SWORD } from './ui/icons';
 import { getSavedQuality, renderQualityControl } from './ui/quality';
 import { createPhaserGame } from './game/phaserGame';
 import type { OverworldScene } from './game/OverworldScene';
@@ -87,6 +89,13 @@ const lobbyUI = new LobbyUI(appEl, {
     myPlayerId = null;
     renderApp();
   },
+  onOpenTutorial: () => {
+    tutorialModal.show();
+  },
+});
+
+const tutorialModal = new TutorialModal(() => {
+  syncInputLock();
 });
 
 const eventModal = new EventModal({
@@ -140,6 +149,7 @@ function syncInputLock(): void {
     combatModal.isOpen() ||
     shopModal.isOpen() ||
     tavernModal.isOpen() ||
+    tutorialModal.isOpen() ||
     currentRoom?.phase !== 'playing';
   overworldScene?.setInputBlocked(blocked);
 }
@@ -150,6 +160,7 @@ function requestMove(dir: Direction): void {
     combatModal.isOpen() ||
     shopModal.isOpen() ||
     tavernModal.isOpen() ||
+    tutorialModal.isOpen() ||
     currentRoom?.phase !== 'playing'
   ) {
     return;
@@ -183,6 +194,7 @@ function renderGameShell(room: PublicRoomState): void {
             <span class="badge" id="hud-region-name"></span>
           </div>
           <div class="topbar-right">
+            <button type="button" id="hud-tutorial-btn" class="btn btn-secondary">? Tutorial</button>
             <div id="hud-quality-slot"></div>
             <span class="badge" id="hud-net-status"></span>
             <button type="button" id="hud-leave-btn" class="btn btn-secondary">Salir</button>
@@ -288,6 +300,11 @@ function renderGameShell(room: PublicRoomState): void {
         e.preventDefault();
         submitRedeem();
       }
+    });
+
+    document.querySelector('#hud-tutorial-btn')?.addEventListener('click', () => {
+      tutorialModal.show();
+      syncInputLock();
     });
 
     document.querySelector('#hud-leave-btn')?.addEventListener('click', () => {
@@ -398,11 +415,15 @@ function updateGameHud(room: PublicRoomState): void {
                 ${p.connected ? 'En línea' : 'Desconectado'}
               </span>
             </div>
-            <div style="font-size:0.78rem; color: var(--muted); margin-top: 2px;">
-              ${cfg.name} • PV ${p.hp}/${p.maxHp} • CA ${p.ac}${(p.luckBonus ?? 0) > 0 ? ` • Suerte +${p.luckBonus}` : ''}
+            <div class="party-stats-inline">
+              <span class="stat-row-inline">${ICON_HEART} ${p.hp}/${p.maxHp}</span>
+              <span class="stat-row-inline">${ICON_SWORD} +${p.attackMod}</span>
+              <span class="stat-row-inline">${ICON_SHIELD} ${p.ac}</span>
+              ${(p.luckBonus ?? 0) > 0 ? `<span class="stat-row-inline">${ICON_LUCK} +${p.luckBonus}</span>` : ''}
             </div>
-            <div style="font-size:0.76rem; color: #cbd5e8; margin-top: 2px;">
-              Monedas: <strong>${p.gold ?? 0}</strong> • EXP: <strong>${p.xp ?? 0}</strong>
+            <div class="party-stats-inline" style="color: #cbd5e8; margin-top: 3px;">
+              <span class="stat-row-inline">${ICON_COIN} <strong>${p.gold ?? 0}</strong></span>
+              <span>EXP: <strong>${p.xp ?? 0}</strong></span>
             </div>
             <div class="hp-bar">
               <div class="hp-fill" style="width:${hpPct}%"></div>

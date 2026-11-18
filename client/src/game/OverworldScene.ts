@@ -169,13 +169,16 @@ export class OverworldScene extends Phaser.Scene {
     this.inputBlocked = blocked;
     if (blocked) {
       this.clearClickTarget();
+      if (this.isSceneReady) this.tweens.pauseAll();
+    } else if (this.isSceneReady) {
+      this.tweens.resumeAll();
     }
   }
 
   private getTextResolution(): number {
-    if (this.quality === 'low') return 1;
-    if (this.quality === 'medium') return 2;
-    return 3;
+    const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
+    if (this.quality === 'low') return Math.max(1.5, Math.min(dpr, 2));
+    return Math.max(2, Math.min(dpr, 2.5));
   }
 
   public setQuality(quality: GraphicsQuality): void {
@@ -311,7 +314,7 @@ export class OverworldScene extends Phaser.Scene {
     this.hoverTooltip = this.add
       .text(0, 0, '', {
         fontFamily: CANVAS_FONT_FAMILY,
-        fontSize: '13px',
+        fontSize: '14px',
         fontStyle: 'bold',
         color: '#f8fafc',
         backgroundColor: '#0f121be6',
@@ -721,7 +724,7 @@ export class OverworldScene extends Phaser.Scene {
       const label = this.add
         .text(labelX, labelY, portal.label, {
           fontFamily: CANVAS_FONT_FAMILY,
-          fontSize: '13px',
+          fontSize: '14px',
           fontStyle: 'bold',
           color: '#f8f0ff',
           backgroundColor: '#160e26eb',
@@ -976,7 +979,7 @@ export class OverworldScene extends Phaser.Scene {
         const label = this.add
           .text(0, -TILE_SIZE * 0.6, player.name, {
             fontFamily: CANVAS_FONT_FAMILY,
-            fontSize: '14px',
+            fontSize: '15px',
             fontStyle: 'bold',
             color: '#f8fafc',
             backgroundColor: '#0e111ae6',

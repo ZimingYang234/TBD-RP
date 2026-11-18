@@ -726,8 +726,7 @@ body {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(8, 10, 16, 0.78);
-  backdrop-filter: blur(4px);
+  background: rgba(8, 10, 16, 0.84);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1356,6 +1355,96 @@ body {
 @media (max-width: 600px) {
   .tavern-bets-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.ui-icon {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  vertical-align: -2px;
+}
+
+.icon-sword { color: #f87171; }
+.icon-shield { color: #60a5fa; }
+.icon-heart { color: #4ade80; }
+.icon-coin { color: #fbbf24; }
+.icon-luck { color: #c084fc; }
+.icon-potion { color: #f472b6; }
+
+.stat-row-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.badge-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.party-stats-inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.84rem;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.tutorial-modal-card {
+  max-width: 780px;
+}
+
+.tutorial-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.tutorial-section {
+  background: var(--panel-alt);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.tutorial-section h3 {
+  margin: 0 0 8px;
+  font-size: 0.98rem;
+  color: var(--accent-hover);
+}
+
+.tutorial-section p {
+  margin: 0 0 8px;
+  color: var(--text);
+}
+
+.tutorial-legend-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.86rem;
+  color: var(--muted);
+}
+
+.tutorial-legend-list strong {
+  color: var(--text);
+}
+
+@media (max-width: 760px) {
+  .tutorial-grid {
+    grid-template-columns: 1fr;
+  }
+  .btn,
+  .badge,
+  .party-card,
+  .log-box {
+    font-size: 0.92rem;
   }
 }
 

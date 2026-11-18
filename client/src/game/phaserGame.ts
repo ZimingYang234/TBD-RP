@@ -17,11 +17,14 @@ export function createPhaserGame(
     height: room.map.height * TILE_SIZE,
     backgroundColor: '#0b0d14',
     render: {
-      antialias: quality !== 'low',
-      antialiasGL: quality !== 'low',
+      antialias: quality === 'high',
+      antialiasGL: quality === 'high',
       pixelArt: false,
       roundPixels: true,
-      powerPreference: quality === 'low' ? 'low-power' : 'high-performance',
+      powerPreference: quality === 'low' ? 'low-power' : 'default',
+    },
+    fps: {
+      target: quality === 'low' ? 30 : 48,
     },
     scale: {
       mode: Phaser.Scale.FIT,

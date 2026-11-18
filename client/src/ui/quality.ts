@@ -1,8 +1,18 @@
 export type GraphicsQuality = 'low' | 'medium' | 'high';
 
 const QUALITY_STORAGE_KEY = 'tbd_rpg_quality_v1';
-const DEFAULT_QUALITY: GraphicsQuality = 'high';
 const QUALITY_STYLE_ID = 'tbd-quality-control-styles';
+
+function getDefaultQuality(): GraphicsQuality {
+  try {
+    if (typeof navigator !== 'undefined' && navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 2) {
+      return 'low';
+    }
+  } catch {
+    // ignore
+  }
+  return 'medium';
+}
 
 export const QUALITY_LEVELS: readonly GraphicsQuality[] = ['low', 'medium', 'high'];
 
@@ -19,9 +29,9 @@ function isGraphicsQuality(value: unknown): value is GraphicsQuality {
 export function getSavedQuality(): GraphicsQuality {
   try {
     const raw = window.localStorage.getItem(QUALITY_STORAGE_KEY);
-    return isGraphicsQuality(raw) ? raw : DEFAULT_QUALITY;
+    return isGraphicsQuality(raw) ? raw : getDefaultQuality();
   } catch {
-    return DEFAULT_QUALITY;
+    return getDefaultQuality();
   }
 }
 

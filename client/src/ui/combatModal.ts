@@ -5,6 +5,7 @@ import {
   type DiceRollBreakdown,
   type PublicRoomState,
 } from '@tbd/shared';
+import { ICON_HEART, ICON_LUCK, ICON_POTION, ICON_SHIELD, ICON_SWORD } from './icons';
 
 export interface CombatModalCallbacks {
   onAction: (
@@ -140,9 +141,9 @@ export class CombatModal {
                   <span class="class-dot" style="background:${cfg.colorHex}; color:${cfg.colorHex}"></span>
                   <strong>${this.escapeHtml(rival.name)}</strong>
                 </span>
-                <span class="badge">CA ${rival.ac}${isDefending ? ' +2' : ''}</span>
+                <span class="badge badge-icon">${ICON_SHIELD} ${rival.ac}${isDefending ? ' +2' : ''}</span>
               </div>
-              <div class="combat-hp-text">${cfg.name} • PV ${rival.hp}/${rival.maxHp}${isDefending ? ' • Defendiendo' : ''}</div>
+              <div class="combat-hp-text stat-row-inline">${ICON_HEART} ${rival.hp}/${rival.maxHp} • ${ICON_SWORD} +${rival.attackMod}${isDefending ? ' • Defendiendo' : ''}</div>
               <div class="hp-bar"><div class="hp-fill enemy-hp" style="width:${hpPct}%"></div></div>
               ${isSelected ? '<div class="target-tag">Objetivo seleccionado</div>' : ''}
               ${isDead ? '<div class="target-tag dead-tag">Derrotado</div>' : ''}
@@ -165,9 +166,9 @@ export class CombatModal {
                   <span class="class-dot" style="background:${cfg.colorHex}; color:${cfg.colorHex}"></span>
                   <strong>${this.escapeHtml(p.name)} (Tú)</strong>
                 </span>
-                <span class="badge">CA ${p.ac}${isDefending ? ' +2' : ''}</span>
+                <span class="badge badge-icon">${ICON_SHIELD} ${p.ac}${isDefending ? ' +2' : ''}</span>
               </div>
-              <div class="combat-hp-text">${cfg.name} • PV ${p.hp}/${p.maxHp}${isDefending ? ' • Defendiendo' : ''}</div>
+              <div class="combat-hp-text stat-row-inline">${ICON_HEART} ${p.hp}/${p.maxHp}${isDefending ? ' • Defendiendo' : ''}</div>
               <div class="hp-bar"><div class="hp-fill" style="width:${hpPct}%"></div></div>
             </div>
           `;
@@ -188,9 +189,9 @@ export class CombatModal {
             >
               <div class="combat-card-head">
                 <strong>${this.escapeHtml(enemy.name)}</strong>
-                <span class="badge">CA ${enemy.ac}</span>
+                <span class="badge badge-icon">${ICON_SHIELD} ${enemy.ac}</span>
               </div>
-              <div class="combat-hp-text">PV ${enemy.hp}/${enemy.maxHp} • +${enemy.attackMod} (${enemy.damageDice})</div>
+              <div class="combat-hp-text stat-row-inline">${ICON_HEART} ${enemy.hp}/${enemy.maxHp} • ${ICON_SWORD} +${enemy.attackMod}</div>
               <div class="hp-bar"><div class="hp-fill enemy-hp" style="width:${hpPct}%"></div></div>
               ${isSelected ? '<div class="target-tag">Objetivo seleccionado</div>' : ''}
               ${isDead ? '<div class="target-tag dead-tag">Derrotado</div>' : ''}
@@ -212,9 +213,9 @@ export class CombatModal {
                   <span class="class-dot" style="background:${cfg.colorHex}; color:${cfg.colorHex}"></span>
                   <strong>${this.escapeHtml(p.name)}${p.id === myPlayerId ? ' (Tú)' : ''}</strong>
                 </span>
-                <span class="badge">CA ${p.ac}${isDefending ? ' +2' : ''}</span>
+                <span class="badge badge-icon">${ICON_SHIELD} ${p.ac}${isDefending ? ' +2' : ''}</span>
               </div>
-              <div class="combat-hp-text">PV ${p.hp}/${p.maxHp}${isDefending ? ' • Defendiendo' : ''}</div>
+              <div class="combat-hp-text stat-row-inline">${ICON_HEART} ${p.hp}/${p.maxHp}${isDefending ? ' • Defendiendo' : ''}</div>
               <div class="hp-bar"><div class="hp-fill" style="width:${hpPct}%"></div></div>
             </div>
           `;
@@ -276,11 +277,11 @@ export class CombatModal {
         <div class="combat-actions-bar">
           <div class="combat-actions-grid">
             <button type="button" id="combat-attack-btn" class="btn combat-action-btn" ${!isMyTurn || !this.selectedTargetId ? 'disabled' : ''}>
-              <span class="combat-btn-title">Atacar</span>
+              <span class="combat-btn-title stat-row-inline">${ICON_SWORD} Atacar</span>
               <span class="combat-btn-sub">Golpe normal</span>
             </button>
             <button type="button" id="combat-luck-btn" class="btn btn-luck combat-action-btn" ${!isMyTurn || !this.selectedTargetId ? 'disabled' : ''}>
-              <span class="combat-btn-title">Suerte (50/50)</span>
+              <span class="combat-btn-title stat-row-inline">${ICON_LUCK} Suerte (50/50)</span>
               <span class="combat-btn-sub">¡Doble daño o tropiezo!</span>
             </button>
             ${
@@ -292,11 +293,11 @@ export class CombatModal {
                 : ''
             }
             <button type="button" id="combat-defend-btn" class="btn btn-secondary combat-action-btn" ${!isMyTurn ? 'disabled' : ''}>
-              <span class="combat-btn-title">Defender</span>
-              <span class="combat-btn-sub">+2 CA</span>
+              <span class="combat-btn-title stat-row-inline">${ICON_SHIELD} Defender</span>
+              <span class="combat-btn-sub">+2 Defensa</span>
             </button>
             <button type="button" id="combat-potion-btn" class="btn btn-secondary combat-action-btn" ${!isMyTurn || potionsLeft <= 0 ? 'disabled' : ''}>
-              <span class="combat-btn-title">Poción (${potionsLeft})</span>
+              <span class="combat-btn-title stat-row-inline">${ICON_POTION} Poción (${potionsLeft})</span>
               <span class="combat-btn-sub">Recuperar vida</span>
             </button>
             ${
