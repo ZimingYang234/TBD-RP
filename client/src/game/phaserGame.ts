@@ -11,11 +11,15 @@ export function createPhaserGame(
   const scene = new OverworldScene(quality);
 
   const game = new Phaser.Game({
-    type: quality === 'low' ? Phaser.CANVAS : Phaser.AUTO,
+    // CANVAS avoids WebGL context loss & heavy GPU memory usage on school Chromebooks
+    type: quality === 'high' ? Phaser.AUTO : Phaser.CANVAS,
     parent,
     width: room.map.width * TILE_SIZE,
     height: room.map.height * TILE_SIZE,
-    backgroundColor: '#0b0d14',
+    backgroundColor: '#0c0e14',
+    audio: {
+      noAudio: true,
+    },
     render: {
       antialias: quality === 'high',
       antialiasGL: quality === 'high',
@@ -24,7 +28,7 @@ export function createPhaserGame(
       powerPreference: quality === 'low' ? 'low-power' : 'default',
     },
     fps: {
-      target: quality === 'low' ? 30 : 48,
+      target: quality === 'low' ? 20 : quality === 'medium' ? 30 : 45,
     },
     scale: {
       mode: Phaser.Scale.FIT,

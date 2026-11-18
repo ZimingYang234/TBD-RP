@@ -1,4 +1,4 @@
-import Phaser from 'phaser';
+import type Phaser from 'phaser';
 import {
   GAME_TITLE,
   MAX_INVENTORY_SLOTS,
@@ -28,7 +28,6 @@ import { ArenaModal } from './ui/arenaModal';
 import { ProgressModal } from './ui/progressModal';
 import { ICON_COIN, ICON_HEART, ICON_LUCK, ICON_SHIELD, ICON_SWORD } from './ui/icons';
 import { getSavedQuality, renderQualityControl } from './ui/quality';
-import { createPhaserGame } from './game/phaserGame';
 import type { OverworldScene } from './game/OverworldScene';
 
 document.title = GAME_TITLE;
@@ -43,6 +42,7 @@ const logs: string[] = [];
 
 let phaserGame: Phaser.Game | null = null;
 let overworldScene: OverworldScene | null = null;
+let phaserLoading = false;
 
 function addLog(msg: string): void {
   const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -467,11 +467,19 @@ function renderGameShell(room: PublicRoomState): void {
 
     const host = document.querySelector<HTMLElement>('#phaser-host')!;
     const initialQuality = getSavedQuality();
-    const created = createPhaserGame(host, room, initialQuality);
-    phaserGame = created.game;
-    overworldScene = created.scene;
-    if (myPlayerId) {
-      overworldScene.configure(room, myPlayerId, requestMove);
+    if (!phaserLoading) {
+      phaserLoading = true;
+      void import('./game/phaserGame').then(({ createPhaserGame }) => {
+        phaserLoading = false;
+        if (!currentRoom || !document.querySelector('#phaser-host')) return;
+        const created = createPhaserGame(host, currentRoom, initialQuality);
+        phaserGame = created.game;
+        overworldScene = created.scene;
+        if (myPlayerId) {
+          overworldScene.configure(currentRoom, myPlayerId, requestMove);
+        }
+        syncInputLock();
+      });
     }
 
     const hudQualitySlot = document.querySelector<HTMLElement>('#hud-quality-slot');

@@ -286,8 +286,18 @@ export class RoomManager {
   private scheduleSave(): void {
     if (this.saveTimer) clearTimeout(this.saveTimer);
     this.saveTimer = setTimeout(() => {
-      this.saveNow();
-    }, 150);
+      void this.saveAsync();
+    }, 200);
+  }
+
+  private async saveAsync(): Promise<void> {
+    try {
+      await fs.promises.mkdir(path.dirname(this.storePath), { recursive: true });
+      const data = Array.from(this.rooms.values());
+      await fs.promises.writeFile(this.storePath, JSON.stringify(data, null, 2), 'utf-8');
+    } catch (err) {
+      console.error('[RoomManager] Failed to save rooms to disk:', err);
+    }
   }
 
   public saveNow(): void {
