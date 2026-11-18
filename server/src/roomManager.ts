@@ -2526,8 +2526,8 @@ export class RoomManager {
     };
   }
 
-  public tickRoamingMonsters(): PublicRoomState[] {
-    const updated: PublicRoomState[] = [];
+  public tickRoamingMonsters(): Array<{ code: string; monsters: RoamingMonster[] }> {
+    const updated: Array<{ code: string; monsters: RoamingMonster[] }> = [];
     const dirs = [
       { dx: 0, dy: -1 },
       { dx: 0, dy: 1 },
@@ -2543,7 +2543,9 @@ export class RoomManager {
       const map = getRegion(room.regionId);
       if (!room.roamingMonsters || room.roamingMonsters.length === 0) {
         room.roamingMonsters = spawnRoamingMonstersForRegion(map);
-        if (room.roamingMonsters.length > 0) updated.push(this.toPublicRoom(room));
+        if (room.roamingMonsters.length > 0) {
+          updated.push({ code: room.code, monsters: room.roamingMonsters });
+        }
         continue;
       }
 
@@ -2562,7 +2564,7 @@ export class RoomManager {
           moved = true;
         }
       }
-      if (moved) updated.push(this.toPublicRoom(room));
+      if (moved) updated.push({ code: room.code, monsters: room.roamingMonsters });
     }
     return updated;
   }

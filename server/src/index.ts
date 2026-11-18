@@ -600,10 +600,10 @@ io.on('connection', (socket) => {
 
 const roamingInterval = setInterval(() => {
   const updatedRooms = roomManager.tickRoamingMonsters();
-  for (const room of updatedRooms) {
-    io.to(room.code).emit('room_state', room);
+  for (const item of updatedRooms) {
+    io.to(item.code).emit('roaming_moved', item.monsters);
   }
-}, 4500);
+}, 5000);
 
 process.on('SIGINT', () => {
   clearInterval(roamingInterval);

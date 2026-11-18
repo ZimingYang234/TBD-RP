@@ -636,9 +636,12 @@ socket.on('player_moved', ({ playerId, x, y, regionId }) => {
     target.regionId = regionId;
   }
   overworldScene?.movePlayerSprite(playerId, x, y);
-  if (currentRoom.phase === 'playing' || currentRoom.phase === 'event') {
-    updateGameHud(currentRoom);
-  }
+});
+
+socket.on('roaming_moved', (monsters) => {
+  if (!currentRoom) return;
+  currentRoom.roamingMonsters = monsters;
+  overworldScene?.syncRoamingMonsters(monsters);
 });
 
 socket.on('party_teleported', (payload) => {

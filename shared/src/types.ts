@@ -333,6 +333,7 @@ export interface ServerToClientEvents {
   room_joined: (payload: JoinSuccessPayload) => void;
   room_state: (room: PublicRoomState) => void;
   player_moved: (payload: { playerId: string; x: number; y: number; regionId: string }) => void;
+  roaming_moved: (monsters: RoamingMonster[]) => void;
   party_teleported: (payload: PartyTeleportedPayload) => void;
   event_started: (payload: { room: PublicRoomState }) => void;
   event_updated: (payload: { activeEvent: ActiveEventState }) => void;

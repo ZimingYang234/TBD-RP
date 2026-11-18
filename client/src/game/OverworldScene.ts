@@ -244,8 +244,9 @@ export class OverworldScene extends Phaser.Scene {
   private mapLayer: Phaser.GameObjects.Graphics | null = null;
   private shadowLayer: Phaser.GameObjects.Graphics | null = null;
   private propObjects: Phaser.GameObjects.GameObject[] = [];
-  private roamingObjects: Phaser.GameObjects.GameObject[] = [];
+  private roamingSprites = new Map<string, Phaser.GameObjects.Container>();
   private playerSprites = new Map<string, PlayerSpriteBundle>();
+  private lastHoverTileKey = '';
   private bannerContainer: Phaser.GameObjects.Container | null = null;
 
   private clickTarget: { x: number; y: number } | null = null;
@@ -461,6 +462,10 @@ export class OverworldScene extends Phaser.Scene {
       if (!this.room || !this.domTooltipEl) return;
       const tx = Math.floor(pointer.worldX / TILE_SIZE);
       const ty = Math.floor(pointer.worldY / TILE_SIZE);
+      const hoverKey = `${tx},${ty}`;
+      if (hoverKey === this.lastHoverTileKey) return;
+      this.lastHoverTileKey = hoverKey;
+
       if (tx < 0 || ty < 0 || tx >= this.room.map.width || ty >= this.room.map.height) {
         this.domTooltipEl.style.display = 'none';
         return;
@@ -503,6 +508,7 @@ export class OverworldScene extends Phaser.Scene {
     });
 
     this.input.on('gameout', () => {
+      this.lastHoverTileKey = '';
       if (this.domTooltipEl) this.domTooltipEl.style.display = 'none';
     });
 
@@ -965,23 +971,31 @@ export class OverworldScene extends Phaser.Scene {
     this.propObjects.push(g);
   }
 
-  private syncRoamingMonsters(monsters: Array<{ id: string; name: string; x: number; y: number }>): void {
+  public syncRoamingMonsters(monsters: Array<{ id: string; name: string; x: number; y: number }>): void {
     if (!this.isSceneReady) return;
-    for (const obj of this.roamingObjects) {
-      obj.destroy();
+    const activeIds = new Set(monsters.map((m) => m.id));
+    for (const [id, sprite] of this.roamingSprites.entries()) {
+      if (!activeIds.has(id)) {
+        sprite.destroy();
+        this.roamingSprites.delete(id);
+      }
     }
-    this.roamingObjects = [];
 
     for (const m of monsters) {
       const cx = m.x * TILE_SIZE + TILE_SIZE / 2;
       const cy = m.y * TILE_SIZE + TILE_SIZE / 2;
-      const body = this.add
-        .circle(cx, cy, 14, 0x991b1b, 0.95)
-        .setStrokeStyle(2, 0xfca5a5, 0.95)
-        .setDepth(14);
-      const eyeL = this.add.circle(cx - 4, cy - 2, 2.5, 0xfef08a, 1).setDepth(15);
-      const eyeR = this.add.circle(cx + 4, cy - 2, 2.5, 0xfef08a, 1).setDepth(15);
-      this.roamingObjects.push(body, eyeL, eyeR);
+      let container = this.roamingSprites.get(m.id);
+      if (!container) {
+        const body = this.add
+          .circle(0, 0, 14, 0x991b1b, 0.95)
+          .setStrokeStyle(2, 0xfca5a5, 0.95);
+        const eyeL = this.add.circle(-4, -2, 2.5, 0xfef08a, 1);
+        const eyeR = this.add.circle(4, -2, 2.5, 0xfef08a, 1);
+        container = this.add.container(cx, cy, [body, eyeL, eyeR]).setDepth(14);
+        this.roamingSprites.set(m.id, container);
+      } else {
+        container.setPosition(cx, cy);
+      }
     }
   }
 
