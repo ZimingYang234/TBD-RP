@@ -874,7 +874,7 @@ export class RoomManager {
   public completeMinigame(
     socketId: string,
     payload: {
-      game: 'memory' | 'reflex' | 'chest_guess' | 'riddle';
+      game: 'memory' | 'reflex' | 'chest_guess' | 'riddle' | 'arena';
       difficulty: 'normal' | 'dificil';
       score: number;
     }

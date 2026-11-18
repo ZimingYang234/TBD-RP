@@ -24,6 +24,7 @@ import { InventoryModal } from './ui/inventoryModal';
 import { ChestModal } from './ui/chestModal';
 import { SkillTreeModal } from './ui/skillTreeModal';
 import { MinigameModal } from './ui/minigameModal';
+import { ArenaModal } from './ui/arenaModal';
 import { ICON_COIN, ICON_HEART, ICON_LUCK, ICON_SHIELD, ICON_SWORD } from './ui/icons';
 import { getSavedQuality, renderQualityControl } from './ui/quality';
 import { createPhaserGame } from './game/phaserGame';
@@ -200,6 +201,15 @@ const minigameModal = new MinigameModal({
   },
 });
 
+const arenaModal = new ArenaModal({
+  onComplete: (score, difficulty) => {
+    socket.emit('complete_minigame', { game: 'arena', difficulty, score });
+  },
+  onClosed: () => {
+    syncInputLock();
+  },
+});
+
 function syncInputLock(): void {
   const blocked =
     eventModal.isOpen() ||
@@ -211,6 +221,7 @@ function syncInputLock(): void {
     chestModal.isOpen() ||
     skillTreeModal.isOpen() ||
     minigameModal.isOpen() ||
+    arenaModal.isOpen() ||
     currentRoom?.phase !== 'playing';
   overworldScene?.setInputBlocked(blocked);
 }
@@ -226,6 +237,7 @@ function requestMove(dir: Direction): void {
     chestModal.isOpen() ||
     skillTreeModal.isOpen() ||
     minigameModal.isOpen() ||
+    arenaModal.isOpen() ||
     currentRoom?.phase !== 'playing'
   ) {
     return;
@@ -568,6 +580,7 @@ function renderApp(): void {
   chestModal.hide();
   skillTreeModal.hide();
   minigameModal.hide();
+  arenaModal.hide();
   destroyPhaser();
   lobbyUI.render(currentRoom, myPlayerId, lastError);
 }
@@ -747,7 +760,11 @@ socket.on('open_shop', () => {
 
 socket.on('open_minigame', ({ game }) => {
   if (currentRoom && currentRoom.phase === 'playing') {
-    minigameModal.show(game);
+    if (game === 'arena') {
+      arenaModal.show('normal');
+    } else {
+      minigameModal.show(game);
+    }
     syncInputLock();
   }
 });

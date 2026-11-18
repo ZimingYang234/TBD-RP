@@ -277,14 +277,19 @@ io.on('connection', (socket) => {
     } else if (outcome.steppedOnShopTile) {
       socket.emit('open_shop');
     } else if (outcome.steppedOnMinigameTile) {
-      const games: Array<'memory' | 'reflex' | 'chest_guess' | 'riddle'> = [
-        'memory',
-        'reflex',
-        'chest_guess',
-        'riddle',
-      ];
-      const idx = Math.abs(outcome.tileX + outcome.tileY) % games.length;
-      socket.emit('open_minigame', { game: games[idx] });
+      if (outcome.room.regionId === 'valderroble') {
+        socket.emit('open_minigame', { game: 'arena' });
+      } else {
+        const games: Array<'memory' | 'reflex' | 'chest_guess' | 'riddle' | 'arena'> = [
+          'memory',
+          'reflex',
+          'chest_guess',
+          'riddle',
+          'arena',
+        ];
+        const idx = Math.abs(outcome.tileX + outcome.tileY) % games.length;
+        socket.emit('open_minigame', { game: games[idx] });
+      }
     }
   });
 
@@ -541,7 +546,7 @@ io.on('connection', (socket) => {
   socket.on('complete_minigame', (payload) => {
     if (
       !payload ||
-      !['memory', 'reflex', 'chest_guess', 'riddle'].includes(payload.game) ||
+      !['memory', 'reflex', 'chest_guess', 'riddle', 'arena'].includes(payload.game) ||
       (payload.difficulty !== 'normal' && payload.difficulty !== 'dificil') ||
       typeof payload.score !== 'number'
     ) {

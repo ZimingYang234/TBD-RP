@@ -354,7 +354,7 @@ export interface ServerToClientEvents {
     room: PublicRoomState;
   }) => void;
   open_shop: () => void;
-  open_minigame: (payload: { game: 'memory' | 'reflex' | 'chest_guess' | 'riddle' }) => void;
+  open_minigame: (payload: { game: 'memory' | 'reflex' | 'chest_guess' | 'riddle' | 'arena' }) => void;
   room_error: (payload: { message: string; code?: string }) => void;
   system_notice: (payload: { message: string }) => void;
 }
@@ -395,7 +395,7 @@ export interface ClientToServerEvents {
   unlock_skill: (payload: { skillId: SkillNodeId }) => void;
   redeem_code: (payload: { code: string }) => void;
   complete_minigame: (payload: {
-    game: 'memory' | 'reflex' | 'chest_guess' | 'riddle';
+    game: 'memory' | 'reflex' | 'chest_guess' | 'riddle' | 'arena';
     difficulty: 'normal' | 'dificil';
     score: number;
   }) => void;
