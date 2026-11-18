@@ -204,6 +204,20 @@ io.on('connection', (socket) => {
     io.to(room.code).emit('system_notice', {
       message: `¡Comienza la aventura en ${publicRoom.map.name}! Muévete con WASD o las flechas.`,
     });
+    // Pre-warm AI DM cache in background so the next event opens instantly
+    void import('./aiDm.js').then(({ generateEventForParty }) =>
+      generateEventForParty({
+        regionId: publicRoom.map.id,
+        regionName: publicRoom.map.name,
+        regionSubtitle: publicRoom.map.subtitle,
+        party: publicRoom.players.map((p) => ({
+          name: p.name,
+          playerClass: p.playerClass,
+          hp: p.hp,
+          maxHp: p.maxHp,
+        })),
+      })
+    );
   });
 
   socket.on('player_move', (payload) => {
