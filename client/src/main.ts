@@ -22,6 +22,7 @@ import { TavernModal } from './ui/tavernModal';
 import { TutorialModal } from './ui/tutorialModal';
 import { InventoryModal } from './ui/inventoryModal';
 import { ChestModal } from './ui/chestModal';
+import { SkillTreeModal } from './ui/skillTreeModal';
 import { ICON_COIN, ICON_HEART, ICON_LUCK, ICON_SHIELD, ICON_SWORD } from './ui/icons';
 import { getSavedQuality, renderQualityControl } from './ui/quality';
 import { createPhaserGame } from './game/phaserGame';
@@ -177,6 +178,15 @@ const chestModal = new ChestModal({
   },
 });
 
+const skillTreeModal = new SkillTreeModal({
+  onUnlock: (skillId) => {
+    socket.emit('unlock_skill', { skillId });
+  },
+  onClosed: () => {
+    syncInputLock();
+  },
+});
+
 function syncInputLock(): void {
   const blocked =
     eventModal.isOpen() ||
@@ -186,6 +196,7 @@ function syncInputLock(): void {
     tutorialModal.isOpen() ||
     inventoryModal.isOpen() ||
     chestModal.isOpen() ||
+    skillTreeModal.isOpen() ||
     currentRoom?.phase !== 'playing';
   overworldScene?.setInputBlocked(blocked);
 }
@@ -199,6 +210,7 @@ function requestMove(dir: Direction): void {
     tutorialModal.isOpen() ||
     inventoryModal.isOpen() ||
     chestModal.isOpen() ||
+    skillTreeModal.isOpen() ||
     currentRoom?.phase !== 'playing'
   ) {
     return;
@@ -256,6 +268,7 @@ function renderGameShell(room: PublicRoomState): void {
               <button type="button" id="hud-shop-btn" class="btn btn-shop-outline">Tienda</button>
               <button type="button" id="hud-bag-btn" class="btn btn-secondary">Mochila (0/5)</button>
             </div>
+            <button type="button" id="hud-skills-btn" class="btn btn-special-outline">Árbol de Habilidades</button>
             <div class="map-legend">
               <span class="legend-chip"><span class="legend-dot dot-portal"></span>Portal</span>
               <span class="legend-chip"><span class="legend-dot dot-event"></span>Evento</span>
@@ -335,6 +348,13 @@ function renderGameShell(room: PublicRoomState): void {
       }
     });
 
+    document.querySelector('#hud-skills-btn')?.addEventListener('click', () => {
+      if (currentRoom && currentRoom.phase === 'playing') {
+        skillTreeModal.show(currentRoom, myPlayerId);
+        syncInputLock();
+      }
+    });
+
     const redeemInput = document.querySelector<HTMLInputElement>('#hud-code-input');
     const submitRedeem = () => {
       if (!redeemInput) return;
@@ -393,6 +413,7 @@ function renderGameShell(room: PublicRoomState): void {
   shopModal.render(room, myPlayerId);
   tavernModal.render(room, myPlayerId);
   inventoryModal.render(room, myPlayerId);
+  skillTreeModal.render(room, myPlayerId);
   syncInputLock();
 }
 
@@ -432,6 +453,14 @@ function updateGameHud(room: PublicRoomState): void {
     const usedSlots = Object.values(me?.inventory ?? {}).filter((q) => q > 0).length;
     bagBtn.textContent = `Mochila (${usedSlots}/${MAX_INVENTORY_SLOTS})`;
     bagBtn.disabled = room.phase !== 'playing';
+  }
+
+  const skillsBtn = document.querySelector<HTMLButtonElement>('#hud-skills-btn');
+  if (skillsBtn) {
+    const me = room.players.find((p) => p.id === myPlayerId);
+    const pts = me?.skillPoints ?? 0;
+    skillsBtn.textContent = pts > 0 ? `Habilidades (${pts} pt${pts === 1 ? '' : 's'})` : 'Árbol de Habilidades';
+    skillsBtn.disabled = room.phase !== 'playing';
   }
 
   const questEl = document.querySelector<HTMLElement>('#hud-quest-box');
@@ -512,6 +541,7 @@ function renderApp(): void {
   tavernModal.hide();
   inventoryModal.hide();
   chestModal.hide();
+  skillTreeModal.hide();
   destroyPhaser();
   lobbyUI.render(currentRoom, myPlayerId, lastError);
 }

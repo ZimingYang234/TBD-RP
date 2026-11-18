@@ -51,6 +51,26 @@ export interface RegionMap {
   chests: ChestDef[];
 }
 
+export type SkillNodeId =
+  | 'martial_1'
+  | 'martial_2'
+  | 'guard_1'
+  | 'guard_2'
+  | 'focus_1'
+  | 'focus_2';
+
+export interface SkillNodeDef {
+  id: SkillNodeId;
+  branch: 'Marcial' | 'Baluarte' | 'Arcano';
+  tier: 1 | 2;
+  name: string;
+  kind: 'passive' | 'active';
+  cost: number;
+  requires?: SkillNodeId;
+  description: string;
+  combatAction?: 'skill_safe' | 'skill_shield' | 'skill_pierce';
+}
+
 export interface PlayerState {
   id: string;
   token: string;
@@ -67,6 +87,8 @@ export interface PlayerState {
   gold: number;
   xp: number;
   level: number;
+  skillPoints: number;
+  unlockedSkills: SkillNodeId[];
   luckBonus: number;
   inventory: Record<string, number>;
   shopUpgrades?: Record<string, number>;
@@ -109,7 +131,17 @@ export interface DiceRollBreakdown {
   actorKind: 'player' | 'enemy';
   targetId?: string;
   targetName?: string;
-  actionType: 'attack' | 'luck' | 'special' | 'defend' | 'potion' | 'bomb' | 'skip';
+  actionType:
+    | 'attack'
+    | 'luck'
+    | 'special'
+    | 'skill_safe'
+    | 'skill_shield'
+    | 'skill_pierce'
+    | 'defend'
+    | 'potion'
+    | 'bomb'
+    | 'skip';
   luckOutcome?: 'jackpot' | 'backfire';
   headline?: string;
   d20?: number;
@@ -138,6 +170,7 @@ export interface CombatState {
   defendingIds: string[];
   potionsLeftByPlayer: Record<string, number>;
   specialUsedByPlayer: Record<string, boolean>;
+  unlockedSpecialsUsedByPlayer?: Record<string, string[]>;
   lastRoll: DiceRollBreakdown | null;
   log: string[];
 }
@@ -293,7 +326,19 @@ export interface ClientToServerEvents {
   start_combat_encounter: () => void;
   start_boss_fight: () => void;
   start_pvp_duel: () => void;
-  combat_action: (payload: { action: 'attack' | 'luck' | 'special' | 'defend' | 'potion' | 'bomb'; targetId?: string }) => void;
+  combat_action: (payload: {
+    action:
+      | 'attack'
+      | 'luck'
+      | 'special'
+      | 'skill_safe'
+      | 'skill_shield'
+      | 'skill_pierce'
+      | 'defend'
+      | 'potion'
+      | 'bomb';
+    targetId?: string;
+  }) => void;
   skip_combat_turn: () => void;
   play_tavern_dice: (payload: { bet: number }) => void;
   buy_item: (payload: { itemId: string }) => void;
@@ -301,5 +346,6 @@ export interface ClientToServerEvents {
   equip_item: (payload: { itemId: string }) => void;
   unequip_item: (payload: { slot: 'weapon' | 'armor' }) => void;
   drop_item: (payload: { itemId: string }) => void;
+  unlock_skill: (payload: { skillId: SkillNodeId }) => void;
   redeem_code: (payload: { code: string }) => void;
 }

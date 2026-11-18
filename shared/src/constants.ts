@@ -1,4 +1,4 @@
-import type { ItemDef, ItemRarity, PlayerClass } from './types.js';
+import type { ItemDef, ItemRarity, PlayerClass, SkillNodeDef } from './types.js';
 
 export const GAME_TITLE = 'TBD';
 
@@ -179,6 +179,69 @@ export const SHOP_ITEMS: ShopItemDef[] = [
     price: 35,
     maxOwned: 2,
     description: '+2 permanente a tus tiradas de Suerte.',
+  },
+];
+
+export const SKILL_TREE: SkillNodeDef[] = [
+  {
+    id: 'martial_1',
+    branch: 'Marcial',
+    tier: 1,
+    name: 'Fuerza Constante',
+    kind: 'passive',
+    cost: 1,
+    description: 'Pasiva: +2 Ataque permanente.',
+  },
+  {
+    id: 'martial_2',
+    branch: 'Marcial',
+    tier: 2,
+    name: 'Golpe Seguro',
+    kind: 'active',
+    cost: 1,
+    requires: 'martial_1',
+    combatAction: 'skill_safe',
+    description: 'Activa (1/combate): Nunca falla. Inflige 10 + Ataque de daño fijo.',
+  },
+  {
+    id: 'guard_1',
+    branch: 'Baluarte',
+    tier: 1,
+    name: 'Piel de Hierro',
+    kind: 'passive',
+    cost: 1,
+    description: 'Pasiva: +2 Defensa y +4 Vida máx permanentes.',
+  },
+  {
+    id: 'guard_2',
+    branch: 'Baluarte',
+    tier: 2,
+    name: 'Escudo de Grupo',
+    kind: 'active',
+    cost: 1,
+    requires: 'guard_1',
+    combatAction: 'skill_shield',
+    description: 'Activa (1/combate): Cura +8 Vida al grupo y da +2 Defensa.',
+  },
+  {
+    id: 'focus_1',
+    branch: 'Arcano',
+    tier: 1,
+    name: 'Mente Clara',
+    kind: 'passive',
+    cost: 1,
+    description: 'Pasiva: +1 Ataque y +3 Suerte permanentes.',
+  },
+  {
+    id: 'focus_2',
+    branch: 'Arcano',
+    tier: 2,
+    name: 'Descarga Certera',
+    kind: 'active',
+    cost: 1,
+    requires: 'focus_1',
+    combatAction: 'skill_pierce',
+    description: 'Activa (1/combate): Ignora Defensa e inflige 14 + mitad de Ataque fijo.',
   },
 ];
 

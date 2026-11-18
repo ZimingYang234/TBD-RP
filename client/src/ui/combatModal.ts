@@ -1,5 +1,6 @@
 import {
   PLAYER_CLASSES,
+  SKILL_TREE,
   type CombatEndedPayload,
   type CombatState,
   type DiceRollBreakdown,
@@ -7,11 +8,19 @@ import {
 } from '@tbd/shared';
 import { ICON_HEART, ICON_LUCK, ICON_POTION, ICON_SHIELD, ICON_SWORD } from './icons';
 
+export type CombatActionType =
+  | 'attack'
+  | 'luck'
+  | 'special'
+  | 'skill_safe'
+  | 'skill_shield'
+  | 'skill_pierce'
+  | 'defend'
+  | 'potion'
+  | 'bomb';
+
 export interface CombatModalCallbacks {
-  onAction: (
-    action: 'attack' | 'luck' | 'special' | 'defend' | 'potion' | 'bomb',
-    targetId?: string
-  ) => void;
+  onAction: (action: CombatActionType, targetId?: string) => void;
   onSkipTurn: () => void;
   onOutcomeClosed: () => void;
 }
@@ -228,6 +237,15 @@ export class CombatModal {
     const potionsLeft = freePotions + bagPotions;
     const bombsLeft = me?.inventory?.bomb ?? 0;
     const specialUsed = myPlayerId ? Boolean(combat.specialUsedByPlayer?.[myPlayerId]) : true;
+    const unlockedSpecialsUsed = myPlayerId
+      ? combat.unlockedSpecialsUsedByPlayer?.[myPlayerId] ?? []
+      : [];
+    const unlockedTreeActives = SKILL_TREE.filter(
+      (n) =>
+        n.kind === 'active' &&
+        n.combatAction &&
+        (me?.unlockedSkills ?? []).includes(n.id)
+    );
     const myClassCfg = me ? PLAYER_CLASSES[me.playerClass] : null;
     const roll = combat.lastRoll;
     const logHtml = combat.log
@@ -301,6 +319,19 @@ export class CombatModal {
               <span class="combat-btn-sub">Recuperar vida</span>
             </button>
             ${
+              unlockedTreeActives
+                .map((node) => {
+                  const used = unlockedSpecialsUsed.includes(node.id);
+                  const needsTarget = node.combatAction !== 'skill_shield';
+                  const disabled = !isMyTurn || used || (needsTarget && !this.selectedTargetId);
+                  return `<button type="button" class="btn btn-special combat-action-btn combat-tree-skill-btn" data-action="${node.combatAction}" ${disabled ? 'disabled' : ''}>
+                    <span class="combat-btn-title">${this.escapeHtml(node.name)}</span>
+                    <span class="combat-btn-sub">${used ? 'Usada' : 'Sin fallo (1/combate)'}</span>
+                  </button>`;
+                })
+                .join('')
+            }
+            ${
               bombsLeft > 0
                 ? `<button type="button" id="combat-bomb-btn" class="btn btn-danger-outline combat-action-btn" ${!isMyTurn || !this.selectedTargetId ? 'disabled' : ''}>
                     <span class="combat-btn-title">Bomba (${bombsLeft})</span>
@@ -348,6 +379,12 @@ export class CombatModal {
     overlay.querySelector('#combat-bomb-btn')?.addEventListener('click', () => {
       this.callbacks.onAction('bomb', this.selectedTargetId ?? undefined);
     });
+    overlay.querySelectorAll<HTMLButtonElement>('.combat-tree-skill-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const action = btn.dataset.action as CombatActionType | undefined;
+        if (action) this.callbacks.onAction(action, this.selectedTargetId ?? undefined);
+      });
+    });
     overlay.querySelector('#combat-skip-btn')?.addEventListener('click', () => {
       this.callbacks.onSkipTurn();
     });
@@ -386,27 +423,37 @@ export class CombatModal {
       `;
     }
 
-    if (roll.actionType === 'bomb' || roll.actionType === 'special') {
+    if (
+      roll.actionType === 'bomb' ||
+      roll.actionType === 'special' ||
+      roll.actionType === 'skill_safe' ||
+      roll.actionType === 'skill_shield' ||
+      roll.actionType === 'skill_pierce'
+    ) {
       const badgeText =
         roll.actionType === 'bomb'
           ? '¡BOMBA!'
-          : roll.hit
-            ? '¡HABILIDAD!'
-            : '¡ESQUIVADO!';
+          : roll.actionType === 'skill_shield'
+            ? '¡ESCUDO!'
+            : roll.hit
+              ? '¡HABILIDAD!'
+              : '¡ESQUIVADO!';
       const badgeCls = roll.hit ? 'crit' : 'miss';
+      const boxVal =
+        roll.actionType === 'skill_shield'
+          ? `+${roll.healAmount ?? 8}`
+          : roll.hit
+            ? String(roll.damageTotal ?? '?')
+            : String(roll.d20 ?? '?');
       return `
         <div class="dice-visual-row">
-          ${
-            roll.hit
-              ? `<div class="die-box die-dmg crit" id="anim-die-dmg">${roll.damageTotal ?? '?'}</div>`
-              : `<div class="die-box die-d20 miss" id="anim-die-d20">${roll.d20 ?? '?'}</div>`
-          }
+          <div class="die-box ${roll.hit ? 'die-dmg crit' : 'die-d20 miss'}" id="anim-die-dmg">${boxVal}</div>
           <div class="dice-detail">
             <div class="dice-headline">
               <span class="roll-badge ${badgeCls}">${badgeText}</span>
               <span>${this.escapeHtml(roll.headline ?? '')}</span>
             </div>
-            <div class="dice-formula">${this.escapeHtml(roll.actorName)} → ${this.escapeHtml(roll.targetName ?? '')}</div>
+            <div class="dice-formula">${this.escapeHtml(roll.actorName)}${roll.targetName ? ` → ${this.escapeHtml(roll.targetName)}` : ''}</div>
           </div>
         </div>
       `;

@@ -319,7 +319,22 @@ io.on('connection', (socket) => {
   });
 
   socket.on('combat_action', (payload) => {
-    if (!payload || !['attack', 'luck', 'special', 'defend', 'potion', 'bomb'].includes(payload.action)) return;
+    if (
+      !payload ||
+      ![
+        'attack',
+        'luck',
+        'special',
+        'skill_safe',
+        'skill_shield',
+        'skill_pierce',
+        'defend',
+        'potion',
+        'bomb',
+      ].includes(payload.action)
+    ) {
+      return;
+    }
     const result = roomManager.performCombatAction(socket.id, payload.action, payload.targetId);
     if ('error' in result) {
       socket.emit('room_error', { message: result.error });
@@ -446,6 +461,19 @@ io.on('connection', (socket) => {
   socket.on('drop_item', (payload) => {
     if (!payload || typeof payload.itemId !== 'string') return;
     const result = roomManager.dropItem(socket.id, payload.itemId);
+    if ('error' in result) {
+      socket.emit('room_error', { message: result.error });
+      return;
+    }
+
+    const publicRoom = roomManager.toPublicRoom(result.room);
+    io.to(publicRoom.code).emit('room_state', publicRoom);
+    io.to(publicRoom.code).emit('system_notice', { message: result.notice });
+  });
+
+  socket.on('unlock_skill', (payload) => {
+    if (!payload || typeof payload.skillId !== 'string') return;
+    const result = roomManager.unlockSkill(socket.id, payload.skillId as any);
     if ('error' in result) {
       socket.emit('room_error', { message: result.error });
       return;
