@@ -1,6 +1,8 @@
 import {
   PLAYER_CLASSES,
   SKILL_TREE,
+  lifeDamageBonus,
+  potionHealFlat,
   type CombatEndedPayload,
   type CombatState,
   type CombatStatus,
@@ -285,6 +287,8 @@ export class CombatModal {
         (me?.unlockedSkills ?? []).includes(n.id)
     );
     const myClassCfg = me ? PLAYER_CLASSES[me.playerClass] : null;
+    const lifeDmg = me ? lifeDamageBonus(me.maxHp) : 0;
+    const potionFlat = me ? potionHealFlat(me.maxHp) : 0;
     const roll = combat.lastRoll;
     const logHtml = combat.log
       .slice(-5)
@@ -336,7 +340,7 @@ export class CombatModal {
           <div class="combat-actions-grid">
             <button type="button" id="combat-attack-btn" class="btn combat-action-btn" ${!isMyTurn || !this.selectedTargetId ? 'disabled' : ''}>
               <span class="combat-btn-title stat-row-inline">${ICON_SWORD} Atacar</span>
-              <span class="combat-btn-sub">Golpe normal</span>
+              <span class="combat-btn-sub">+${lifeDmg} por tu vida</span>
             </button>
             <button type="button" id="combat-luck-btn" class="btn btn-luck combat-action-btn" ${!isMyTurn || !this.selectedTargetId ? 'disabled' : ''}>
               <span class="combat-btn-title stat-row-inline">${ICON_LUCK} Suerte (50/50)</span>
@@ -356,7 +360,7 @@ export class CombatModal {
             </button>
             <button type="button" id="combat-potion-btn" class="btn btn-secondary combat-action-btn" ${!isMyTurn || potionsLeft <= 0 ? 'disabled' : ''}>
               <span class="combat-btn-title stat-row-inline">${ICON_POTION} Poción (${potionsLeft})</span>
-              <span class="combat-btn-sub">Recuperar vida</span>
+              <span class="combat-btn-sub">1d4+${potionFlat} según tu vida</span>
             </button>
             ${
               unlockedTreeActives

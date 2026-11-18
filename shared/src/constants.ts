@@ -41,7 +41,7 @@ export const ITEMS_BY_ID: Record<string, ItemDef> = {
     name: 'Poción de vida',
     kind: 'consumable',
     rarity: 'comun',
-    description: 'Recupera 1d6+4 de Vida.',
+    description: 'Cura 1d4 más un 20% de tu Vida máxima.',
   },
   bomb: {
     id: 'bomb',
@@ -147,7 +147,7 @@ export const SHOP_ITEMS: ShopItemDef[] = [
     category: 'consumable',
     price: 12,
     maxOwned: 5,
-    description: 'Recupera 1d6+4 PV (en combate o fuera de él).',
+    description: 'Cura 1d4 más un 20% de tu Vida máxima (en combate o fuera de él).',
   },
   {
     id: 'bomb',
@@ -202,7 +202,7 @@ export const SKILL_TREE: SkillNodeDef[] = [
     cost: 1,
     requires: 'martial_1',
     combatAction: 'skill_safe',
-    description: 'Activa (1/combate): Nunca falla. Inflige 10 + Ataque de daño fijo.',
+    description: 'Activa (1/combate): Nunca falla. Inflige 10 + Ataque + 10% de tu Vida.',
   },
   {
     id: 'guard_1',
@@ -222,7 +222,7 @@ export const SKILL_TREE: SkillNodeDef[] = [
     cost: 1,
     requires: 'guard_1',
     combatAction: 'skill_shield',
-    description: 'Activa (1/combate): Cura +8 Vida al grupo y da +2 Defensa.',
+    description: 'Activa (1/combate): Cura al grupo según tu Vida y da +2 Defensa.',
   },
   {
     id: 'focus_1',
@@ -242,7 +242,7 @@ export const SKILL_TREE: SkillNodeDef[] = [
     cost: 1,
     requires: 'focus_1',
     combatAction: 'skill_pierce',
-    description: 'Activa (1/combate): Ignora Defensa e inflige 14 + mitad de Ataque fijo.',
+    description: 'Activa (1/combate): Ignora Defensa e inflige 14 + mitad de Ataque + 10% de tu Vida.',
   },
 ];
 
@@ -311,6 +311,16 @@ export const PLAYER_CLASSES: Record<PlayerClass, ClassTemplate> = {
 };
 
 export const PLAYER_CLASS_LIST: PlayerClass[] = ['Fighter', 'Wizard', 'Rogue'];
+
+/** Extra damage added to the player's attacks, based on max HP. */
+export function lifeDamageBonus(maxHp: number): number {
+  return Math.max(1, Math.round(maxHp * 0.1));
+}
+
+/** Flat part of a potion heal, based on max HP. A 1d4 is rolled on top. */
+export function potionHealFlat(maxHp: number): number {
+  return Math.max(2, Math.round(maxHp * 0.2));
+}
 
 export const BOSS_KEY_BY_REGION: Record<string, { id: string; label: string }> = {
   valderroble: { id: 'key_valderroble', label: 'Llave de Valderroble' },

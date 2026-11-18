@@ -7,6 +7,8 @@ import {
   COMBAT_TILE_COOLDOWN_MS,
   EVENT_TILE_COOLDOWN_MS,
   ITEMS_BY_ID,
+  lifeDamageBonus,
+  potionHealFlat,
   MAX_INVENTORY_SLOTS,
   MAX_PLAYERS,
   MINIGAME_COOLDOWN_MS,
@@ -1619,10 +1621,11 @@ export class RoomManager {
 
       if (hit) {
         const dmg = rollDiceExpression(player.damageDice, critical);
-        target.applyDamage(dmg.total);
+        const total = dmg.total + lifeDamageBonus(player.maxHp);
+        target.applyDamage(total);
         const headline = critical
-          ? `¡Crítico devastador! ${dmg.total} de daño`
-          : `¡Golpe certero! ${dmg.total} de daño`;
+          ? `¡Crítico devastador! ${total} de daño`
+          : `¡Golpe certero! ${total} de daño`;
         roll = {
           actorId: player.id,
           actorName: player.name,
@@ -1640,13 +1643,13 @@ export class RoomManager {
           fumble: false,
           damageDice: player.damageDice,
           damageRolls: dmg.rolls,
-          damageMod: dmg.modifier,
-          damageTotal: dmg.total,
+          damageMod: dmg.modifier + lifeDamageBonus(player.maxHp),
+          damageTotal: total,
           summary: `${headline} — ${player.name} golpea a ${target.name}.`,
         };
       } else if (!fumble) {
         // Consistent grazing damage on non-fumble misses so combat never stalls on bad RNG
-        const grazeDmg = Math.max(2, Math.floor(player.attackMod / 2) + 1);
+        const grazeDmg = Math.max(2, Math.floor(player.attackMod / 2) + 1) + lifeDamageBonus(player.maxHp);
         target.applyDamage(grazeDmg);
         const headline = `¡Roce! ${grazeDmg} de daño`;
         roll = {
@@ -1714,7 +1717,7 @@ export class RoomManager {
         const isNat20 = d20 === 20;
         const baseDmg = rollDiceExpression(player.damageDice, true);
         let rolls = [...baseDmg.rolls];
-        let totalDmg = baseDmg.total;
+        let totalDmg = baseDmg.total + lifeDamageBonus(player.maxHp);
         if (isNat20) {
           const extra = rollDiceExpression(player.damageDice, false);
           rolls = [...rolls, ...extra.rolls];
@@ -1741,7 +1744,7 @@ export class RoomManager {
           fumble: false,
           damageDice: player.damageDice,
           damageRolls: rolls,
-          damageMod: baseDmg.modifier,
+          damageMod: baseDmg.modifier + lifeDamageBonus(player.maxHp),
           damageTotal: totalDmg,
           summary: isNat20
             ? `¡Suerte legendaria! ${player.name} arrasa a ${target.name} con ${totalDmg} de daño y gana +5 monedas.`
@@ -1784,7 +1787,7 @@ export class RoomManager {
 
       if (player.playerClass === 'Fighter') {
         const dmg = rollDiceExpression('1d8+4');
-        const total = dmg.total + qteBonusDmg;
+        const total = dmg.total + qteBonusDmg + lifeDamageBonus(player.maxHp);
         if (combat.mode === 'pvp') {
           const target = resolveTarget();
           if ('error' in target) return target;
@@ -1830,7 +1833,7 @@ export class RoomManager {
         const target = resolveTarget();
         if ('error' in target) return target;
         const dmg = rollDiceExpression('2d8+3');
-        const total = dmg.total + qteBonusDmg;
+        const total = dmg.total + qteBonusDmg + lifeDamageBonus(player.maxHp);
         target.applyDamage(total);
         const headline = `¡Bola de Fuego! ${total} de daño`;
         roll = {
@@ -1857,7 +1860,7 @@ export class RoomManager {
         const hit = isCrit || d20 + player.attackMod >= target.ac;
         if (hit) {
           const dmg = rollDiceExpression('2d6+5', isCrit);
-          const total = dmg.total + qteBonusDmg;
+          const total = dmg.total + qteBonusDmg + lifeDamageBonus(player.maxHp);
           target.applyDamage(total);
           const headline = isCrit
             ? `¡Golpe Furtivo Letal! ${total} de daño`
@@ -1910,7 +1913,7 @@ export class RoomManager {
       if (action === 'skill_safe') {
         const target = resolveTarget();
         if ('error' in target) return target;
-        const fixedDmg = 10 + player.attackMod + qteBonusDmg;
+        const fixedDmg = 10 + player.attackMod + qteBonusDmg + lifeDamageBonus(player.maxHp);
         target.applyDamage(fixedDmg);
         const headline = `¡Golpe Seguro! ${fixedDmg} de daño`;
         roll = {
@@ -1926,7 +1929,7 @@ export class RoomManager {
           summary: `${headline} — ${player.name} impacta con precisión total a ${target.name}.`,
         };
       } else if (action === 'skill_shield') {
-        const healVal = 8 + qte * 2;
+        const healVal = 8 + qte * 2 + potionHealFlat(player.maxHp);
         if (combat.mode === 'pvp') {
           player.hp = Math.min(player.maxHp, player.hp + healVal);
           combat.defendingIds.push(player.id);
@@ -1954,7 +1957,7 @@ export class RoomManager {
       } else {
         const target = resolveTarget();
         if ('error' in target) return target;
-        const fixedDmg = 14 + Math.floor(player.attackMod / 2) + qteBonusDmg;
+        const fixedDmg = 14 + Math.floor(player.attackMod / 2) + qteBonusDmg + lifeDamageBonus(player.maxHp);
         target.applyDamage(fixedDmg);
         const headline = `¡Descarga Certera! ${fixedDmg} de daño`;
         roll = {
@@ -1981,8 +1984,9 @@ export class RoomManager {
       player.inventory.bomb = owned - 1;
       if (player.inventory.bomb <= 0) delete player.inventory.bomb;
       const dmg = rollDiceExpression('2d6+4');
-      target.applyDamage(dmg.total);
-      const headline = `¡Explosión arcana! ${dmg.total} de daño`;
+      const bombTotal = dmg.total + lifeDamageBonus(player.maxHp);
+      target.applyDamage(bombTotal);
+      const headline = `¡Explosión arcana! ${bombTotal} de daño`;
       roll = {
         actorId: player.id,
         actorName: player.name,
@@ -1996,9 +2000,9 @@ export class RoomManager {
         fumble: false,
         damageDice: '2d6+4',
         damageRolls: dmg.rolls,
-        damageMod: dmg.modifier,
-        damageTotal: dmg.total,
-        summary: `¡Explosión arcana! ${player.name} lanza una bomba a ${target.name} e inflige ${dmg.total} de daño.`,
+        damageMod: dmg.modifier + lifeDamageBonus(player.maxHp),
+        damageTotal: bombTotal,
+        summary: `¡Explosión arcana! ${player.name} lanza una bomba a ${target.name} e inflige ${bombTotal} de daño.`,
       };
     } else if (action === 'defend') {
       combat.defendingIds.push(player.id);
@@ -2022,9 +2026,10 @@ export class RoomManager {
         player.inventory.potion = bagLeft - 1;
         if (player.inventory.potion <= 0) delete player.inventory.potion;
       }
-      const heal = rollDiceExpression('1d6+4');
+      const heal = rollDiceExpression('1d4');
+      const healTotal = heal.total + potionHealFlat(player.maxHp);
       const before = player.hp;
-      player.hp = Math.min(player.maxHp, player.hp + heal.total);
+      player.hp = Math.min(player.maxHp, player.hp + healTotal);
       const healed = player.hp - before;
       roll = {
         actorId: player.id,
@@ -2032,11 +2037,11 @@ export class RoomManager {
         actorKind: 'player',
         actionType: 'potion',
         headline: `¡Curación! +${healed} PV`,
-        damageDice: '1d6+4',
+        damageDice: `1d4+${potionHealFlat(player.maxHp)}`,
         damageRolls: heal.rolls,
-        damageMod: heal.modifier,
+        damageMod: potionHealFlat(player.maxHp),
         healAmount: healed,
-        summary: `¡Curación! ${player.name} bebe una poción y recupera ${healed} PV.`,
+        summary: `¡Curación! ${player.name} bebe una poción y recupera ${healed} PV (escala con su vida).`,
       };
     }
 
@@ -2672,9 +2677,10 @@ export class RoomManager {
 
     player.inventory.potion = owned - 1;
     if (player.inventory.potion <= 0) delete player.inventory.potion;
-    const heal = rollDiceExpression('1d6+4');
+    const heal = rollDiceExpression('1d4');
+    const healTotal = heal.total + potionHealFlat(player.maxHp);
     const before = player.hp;
-    player.hp = Math.min(player.maxHp, player.hp + heal.total);
+    player.hp = Math.min(player.maxHp, player.hp + healTotal);
     const healed = player.hp - before;
 
     this.scheduleSave();
