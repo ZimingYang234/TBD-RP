@@ -1,5 +1,6 @@
 export interface ArenaModalCallbacks {
   onComplete: (score: number, difficulty: 'normal' | 'dificil') => void;
+  onBossComplete?: (victory: boolean, regionId: string) => void;
   onClosed: () => void;
 }
 
@@ -12,6 +13,8 @@ interface ArenaEnemy {
   radius: number;
   color: string;
   hitFlashMs: number;
+  isBoss?: boolean;
+  shootCdMs?: number;
 }
 
 interface ArenaProjectile {
@@ -20,6 +23,7 @@ interface ArenaProjectile {
   vx: number;
   vy: number;
   lifeMs: number;
+  fromEnemy?: boolean;
 }
 
 interface ArenaPickup {
@@ -53,6 +57,7 @@ export class ArenaModal {
   private spellCooldownMs = 0;
 
   // World state
+  private bossMode: { bossName: string; bossHp: number; regionId: string } | null = null;
   private wave = 1;
   private kills = 0;
   private finished = false;
@@ -71,7 +76,20 @@ export class ArenaModal {
   }
 
   public show(difficulty: 'normal' | 'dificil' = 'normal'): void {
+    this.bossMode = null;
     this.difficulty = difficulty;
+    this.open = true;
+    this.resetRun();
+    this.render();
+    window.addEventListener('keydown', this.onKeyDownBound);
+    window.addEventListener('keyup', this.onKeyUpBound);
+    this.lastTs = performance.now();
+    this.loop(this.lastTs);
+  }
+
+  public showBossBattle(bossName: string, bossHp: number, regionId: string): void {
+    this.bossMode = { bossName, bossHp, regionId };
+    this.difficulty = 'normal';
     this.open = true;
     this.resetRun();
     this.render();
@@ -118,6 +136,22 @@ export class ArenaModal {
 
   private spawnWave(waveNum: number): void {
     this.enemies = [];
+    if (this.bossMode) {
+      this.enemies.push({
+        x: ARENA_SIZE / 2,
+        y: 65,
+        hp: this.bossMode.bossHp,
+        maxHp: this.bossMode.bossHp,
+        speed: 82,
+        radius: 22,
+        color: '#f59e0b',
+        hitFlashMs: 0,
+        isBoss: true,
+        shootCdMs: 1400,
+      });
+      return;
+    }
+
     const count = (this.difficulty === 'dificil' ? 4 : 3) + (waveNum - 1);
     for (let i = 0; i < count; i++) {
       const edge = i % 4;
@@ -166,12 +200,12 @@ export class ArenaModal {
       <div class="modal-card shop-modal-card" role="dialog" aria-modal="true" aria-labelledby="arena-title">
         <div class="modal-header">
           <div>
-            <div class="modal-kicker">Portal Minijuego • Roguelike</div>
-            <h2 id="arena-title" class="modal-title">Arena de Supervivencia</h2>
+            <div class="modal-kicker">${this.bossMode ? 'Jefe del Reino • Acción en Tiempo Real' : 'Portal Minijuego • Roguelike'}</div>
+            <h2 id="arena-title" class="modal-title">${this.bossMode ? this.bossMode.bossName : 'Arena de Supervivencia'}</h2>
           </div>
           <div style="display:flex; gap:8px; align-items:center;">
-            <span class="badge" id="arena-wave-badge">Oleada 1</span>
-            <span class="gold-badge" id="arena-kills-badge">Bajas: 0</span>
+            <span class="badge" id="arena-wave-badge">${this.bossMode ? 'JEFE' : 'Oleada 1'}</span>
+            <span class="gold-badge" id="arena-kills-badge">${this.bossMode ? `PV Jefe: ${this.bossMode.bossHp}` : 'Bajas: 0'}</span>
           </div>
         </div>
 
@@ -301,21 +335,30 @@ export class ArenaModal {
     this.enemies = alive;
 
     if (this.enemies.length === 0 && !this.finished) {
+      if (this.bossMode) {
+        this.finishRun(true);
+        return;
+      }
       this.wave += 1;
       if (this.wave > 5) {
-        this.finishRun();
+        this.finishRun(true);
         return;
       }
       this.spawnWave(this.wave);
     }
   }
 
-  private finishRun(): void {
+  private finishRun(victory = false): void {
     if (this.finished) return;
     this.finished = true;
+    const boss = this.bossMode;
     const score = this.kills + (this.wave - 1) * 3;
     const diff = this.difficulty;
     this.hide();
+    if (boss && this.callbacks.onBossComplete) {
+      this.callbacks.onBossComplete(victory, boss.regionId);
+      return;
+    }
     this.callbacks.onComplete(score, diff);
   }
 
@@ -365,6 +408,19 @@ export class ArenaModal {
       if (p.lifeMs <= 0 || p.x < 0 || p.y < 0 || p.x > ARENA_SIZE || p.y > ARENA_SIZE) {
         continue;
       }
+      if (p.fromEnemy) {
+        if (Math.hypot(this.px - p.x, this.py - p.y) <= 16 && this.invulnMs <= 0) {
+          this.hp -= 1;
+          this.invulnMs = 750;
+          if (this.hp <= 0) {
+            this.finishRun(false);
+            return;
+          }
+          continue;
+        }
+        nextProj.push(p);
+        continue;
+      }
       let hitAny = false;
       for (const e of this.enemies) {
         if (Math.hypot(e.x - p.x, e.y - p.y) <= e.radius + 7) {
@@ -385,15 +441,37 @@ export class ArenaModal {
       const dx = this.px - e.x;
       const dy = this.py - e.y;
       const dist = Math.hypot(dx, dy);
+      const isPhase2 = Boolean(e.isBoss && e.hp <= e.maxHp * 0.5);
+      const curSpeed = isPhase2 ? e.speed * 1.25 : e.speed;
+
+      if (e.isBoss) {
+        e.shootCdMs = (e.shootCdMs ?? 1400) - dtMs;
+        if (e.shootCdMs <= 0) {
+          e.shootCdMs = isPhase2 ? 1050 : 1650;
+          const baseAng = Math.atan2(dy, dx);
+          const offsets = isPhase2 ? [-0.35, 0, 0.35] : [0];
+          for (const off of offsets) {
+            this.projectiles.push({
+              x: e.x,
+              y: e.y,
+              vx: Math.cos(baseAng + off) * 190,
+              vy: Math.sin(baseAng + off) * 190,
+              lifeMs: 2200,
+              fromEnemy: true,
+            });
+          }
+        }
+      }
+
       if (dist > 1) {
-        e.x += (dx / dist) * e.speed * dt;
-        e.y += (dy / dist) * e.speed * dt;
+        e.x += (dx / dist) * curSpeed * dt;
+        e.y += (dy / dist) * curSpeed * dt;
       }
       if (dist <= e.radius + 11 && this.invulnMs <= 0) {
         this.hp -= 1;
         this.invulnMs = 750;
         if (this.hp <= 0) {
-          this.finishRun();
+          this.finishRun(false);
           return;
         }
       }
@@ -412,8 +490,14 @@ export class ArenaModal {
     const waveEl = this.overlayEl?.querySelector('#arena-wave-badge');
     const killsEl = this.overlayEl?.querySelector('#arena-kills-badge');
     const hpEl = this.overlayEl?.querySelector('#arena-hp-text');
-    if (waveEl) waveEl.textContent = `Oleada ${this.wave}/5`;
-    if (killsEl) killsEl.textContent = `Bajas: ${this.kills}`;
+    if (this.bossMode) {
+      const boss = this.enemies[0];
+      if (waveEl) waveEl.textContent = boss && boss.hp <= boss.maxHp * 0.5 ? 'FASE 2' : 'JEFE';
+      if (killsEl) killsEl.textContent = `PV Jefe: ${Math.max(0, boss?.hp ?? 0)}`;
+    } else {
+      if (waveEl) waveEl.textContent = `Oleada ${this.wave}/5`;
+      if (killsEl) killsEl.textContent = `Bajas: ${this.kills}`;
+    }
     if (hpEl) hpEl.innerHTML = `Vida: <strong>${this.hp}/${this.maxHp}</strong>`;
   }
 
@@ -448,9 +532,9 @@ export class ArenaModal {
 
     // Projectiles
     for (const p of this.projectiles) {
-      ctx.fillStyle = '#60a5fa';
+      ctx.fillStyle = p.fromEnemy ? '#f87171' : '#60a5fa';
       ctx.beginPath();
-      ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
+      ctx.arc(p.x, p.y, p.fromEnemy ? 7 : 6, 0, Math.PI * 2);
       ctx.fill();
     }
 

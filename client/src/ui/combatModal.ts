@@ -21,7 +21,8 @@ export type CombatActionType =
   | 'bomb';
 
 export interface CombatModalCallbacks {
-  onAction: (action: CombatActionType, targetId?: string) => void;
+  onAction: (action: CombatActionType, targetId?: string, qteScore?: number) => void;
+  onDodge: () => void;
   onSkipTurn: () => void;
   onOutcomeClosed: () => void;
 }
@@ -32,6 +33,11 @@ export class CombatModal {
   private selectedTargetId: string | null = null;
   private lastAnimatedSignature: string | null = null;
   private diceTimer: number | null = null;
+  private dodgeTimer: number | null = null;
+  private qteTimer: number | null = null;
+  private qteKeyListener: ((e: KeyboardEvent) => void) | null = null;
+  private dodgeKeyListener: ((e: KeyboardEvent) => void) | null = null;
+  private myPlayerId: string | null = null;
 
   constructor(private readonly callbacks: CombatModalCallbacks) {}
 
@@ -52,9 +58,29 @@ export class CombatModal {
       window.clearInterval(this.diceTimer);
       this.diceTimer = null;
     }
+    this.clearActionListeners();
     if (this.overlayEl) {
       this.overlayEl.remove();
       this.overlayEl = null;
+    }
+  }
+
+  private clearActionListeners(): void {
+    if (this.dodgeTimer !== null) {
+      window.clearTimeout(this.dodgeTimer);
+      this.dodgeTimer = null;
+    }
+    if (this.qteTimer !== null) {
+      window.clearTimeout(this.qteTimer);
+      this.qteTimer = null;
+    }
+    if (this.qteKeyListener) {
+      window.removeEventListener('keydown', this.qteKeyListener);
+      this.qteKeyListener = null;
+    }
+    if (this.dodgeKeyListener) {
+      window.removeEventListener('keydown', this.dodgeKeyListener);
+      this.dodgeKeyListener = null;
     }
   }
 
@@ -70,6 +96,7 @@ export class CombatModal {
   }
 
   public render(room: PublicRoomState, myPlayerId: string | null): void {
+    this.myPlayerId = myPlayerId;
     if (this.outcome) {
       this.renderOutcome(this.outcome);
       return;
@@ -298,6 +325,8 @@ export class CombatModal {
           ${this.renderDiceStageHtml(roll)}
         </div>
 
+        <div id="combat-action-qte-slot"></div>
+
         <div class="combat-actions-bar">
           <div class="combat-actions-grid">
             <button type="button" id="combat-attack-btn" class="btn combat-action-btn" ${!isMyTurn || !this.selectedTargetId ? 'disabled' : ''}>
@@ -374,7 +403,7 @@ export class CombatModal {
       this.callbacks.onAction('luck', this.selectedTargetId ?? undefined);
     });
     overlay.querySelector('#combat-special-btn')?.addEventListener('click', () => {
-      this.callbacks.onAction('special', this.selectedTargetId ?? undefined);
+      this.startSkillQte('special', this.selectedTargetId ?? undefined);
     });
     overlay.querySelector('#combat-defend-btn')?.addEventListener('click', () => {
       this.callbacks.onAction('defend');
@@ -388,7 +417,7 @@ export class CombatModal {
     overlay.querySelectorAll<HTMLButtonElement>('.combat-tree-skill-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
         const action = btn.dataset.action as CombatActionType | undefined;
-        if (action) this.callbacks.onAction(action, this.selectedTargetId ?? undefined);
+        if (action) this.startSkillQte(action, this.selectedTargetId ?? undefined);
       });
     });
     overlay.querySelector('#combat-skip-btn')?.addEventListener('click', () => {
@@ -597,6 +626,118 @@ export class CombatModal {
       this.hide();
       this.callbacks.onOutcomeClosed();
     });
+  }
+
+  public showDodgePrompt(
+    enemyName: string,
+    targetPlayerId: string,
+    targetPlayerName: string,
+    windowMs: number
+  ): void {
+    const slot = this.overlayEl?.querySelector<HTMLElement>('#combat-action-qte-slot');
+    if (!slot) return;
+    this.clearActionListeners();
+
+    if (targetPlayerId !== this.myPlayerId) {
+      slot.innerHTML = `<div class="qte-banner qte-watch">${this.escapeHtml(enemyName)} apunta a <strong>${this.escapeHtml(targetPlayerName)}</strong>...</div>`;
+      return;
+    }
+
+    let dodged = false;
+    slot.innerHTML = `
+      <button type="button" id="combat-dodge-now-btn" class="qte-dodge-btn">
+        ¡ESQUIVA AHORA! Pulsa <strong>ESPACIO</strong> o haz <strong>CLIC AQUÍ</strong> (${this.escapeHtml(enemyName)} ataca)
+      </button>
+    `;
+
+    const triggerDodge = () => {
+      if (dodged) return;
+      dodged = true;
+      this.clearActionListeners();
+      this.callbacks.onDodge();
+      slot.innerHTML = `<div class="qte-banner qte-success">¡Esquiva lista! Esperando impacto...</div>`;
+    };
+
+    slot.querySelector('#combat-dodge-now-btn')?.addEventListener('click', triggerDodge);
+    this.dodgeKeyListener = (e: KeyboardEvent) => {
+      if (e.key === ' ') {
+        e.preventDefault();
+        triggerDodge();
+      }
+    };
+    window.addEventListener('keydown', this.dodgeKeyListener);
+
+    this.dodgeTimer = window.setTimeout(() => {
+      if (!dodged) {
+        this.clearActionListeners();
+        slot.innerHTML = '';
+      }
+    }, windowMs);
+  }
+
+  private startSkillQte(action: CombatActionType, targetId?: string): void {
+    const slot = this.overlayEl?.querySelector<HTMLElement>('#combat-action-qte-slot');
+    if (!slot) {
+      this.callbacks.onAction(action, targetId, 0);
+      return;
+    }
+    this.clearActionListeners();
+
+    let step = 0;
+    let finished = false;
+    const renderQte = () => {
+      slot.innerHTML = `
+        <div class="qte-seq-box">
+          <div class="qte-seq-title">¡Potencia tu habilidad! Pulsa <strong>1 → 2 → 3</strong> o haz clic rápido:</div>
+          <div class="qte-seq-btns">
+            ${[1, 2, 3]
+              .map(
+                (n) => `
+              <button type="button" class="btn btn-sm qte-step-btn ${step >= n ? 'done' : step + 1 === n ? 'next' : ''}" data-step="${n}">
+                ${step >= n ? '✓' : n}
+              </button>
+            `
+              )
+              .join('')}
+          </div>
+        </div>
+      `;
+
+      slot.querySelectorAll<HTMLButtonElement>('.qte-step-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const n = Number(btn.dataset.step);
+          advance(n);
+        });
+      });
+    };
+
+    const complete = () => {
+      if (finished) return;
+      finished = true;
+      this.clearActionListeners();
+      slot.innerHTML = '';
+      this.callbacks.onAction(action, targetId, step);
+    };
+
+    const advance = (n: number) => {
+      if (finished || n !== step + 1) return;
+      step = n;
+      if (step >= 3) {
+        complete();
+      } else {
+        renderQte();
+      }
+    };
+
+    this.qteKeyListener = (e: KeyboardEvent) => {
+      if (e.key === '1') advance(1);
+      else if (e.key === '2') advance(2);
+      else if (e.key === '3') advance(3);
+    };
+    window.addEventListener('keydown', this.qteKeyListener);
+
+    this.qteTimer = window.setTimeout(complete, 2400);
+    renderQte();
   }
 
   private renderStatusPills(statuses: CombatStatus[]): string {

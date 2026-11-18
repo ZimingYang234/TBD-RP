@@ -56,6 +56,14 @@ function scheduleEnemyTurnIfNeeded(roomCode: string): void {
   if (!roomManager.isEnemyTurnActive(roomCode)) return;
   if (enemyTurnTimers.has(roomCode)) return;
 
+  const telegraph = roomManager.prepareEnemyTelegraph(roomCode);
+  if (telegraph) {
+    io.to(roomCode).emit('enemy_telegraph', {
+      ...telegraph,
+      windowMs: 1450,
+    });
+  }
+
   const timer = setTimeout(() => {
     enemyTurnTimers.delete(roomCode);
     const outcome = roomManager.executeEnemyTurn(roomCode);
@@ -75,7 +83,7 @@ function scheduleEnemyTurnIfNeeded(roomCode: string): void {
       roll: outcome.roll,
     });
     scheduleEnemyTurnIfNeeded(roomCode);
-  }, 1100);
+  }, 1600);
 
   enemyTurnTimers.set(roomCode, timer);
 }
@@ -354,7 +362,12 @@ io.on('connection', (socket) => {
     ) {
       return;
     }
-    const result = roomManager.performCombatAction(socket.id, payload.action, payload.targetId);
+    const result = roomManager.performCombatAction(
+      socket.id,
+      payload.action,
+      payload.targetId,
+      payload.qteScore
+    );
     if ('error' in result) {
       socket.emit('room_error', { message: result.error });
       return;
@@ -423,6 +436,25 @@ io.on('connection', (socket) => {
       return;
     }
     emitEventResolved(result.outcome.room.code, result.outcome);
+  });
+
+  socket.on('combat_dodge', () => {
+    roomManager.markPlayerDodged(socket.id);
+  });
+
+  socket.on('complete_boss_arena', (payload) => {
+    if (!payload || typeof payload.victory !== 'boolean') return;
+    const result = roomManager.completeBossArena(
+      socket.id,
+      payload.victory,
+      typeof payload.regionId === 'string' ? payload.regionId : ''
+    );
+    if ('error' in result) {
+      socket.emit('room_error', { message: result.error });
+      return;
+    }
+    io.to(result.outcome.room.code).emit('combat_ended', result.outcome);
+    io.to(result.outcome.room.code).emit('system_notice', { message: result.outcome.summary });
   });
 
   socket.on('buy_item', (payload) => {

@@ -118,8 +118,11 @@ const eventModal = new EventModal({
 });
 
 const combatModal = new CombatModal({
-  onAction: (action, targetId) => {
-    socket.emit('combat_action', { action, targetId });
+  onAction: (action, targetId, qteScore) => {
+    socket.emit('combat_action', { action, targetId, qteScore });
+  },
+  onDodge: () => {
+    socket.emit('combat_dodge');
   },
   onSkipTurn: () => {
     socket.emit('skip_combat_turn');
@@ -204,6 +207,9 @@ const minigameModal = new MinigameModal({
 const arenaModal = new ArenaModal({
   onComplete: (score, difficulty) => {
     socket.emit('complete_minigame', { game: 'arena', difficulty, score });
+  },
+  onBossComplete: (victory, regionId) => {
+    socket.emit('complete_boss_arena', { victory, regionId });
   },
   onClosed: () => {
     syncInputLock();
@@ -350,7 +356,21 @@ function renderGameShell(room: PublicRoomState): void {
     });
 
     document.querySelector('#hud-boss-btn')?.addEventListener('click', () => {
-      socket.emit('start_boss_fight');
+      if (!currentRoom || currentRoom.phase !== 'playing') return;
+      const bossNames: Record<string, { name: string; hp: number }> = {
+        valderroble: { name: 'Rey Trasgo Gruk', hp: 28 },
+        solceniza: { name: 'Dragón Menor de Ceniza', hp: 34 },
+        ventisca: { name: 'Señor de la Escarcha', hp: 36 },
+        'plano-astral': { name: 'Titán del Vacío', hp: 42 },
+        'pantano-bruma': { name: 'Hidra del Pantano', hp: 34 },
+        'ruinas-olvido': { name: 'Coloso de Piedra', hp: 38 },
+        'archipielago-coral': { name: 'Leviatán de Coral', hp: 40 },
+        'abismo-cristal': { name: 'Dragón de Cristal', hp: 44 },
+        'camara-final': { name: 'Emperador del Abismo', hp: 60 },
+      };
+      const meta = bossNames[currentRoom.regionId] ?? { name: 'Jefe del Reino', hp: 30 };
+      arenaModal.showBossBattle(meta.name, meta.hp, currentRoom.regionId);
+      syncInputLock();
     });
 
     document.querySelector('#hud-pvp-btn')?.addEventListener('click', () => {
@@ -715,6 +735,10 @@ socket.on('combat_updated', ({ room, roll }) => {
     overworldScene.configure(room, myPlayerId, requestMove);
   }
   syncInputLock();
+});
+
+socket.on('enemy_telegraph', ({ enemyName, targetPlayerId, targetPlayerName, windowMs }) => {
+  combatModal.showDodgePrompt(enemyName, targetPlayerId, targetPlayerName, windowMs);
 });
 
 socket.on('combat_ended', (payload) => {

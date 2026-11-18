@@ -340,6 +340,12 @@ export interface ServerToClientEvents {
   event_resolved: (payload: EventOutcomePayload) => void;
   combat_started: (payload: { room: PublicRoomState }) => void;
   combat_updated: (payload: { room: PublicRoomState; roll: DiceRollBreakdown }) => void;
+  enemy_telegraph: (payload: {
+    enemyName: string;
+    targetPlayerId: string;
+    targetPlayerName: string;
+    windowMs: number;
+  }) => void;
   combat_ended: (payload: CombatEndedPayload) => void;
   tavern_result: (payload: TavernResultPayload) => void;
   chest_opened: (payload: {
@@ -383,7 +389,10 @@ export interface ClientToServerEvents {
       | 'potion'
       | 'bomb';
     targetId?: string;
+    qteScore?: number;
   }) => void;
+  combat_dodge: () => void;
+  complete_boss_arena: (payload: { victory: boolean; regionId: string }) => void;
   skip_combat_turn: () => void;
   play_tavern_dice: (payload: { bet: number }) => void;
   buy_item: (payload: { itemId: string }) => void;

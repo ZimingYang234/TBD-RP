@@ -178,6 +178,7 @@ export class RoomManager {
   private springCooldowns = new Map<string, number>();
   private surpriseCooldowns = new Map<string, number>();
   private pendingEventRooms = new Set<string>();
+  private pendingEnemyTarget = new Map<string, { targetId: string; dodged: boolean }>();
   private saveTimer: NodeJS.Timeout | null = null;
   private readonly storePath: string;
 
@@ -1391,8 +1392,11 @@ export class RoomManager {
       | 'defend'
       | 'potion'
       | 'bomb',
-    targetId?: string
+    targetId?: string,
+    qteScore = 0
   ): CombatStepOutcome | { error: string } {
+    const qte = Math.max(0, Math.min(3, Math.floor(Number(qteScore) || 0)));
+    const qteBonusDmg = qte * 3;
     const binding = this.socketToBinding.get(socketId);
     if (!binding) return { error: 'No estás en ninguna sala.' };
 
@@ -1646,11 +1650,12 @@ export class RoomManager {
 
       if (player.playerClass === 'Fighter') {
         const dmg = rollDiceExpression('1d8+4');
+        const total = dmg.total + qteBonusDmg;
         if (combat.mode === 'pvp') {
           const target = resolveTarget();
           if ('error' in target) return target;
-          target.applyDamage(dmg.total);
-          const headline = `¡Tajo Sísmico! ${dmg.total} de daño`;
+          target.applyDamage(total);
+          const headline = `¡Tajo Sísmico! ${total} de daño`;
           roll = {
             actorId: player.id,
             actorName: player.name,
@@ -1663,15 +1668,15 @@ export class RoomManager {
             damageDice: '1d8+4',
             damageRolls: dmg.rolls,
             damageMod: dmg.modifier,
-            damageTotal: dmg.total,
+            damageTotal: total,
             summary: `${headline} — ${player.name} sacude el suelo bajo ${target.name}.`,
           };
         } else {
           const living = combat.enemies.filter((e) => e.hp > 0);
           for (const e of living) {
-            e.hp = Math.max(0, e.hp - dmg.total);
+            e.hp = Math.max(0, e.hp - total);
           }
-          const headline = `¡Tajo Sísmico! ${dmg.total} a todos`;
+          const headline = `¡Tajo Sísmico! ${total} a todos`;
           roll = {
             actorId: player.id,
             actorName: player.name,
@@ -1683,7 +1688,7 @@ export class RoomManager {
             damageDice: '1d8+4',
             damageRolls: dmg.rolls,
             damageMod: dmg.modifier,
-            damageTotal: dmg.total,
+            damageTotal: total,
             summary: `${headline} — ${player.name} golpea la tierra e impacta a todos los enemigos.`,
           };
         }
@@ -1691,8 +1696,9 @@ export class RoomManager {
         const target = resolveTarget();
         if ('error' in target) return target;
         const dmg = rollDiceExpression('2d8+3');
-        target.applyDamage(dmg.total);
-        const headline = `¡Bola de Fuego! ${dmg.total} de daño`;
+        const total = dmg.total + qteBonusDmg;
+        target.applyDamage(total);
+        const headline = `¡Bola de Fuego! ${total} de daño`;
         roll = {
           actorId: player.id,
           actorName: player.name,
@@ -1706,7 +1712,7 @@ export class RoomManager {
           damageDice: '2d8+3',
           damageRolls: dmg.rolls,
           damageMod: dmg.modifier,
-          damageTotal: dmg.total,
+          damageTotal: total,
           summary: `${headline} — ${player.name} incinera a ${target.name} sin piedad.`,
         };
       } else {
@@ -1717,10 +1723,11 @@ export class RoomManager {
         const hit = isCrit || d20 + player.attackMod >= target.ac;
         if (hit) {
           const dmg = rollDiceExpression('2d6+5', isCrit);
-          target.applyDamage(dmg.total);
+          const total = dmg.total + qteBonusDmg;
+          target.applyDamage(total);
           const headline = isCrit
-            ? `¡Golpe Furtivo Letal! ${dmg.total} de daño`
-            : `¡Golpe Furtivo! ${dmg.total} de daño`;
+            ? `¡Golpe Furtivo Letal! ${total} de daño`
+            : `¡Golpe Furtivo! ${total} de daño`;
           roll = {
             actorId: player.id,
             actorName: player.name,
@@ -1735,7 +1742,7 @@ export class RoomManager {
             damageDice: '2d6+5',
             damageRolls: dmg.rolls,
             damageMod: dmg.modifier,
-            damageTotal: dmg.total,
+            damageTotal: total,
             summary: `${headline} — ${player.name} aparece por la espalda de ${target.name}.`,
           };
         } else {
@@ -1769,7 +1776,7 @@ export class RoomManager {
       if (action === 'skill_safe') {
         const target = resolveTarget();
         if ('error' in target) return target;
-        const fixedDmg = 10 + player.attackMod;
+        const fixedDmg = 10 + player.attackMod + qteBonusDmg;
         target.applyDamage(fixedDmg);
         const headline = `¡Golpe Seguro! ${fixedDmg} de daño`;
         roll = {
@@ -1785,20 +1792,21 @@ export class RoomManager {
           summary: `${headline} — ${player.name} impacta con precisión total a ${target.name}.`,
         };
       } else if (action === 'skill_shield') {
+        const healVal = 8 + qte * 2;
         if (combat.mode === 'pvp') {
-          player.hp = Math.min(player.maxHp, player.hp + 8);
+          player.hp = Math.min(player.maxHp, player.hp + healVal);
           combat.defendingIds.push(player.id);
         } else {
           for (const ally of room.players) {
             if (ally.hp > 0) {
-              ally.hp = Math.min(ally.maxHp, ally.hp + 8);
+              ally.hp = Math.min(ally.maxHp, ally.hp + healVal);
               if (!combat.defendingIds.includes(ally.id)) {
                 combat.defendingIds.push(ally.id);
               }
             }
           }
         }
-        const headline = '¡Escudo de Grupo! +8 Vida y +2 Defensa';
+        const headline = `¡Escudo de Grupo! +${healVal} Vida y +2 Defensa`;
         roll = {
           actorId: player.id,
           actorName: player.name,
@@ -1806,13 +1814,13 @@ export class RoomManager {
           actionType: 'skill_shield',
           headline,
           hit: true,
-          healAmount: 8,
+          healAmount: healVal,
           summary: `${headline} — ${player.name} protege y sana al grupo.`,
         };
       } else {
         const target = resolveTarget();
         if ('error' in target) return target;
-        const fixedDmg = 14 + Math.floor(player.attackMod / 2);
+        const fixedDmg = 14 + Math.floor(player.attackMod / 2) + qteBonusDmg;
         target.applyDamage(fixedDmg);
         const headline = `¡Descarga Certera! ${fixedDmg} de daño`;
         roll = {
@@ -2004,6 +2012,110 @@ export class RoomManager {
     return { type: 'updated', room, roll };
   }
 
+  public prepareEnemyTelegraph(roomCode: string): {
+    enemyName: string;
+    targetPlayerId: string;
+    targetPlayerName: string;
+  } | null {
+    const room = this.rooms.get(roomCode);
+    if (!room || room.phase !== 'combat' || !room.combat) return null;
+
+    const activeTurn = room.combat.turnOrder[room.combat.turnIndex];
+    if (!activeTurn || activeTurn.kind !== 'enemy') return null;
+
+    const enemy = room.combat.enemies.find((e) => e.id === activeTurn.id && e.hp > 0);
+    const livingPlayers = room.players.filter((p) => p.hp > 0);
+    if (!enemy || livingPlayers.length === 0) return null;
+
+    const target = livingPlayers[Math.floor(Math.random() * livingPlayers.length)];
+    this.pendingEnemyTarget.set(roomCode, { targetId: target.id, dodged: false });
+    return {
+      enemyName: enemy.name,
+      targetPlayerId: target.id,
+      targetPlayerName: target.name,
+    };
+  }
+
+  public markPlayerDodged(socketId: string): boolean {
+    const binding = this.socketToBinding.get(socketId);
+    if (!binding) return false;
+    const pending = this.pendingEnemyTarget.get(binding.roomCode);
+    if (!pending || pending.targetId !== binding.playerId) return false;
+    pending.dodged = true;
+    return true;
+  }
+
+  public completeBossArena(
+    socketId: string,
+    victory: boolean,
+    regionId: string
+  ): { outcome: CombatEndedPayload } | { error: string } {
+    const binding = this.socketToBinding.get(socketId);
+    if (!binding) return { error: 'No estás en ninguna sala.' };
+
+    const room = this.rooms.get(binding.roomCode);
+    if (!room || room.phase !== 'playing') {
+      return { error: 'No se pudo completar el combate de Jefe.' };
+    }
+
+    const avgLevel =
+      room.players.reduce((sum, p) => sum + (p.level ?? 1), 0) /
+      Math.max(1, room.players.length);
+    const boss = spawnBossForRegion(regionId || room.regionId, room.players.length, Math.round(avgLevel));
+
+    if (!victory) {
+      const map = getRegion(room.regionId);
+      room.players.forEach((p, idx) => {
+        const pos = findWalkableNearby(map, map.spawn.x, map.spawn.y, idx);
+        p.x = pos.x;
+        p.y = pos.y;
+        p.hp = Math.max(1, Math.ceil(p.maxHp * 0.5));
+      });
+      this.scheduleSave();
+      return {
+        outcome: {
+          victory: false,
+          xpGained: 0,
+          goldGained: 0,
+          summary: `${boss.name} os derrotó en la Arena. Despertáis con 50% de Vida.`,
+          room: this.toPublicRoom(room),
+        },
+      };
+    }
+
+    for (const p of room.players) {
+      this.grantXp(p, boss.xpReward);
+      p.gold = (p.gold ?? 0) + boss.goldReward;
+      p.hp = Math.max(1, p.hp);
+    }
+
+    const BOSS_KEY_BY_REGION: Record<string, { id: string; label: string }> = {
+      valderroble: { id: 'key_valderroble', label: 'Llave del Roble' },
+      solceniza: { id: 'key_solceniza', label: 'Llave de Ceniza' },
+      ventisca: { id: 'key_ventisca', label: 'Llave de Escarcha' },
+      'plano-astral': { id: 'key_astral', label: 'Llave Astral' },
+    };
+    const keyDef = BOSS_KEY_BY_REGION[room.regionId];
+    let keyNotice = '';
+    if (keyDef && !(room.bossKeys ?? []).includes(keyDef.id)) {
+      room.bossKeys = [...(room.bossKeys ?? []), keyDef.id];
+      keyNotice = ` ¡Conseguisteis la ${keyDef.label}!`;
+    }
+
+    this.advanceQuest(room, 'combat');
+    this.scheduleSave();
+
+    return {
+      outcome: {
+        victory: true,
+        xpGained: boss.xpReward,
+        goldGained: boss.goldReward,
+        summary: `¡Victoria en Tiempo Real! Derrotasteis a ${boss.name} (+${boss.xpReward} EXP, +${boss.goldReward} monedas).${keyNotice}`,
+        room: this.toPublicRoom(room),
+      },
+    };
+  }
+
   public executeEnemyTurn(roomCode: string): CombatStepOutcome | null {
     const room = this.rooms.get(roomCode);
     if (!room || room.phase !== 'combat' || !room.combat) return null;
@@ -2094,7 +2206,34 @@ export class RoomManager {
       return { type: 'updated', room, roll };
     }
 
-    const target = livingPlayers[Math.floor(Math.random() * livingPlayers.length)];
+    const pending = this.pendingEnemyTarget.get(roomCode);
+    this.pendingEnemyTarget.delete(roomCode);
+
+    const target =
+      (pending ? livingPlayers.find((p) => p.id === pending.targetId) : undefined) ??
+      livingPlayers[Math.floor(Math.random() * livingPlayers.length)];
+
+    if (pending && pending.targetId === target.id && pending.dodged) {
+      const roll: DiceRollBreakdown = {
+        actorId: enemy.id,
+        actorName: enemy.name,
+        actorKind: 'enemy',
+        targetId: target.id,
+        targetName: target.name,
+        actionType: 'attack',
+        headline: `¡Esquiva perfecta! 0 de daño`,
+        hit: false,
+        critical: false,
+        fumble: false,
+        summary: `¡Reflejos felinos! ${target.name} esquivó el golpe de ${enemy.name} a tiempo.`,
+      };
+      combat.lastRoll = roll;
+      combat.log = [...combat.log, roll.summary].slice(-20);
+      this.advanceTurnIndex(room);
+      this.scheduleSave();
+      return { type: 'updated', room, roll };
+    }
+
     const isDefending = combat.defendingIds.includes(target.id);
     const frostBonus = room.regionId === 'ventisca' ? 1 : 0;
     const targetAc = target.ac + (isDefending ? 2 : 0) + frostBonus;
