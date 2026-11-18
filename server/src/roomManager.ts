@@ -103,6 +103,12 @@ export type MoveOutcome =
       steppedOnShopTile: boolean;
       steppedOnMinigameTile: boolean;
       steppedOnSecretQuestionTile: boolean;
+      secretPortalPrompt: {
+        hasFinalKey: boolean;
+        hasBlueEssence: boolean;
+        hasCoins: boolean;
+        coins: number;
+      } | null;
       hitBlueCreature: boolean;
       mapNotice?: string;
       openedChest: {
@@ -184,6 +190,7 @@ export class RoomManager {
   private minigameCooldowns = new Map<string, number>();
   private springCooldowns = new Map<string, number>();
   private surpriseCooldowns = new Map<string, number>();
+  private secretPortalCooldowns = new Map<string, number>();
   private pendingEventRooms = new Set<string>();
   private pendingEnemyTarget = new Map<string, { targetId: string; dodgeReduction: 0 | 15 | 30 }>();
   private saveTimer: NodeJS.Timeout | null = null;
@@ -749,21 +756,30 @@ export class RoomManager {
       }
 
       if (portal.requiresFinalUnlock && !room.secretRoomUnlocked) {
-        const missing: string[] = [];
-        if (!(room.bossKeys ?? []).includes('key_final_boss')) {
-          missing.push('Llave del Emperador (derrota al Jefe Final)');
-        }
-        if (!(room.bossKeys ?? []).includes('key_blue_creature')) {
-          missing.push('Esencia de ? (derrota a la criatura azul)');
-        }
-        if ((player.gold ?? 0) < 1000) {
-          missing.push('1000 monedas');
-        }
-        if (missing.length > 0) {
+        const hasFinalKey = (room.bossKeys ?? []).includes('key_final_boss');
+        const hasBlueEssence = (room.bossKeys ?? []).includes('key_blue_creature');
+        const hasCoins = (player.gold ?? 0) >= 1000;
+        if (!hasFinalKey || !hasBlueEssence || !hasCoins) {
           return {
-            type: 'portal_blocked',
+            type: 'moved',
             room,
-            message: `Sala Secreta bloqueada. Te falta: ${missing.join(', ')}.`,
+            player,
+            steppedOnEventTile: false,
+            steppedOnCombatTile: false,
+            isBossCombatTile: false,
+            steppedOnShopTile: false,
+            steppedOnMinigameTile: false,
+            steppedOnSecretQuestionTile: false,
+            secretPortalPrompt: {
+              hasFinalKey,
+              hasBlueEssence,
+              hasCoins,
+              coins: player.gold ?? 0,
+            },
+            openedChest: null,
+            hitBlueCreature: false,
+            tileX: nextX,
+            tileY: nextY,
           };
         }
         player.gold -= 1000;
@@ -867,6 +883,25 @@ export class RoomManager {
       hitBlueCreature = true;
     }
 
+    let secretPortalPrompt: Extract<MoveOutcome, { type: 'moved' }>['secretPortalPrompt'] = null;
+    if (
+      currentMap.id === 'valderroble' &&
+      !room.secretRoomUnlocked &&
+      Math.abs(nextX - 17) + Math.abs(nextY - 13) <= 2
+    ) {
+      const spKey = `${room.code}:${player.id}`;
+      const readyAt = this.secretPortalCooldowns.get(spKey) ?? 0;
+      if (now >= readyAt) {
+        this.secretPortalCooldowns.set(spKey, now + 10_000);
+        secretPortalPrompt = {
+          hasFinalKey: (room.bossKeys ?? []).includes('key_final_boss'),
+          hasBlueEssence: (room.bossKeys ?? []).includes('key_blue_creature'),
+          hasCoins: (player.gold ?? 0) >= 1000,
+          coins: player.gold ?? 0,
+        };
+      }
+    }
+
     this.scheduleSave();
     return {
       type: 'moved',
@@ -878,6 +913,7 @@ export class RoomManager {
       steppedOnShopTile: landedTile === 'shop',
       steppedOnMinigameTile: landedTile === 'minigame',
       steppedOnSecretQuestionTile: landedTile === 'secret_question',
+      secretPortalPrompt,
       hitBlueCreature,
       mapNotice,
       openedChest,
@@ -2458,7 +2494,7 @@ export class RoomManager {
         room.bossKeys = room.bossKeys ?? [];
         if (!room.bossKeys.includes('key_blue_creature')) {
           room.bossKeys.push('key_blue_creature');
-          earnedBossKeyLabel = 'Esencia de ?';
+          earnedBossKeyLabel = '?';
         }
         room.blueCreature = spawnBlueCreature(room.regionId);
       } else if (combat.isBoss) {

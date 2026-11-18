@@ -27,6 +27,7 @@ import { MinigameModal } from './ui/minigameModal';
 import { ArenaModal } from './ui/arenaModal';
 import { ProgressModal } from './ui/progressModal';
 import { SecretQuestionModal } from './ui/secretQuestionModal';
+import { SecretPortalModal } from './ui/secretPortalModal';
 import { ICON_COIN, ICON_HEART, ICON_LUCK, ICON_SHIELD, ICON_SWORD } from './ui/icons';
 import { getSavedQuality, renderQualityControl } from './ui/quality';
 import type { OverworldScene } from './game/OverworldScene';
@@ -245,6 +246,10 @@ const secretQuestionModal = new SecretQuestionModal({
   },
 });
 
+const secretPortalModal = new SecretPortalModal(() => {
+  syncInputLock();
+});
+
 function syncInputLock(): void {
   const blocked =
     eventModal.isOpen() ||
@@ -259,6 +264,7 @@ function syncInputLock(): void {
     arenaModal.isOpen() ||
     progressModal.isOpen() ||
     secretQuestionModal.isOpen() ||
+    secretPortalModal.isOpen() ||
     currentRoom?.phase !== 'playing';
   overworldScene?.setInputBlocked(blocked);
 }
@@ -277,6 +283,7 @@ function requestMove(dir: Direction): void {
     arenaModal.isOpen() ||
     progressModal.isOpen() ||
     secretQuestionModal.isOpen() ||
+    secretPortalModal.isOpen() ||
     currentRoom?.phase !== 'playing'
   ) {
     return;
@@ -652,6 +659,7 @@ function renderApp(): void {
   arenaModal.hide();
   progressModal.hide();
   secretQuestionModal.hide();
+  secretPortalModal.hide();
   destroyPhaser();
   lobbyUI.render(currentRoom, myPlayerId, lastError);
 }
@@ -841,6 +849,13 @@ socket.on('open_secret_question', (payload) => {
 
 socket.on('secret_question_result', (payload) => {
   secretQuestionModal.setResult(payload);
+});
+
+socket.on('open_secret_portal_reqs', (reqs) => {
+  if (currentRoom && currentRoom.phase === 'playing') {
+    secretPortalModal.show(reqs);
+    syncInputLock();
+  }
 });
 
 socket.on('save_code_generated', ({ saveCode }) => {

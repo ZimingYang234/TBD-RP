@@ -306,6 +306,8 @@ io.on('connection', (socket) => {
       }
     } else if (outcome.steppedOnSecretQuestionTile) {
       socket.emit('open_secret_question', roomManager.getSecretQuestion());
+    } else if (outcome.secretPortalPrompt) {
+      socket.emit('open_secret_portal_reqs', outcome.secretPortalPrompt);
     } else if (outcome.steppedOnShopTile) {
       socket.emit('open_shop');
     } else if (outcome.steppedOnMinigameTile) {

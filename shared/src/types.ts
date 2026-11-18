@@ -382,6 +382,12 @@ export interface ServerToClientEvents {
   open_minigame: (payload: { game: 'memory' | 'reflex' | 'chest_guess' | 'riddle' | 'arena' }) => void;
   open_secret_question: (payload: SecretQuestionState) => void;
   secret_question_result: (payload: { correct: boolean; message: string; canCustomize: boolean }) => void;
+  open_secret_portal_reqs: (payload: {
+    hasFinalKey: boolean;
+    hasBlueEssence: boolean;
+    hasCoins: boolean;
+    coins: number;
+  }) => void;
   save_code_generated: (payload: { saveCode: string }) => void;
   room_error: (payload: { message: string; code?: string }) => void;
   system_notice: (payload: { message: string }) => void;
