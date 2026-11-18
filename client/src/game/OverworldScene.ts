@@ -244,6 +244,7 @@ export class OverworldScene extends Phaser.Scene {
   private mapLayer: Phaser.GameObjects.Graphics | null = null;
   private shadowLayer: Phaser.GameObjects.Graphics | null = null;
   private propObjects: Phaser.GameObjects.GameObject[] = [];
+  private roamingObjects: Phaser.GameObjects.GameObject[] = [];
   private playerSprites = new Map<string, PlayerSpriteBundle>();
   private bannerContainer: Phaser.GameObjects.Container | null = null;
 
@@ -322,6 +323,7 @@ export class OverworldScene extends Phaser.Scene {
         this.redrawMap();
       }
       this.syncPlayers(room.players, regionChanged);
+      this.syncRoamingMonsters(room.roamingMonsters ?? []);
     }
   }
 
@@ -477,6 +479,10 @@ export class OverworldScene extends Phaser.Scene {
         tip = 'Tienda (clic o camina aquí)';
       } else if (tile === 'minigame') {
         tip = 'Minijuego (clic o camina aquí)';
+      } else if (tile === 'spring') {
+        tip = 'Fuente Curativa (+8 Vida)';
+      } else if (tile === 'trap') {
+        tip = 'Trampa oculta';
       } else if (tile === 'chest') {
         const chest = this.room.map.chests?.find((c) => c.x === tx && c.y === ty);
         tip = chest ? `Cofre ${RARITY_LABELS[chest.rarity]} (clic o camina aquí)` : 'Cofre';
@@ -503,6 +509,7 @@ export class OverworldScene extends Phaser.Scene {
     if (this.room) {
       this.redrawMap();
       this.syncPlayers(this.room.players, true);
+      this.syncRoamingMonsters(this.room.roamingMonsters ?? []);
       this.showRegionBanner(this.room.map.name, this.room.map.subtitle);
     }
   }
@@ -652,7 +659,9 @@ export class OverworldScene extends Phaser.Scene {
           tile === 'combat' ||
           tile === 'shop' ||
           tile === 'chest' ||
-          tile === 'minigame'
+          tile === 'minigame' ||
+          tile === 'spring' ||
+          tile === 'trap'
         ) {
           const base = (x + y) % 2 === 0 ? palette.grassA : palette.grassB;
           g.fillStyle(base, 1);
@@ -703,6 +712,10 @@ export class OverworldScene extends Phaser.Scene {
             this.spawnShopMarker(px + TILE_SIZE / 2, py + TILE_SIZE / 2);
           } else if (tile === 'minigame') {
             this.spawnMinigameMarker(px + TILE_SIZE / 2, py + TILE_SIZE / 2);
+          } else if (tile === 'spring') {
+            this.spawnSpringMarker(px + TILE_SIZE / 2, py + TILE_SIZE / 2);
+          } else if (tile === 'trap') {
+            this.spawnTrapMarker(px + TILE_SIZE / 2, py + TILE_SIZE / 2);
           } else if (tile === 'chest') {
             const chest = map.chests?.find((c) => c.x === x && c.y === y);
             this.spawnChestMarker(px + TILE_SIZE / 2, py + TILE_SIZE / 2, chest?.rarity ?? 'comun');
@@ -932,6 +945,44 @@ export class OverworldScene extends Phaser.Scene {
     }
 
     this.propObjects.push(base, star);
+  }
+
+  private spawnSpringMarker(cx: number, cy: number): void {
+    const outer = this.add
+      .circle(cx, cy, 18, 0x0e7490, 0.85)
+      .setStrokeStyle(2, 0x22d3ee, 0.95)
+      .setDepth(3);
+    const inner = this.add.circle(cx, cy, 8, 0xa5f3fc, 0.95).setDepth(4);
+    this.propObjects.push(outer, inner);
+  }
+
+  private spawnTrapMarker(cx: number, cy: number): void {
+    const g = this.add.graphics().setDepth(3);
+    g.lineStyle(2, 0x9ca3af, 0.75);
+    g.strokeCircle(cx, cy, 11);
+    g.lineBetween(cx - 8, cy - 8, cx + 8, cy + 8);
+    g.lineBetween(cx - 8, cy + 8, cx + 8, cy - 8);
+    this.propObjects.push(g);
+  }
+
+  private syncRoamingMonsters(monsters: Array<{ id: string; name: string; x: number; y: number }>): void {
+    if (!this.isSceneReady) return;
+    for (const obj of this.roamingObjects) {
+      obj.destroy();
+    }
+    this.roamingObjects = [];
+
+    for (const m of monsters) {
+      const cx = m.x * TILE_SIZE + TILE_SIZE / 2;
+      const cy = m.y * TILE_SIZE + TILE_SIZE / 2;
+      const body = this.add
+        .circle(cx, cy, 14, 0x991b1b, 0.95)
+        .setStrokeStyle(2, 0xfca5a5, 0.95)
+        .setDepth(14);
+      const eyeL = this.add.circle(cx - 4, cy - 2, 2.5, 0xfef08a, 1).setDepth(15);
+      const eyeR = this.add.circle(cx + 4, cy - 2, 2.5, 0xfef08a, 1).setDepth(15);
+      this.roamingObjects.push(body, eyeL, eyeR);
+    }
   }
 
   private spawnChestMarker(cx: number, cy: number, rarity: ItemRarity): void {

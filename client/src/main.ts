@@ -162,6 +162,9 @@ const inventoryModal = new InventoryModal({
   onDrop: (itemId) => {
     socket.emit('drop_item', { itemId });
   },
+  onGive: (itemId, targetPlayerId) => {
+    socket.emit('give_item', { itemId, targetPlayerId });
+  },
   onClosed: () => {
     syncInputLock();
   },
@@ -288,6 +291,8 @@ function renderGameShell(room: PublicRoomState): void {
               <span class="legend-chip"><span class="legend-dot dot-shop"></span>Tienda</span>
               <span class="legend-chip"><span class="legend-dot dot-chest"></span>Cofre</span>
               <span class="legend-chip"><span class="legend-dot dot-minigame"></span>Minijuego</span>
+              <span class="legend-chip"><span class="legend-dot dot-spring"></span>Fuente</span>
+              <span class="legend-chip"><span class="legend-dot dot-trap"></span>Trampa</span>
             </div>
             <div class="redeem-box">
               <input
@@ -479,6 +484,9 @@ function updateGameHud(room: PublicRoomState): void {
   const questEl = document.querySelector<HTMLElement>('#hud-quest-box');
   if (questEl) {
     const keysCount = room.bossKeys?.length ?? 0;
+    const modHtml = room.map.modifierLabel
+      ? `<div class="quest-meta" style="color:#93c5fd;">Reino: ${escapeHtml(room.map.modifierLabel)}</div>`
+      : '';
     const questHtml = room.quest
       ? `
         <div class="quest-title">Misión: ${escapeHtml(room.quest.title)}</div>
@@ -488,6 +496,7 @@ function updateGameHud(room: PublicRoomState): void {
     questEl.innerHTML = `
       ${questHtml}
       <div class="quest-keys-row">🔑 Llaves: <strong>${keysCount}/4</strong></div>
+      ${modHtml}
     `;
   }
 

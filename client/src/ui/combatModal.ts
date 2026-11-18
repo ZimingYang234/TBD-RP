@@ -3,6 +3,7 @@ import {
   SKILL_TREE,
   type CombatEndedPayload,
   type CombatState,
+  type CombatStatus,
   type DiceRollBreakdown,
   type PublicRoomState,
 } from '@tbd/shared';
@@ -189,6 +190,8 @@ export class CombatModal {
           const hpPct = Math.max(0, Math.min(100, Math.round((enemy.hp / enemy.maxHp) * 100)));
           const isSelected = enemy.id === this.selectedTargetId && enemy.hp > 0;
           const isDead = enemy.hp <= 0;
+          const statusPills = this.renderStatusPills(enemy.statuses ?? []);
+          const phaseBadge = enemy.bossPhase === 2 ? '<span class="status-tag tag-fury">FASE 2</span>' : '';
           return `
             <button
               type="button"
@@ -197,10 +200,11 @@ export class CombatModal {
               ${isDead ? 'disabled' : ''}
             >
               <div class="combat-card-head">
-                <strong>${this.escapeHtml(enemy.name)}</strong>
+                <strong>${this.escapeHtml(enemy.name)} ${phaseBadge}</strong>
                 <span class="badge badge-icon">${ICON_SHIELD} ${enemy.ac}</span>
               </div>
               <div class="combat-hp-text stat-row-inline">${ICON_HEART} ${enemy.hp}/${enemy.maxHp} • ${ICON_SWORD} +${enemy.attackMod}</div>
+              ${statusPills ? `<div class="status-tags-row">${statusPills}</div>` : ''}
               <div class="hp-bar"><div class="hp-fill enemy-hp" style="width:${hpPct}%"></div></div>
               ${isSelected ? '<div class="target-tag">Objetivo seleccionado</div>' : ''}
               ${isDead ? '<div class="target-tag dead-tag">Derrotado</div>' : ''}
@@ -215,6 +219,7 @@ export class CombatModal {
           const hpPct = Math.max(0, Math.min(100, Math.round((p.hp / p.maxHp) * 100)));
           const isDefending = combat.defendingIds.includes(p.id);
           const isTurn = activeTurn?.kind === 'player' && activeTurn.id === p.id;
+          const pStatuses = this.renderStatusPills(combat.playerStatuses?.[p.id] ?? []);
           return `
             <div class="combat-ally-card ${isTurn ? 'active-turn' : ''} ${p.hp <= 0 ? 'dead' : ''}">
               <div class="combat-card-head">
@@ -225,6 +230,7 @@ export class CombatModal {
                 <span class="badge badge-icon">${ICON_SHIELD} ${p.ac}${isDefending ? ' +2' : ''}</span>
               </div>
               <div class="combat-hp-text stat-row-inline">${ICON_HEART} ${p.hp}/${p.maxHp}${isDefending ? ' • Defendiendo' : ''}</div>
+              ${pStatuses ? `<div class="status-tags-row">${pStatuses}</div>` : ''}
               <div class="hp-bar"><div class="hp-fill" style="width:${hpPct}%"></div></div>
             </div>
           `;
@@ -591,6 +597,21 @@ export class CombatModal {
       this.hide();
       this.callbacks.onOutcomeClosed();
     });
+  }
+
+  private renderStatusPills(statuses: CombatStatus[]): string {
+    const labels: Record<CombatStatus['kind'], { text: string; cls: string }> = {
+      burn: { text: 'Quemado', cls: 'tag-burn' },
+      poison: { text: 'Veneno', cls: 'tag-poison' },
+      marked: { text: 'Marcado (Combo)', cls: 'tag-marked' },
+      weak: { text: 'Débil', cls: 'tag-burn' },
+    };
+    return statuses
+      .map((s) => {
+        const meta = labels[s.kind];
+        return `<span class="status-tag ${meta.cls}">${meta.text} (${s.turns})</span>`;
+      })
+      .join('');
   }
 
   private escapeHtml(str: string): string {

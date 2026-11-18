@@ -24,6 +24,7 @@ import {
   type ActiveEventState,
   type CombatEndedPayload,
   type CombatState,
+  type CombatStatus,
   type CombatTurnEntry,
   type DiceRollBreakdown,
   type Direction,
@@ -36,8 +37,10 @@ import {
   type PublicPlayerState,
   type PublicRoomState,
   type QuestState,
+  type RoamingMonster,
   type RoomPhase,
   type SkillNodeId,
+  type StatusKind,
   type TavernResultPayload,
 } from '@tbd/shared';
 import { generateEventForParty, type DmEvent } from './aiDm.js';
@@ -51,6 +54,7 @@ import {
   findWalkableNearby,
   getRegion,
   isTileWalkable,
+  spawnRoamingMonstersForRegion,
 } from './worldMap.js';
 
 export interface InternalActiveEvent {
@@ -74,6 +78,7 @@ export interface InternalRoom {
   combat: CombatState | null;
   quest: QuestState | null;
   bossKeys: string[];
+  roamingMonsters?: RoamingMonster[];
   recentEventIds?: string[];
 }
 
@@ -92,6 +97,7 @@ export type MoveOutcome =
       isBossCombatTile: boolean;
       steppedOnShopTile: boolean;
       steppedOnMinigameTile: boolean;
+      mapNotice?: string;
       openedChest: {
         playerId: string;
         playerName: string;
@@ -169,6 +175,8 @@ export class RoomManager {
   private combatTileCooldowns = new Map<string, number>();
   private chestTileCooldowns = new Map<string, number>();
   private minigameCooldowns = new Map<string, number>();
+  private springCooldowns = new Map<string, number>();
+  private surpriseCooldowns = new Map<string, number>();
   private pendingEventRooms = new Set<string>();
   private saveTimer: NodeJS.Timeout | null = null;
   private readonly storePath: string;
@@ -259,6 +267,9 @@ export class RoomManager {
         }
         room.recentEventIds = Array.isArray(room.recentEventIds) ? room.recentEventIds : [];
         room.bossKeys = Array.isArray(room.bossKeys) ? [...room.bossKeys] : [];
+        room.roamingMonsters = Array.isArray(room.roamingMonsters)
+          ? room.roamingMonsters
+          : spawnRoamingMonstersForRegion(map);
         if (!room.quest || typeof room.quest.target !== 'number') {
           room.quest = createQuestByIndex(0);
         }
@@ -373,6 +384,7 @@ export class RoomManager {
       combat: room.combat,
       quest: room.quest ?? null,
       bossKeys: [...(room.bossKeys ?? [])],
+      roamingMonsters: room.roamingMonsters ?? [],
     };
   }
 
@@ -408,6 +420,7 @@ export class RoomManager {
       combat: null,
       quest: createQuestByIndex(0),
       bossKeys: [],
+      roamingMonsters: spawnRoamingMonstersForRegion(getRegion(STARTING_REGION_ID)),
       recentEventIds: [],
     };
 
@@ -687,6 +700,7 @@ export class RoomManager {
           p.y = pos.y;
         });
 
+        room.roamingMonsters = spawnRoamingMonstersForRegion(targetMap);
         this.advanceQuest(room, 'portal');
         this.scheduleSave();
         return {
@@ -708,16 +722,69 @@ export class RoomManager {
       }
     }
 
+    // Check roaming monster collision
+    let hitRoamingMonster = false;
+    const roamingIdx = (room.roamingMonsters ?? []).findIndex(
+      (m) => m.x === nextX && m.y === nextY
+    );
+    if (roamingIdx !== -1) {
+      hitRoamingMonster = true;
+      room.roamingMonsters!.splice(roamingIdx, 1);
+      const fresh = spawnRoamingMonstersForRegion(currentMap);
+      if (fresh[0]) room.roamingMonsters!.push(fresh[0]);
+    }
+
+    let mapNotice: string | undefined;
+    if (landedTile === 'spring') {
+      const springKey = `${room.code}:${room.regionId}:${nextX},${nextY}`;
+      const readyAt = this.springCooldowns.get(springKey) ?? 0;
+      if (now >= readyAt) {
+        this.springCooldowns.set(springKey, now + 30_000);
+        const before = player.hp;
+        player.hp = Math.min(player.maxHp, player.hp + 8);
+        const healed = player.hp - before;
+        mapNotice =
+          healed > 0
+            ? `Fuente Curativa: ${player.name} recuperó +${healed} de Vida.`
+            : `Fuente Curativa: ${player.name} ya tiene la Vida al máximo.`;
+      }
+    } else if (landedTile === 'trap') {
+      const trapKey = `${room.code}:${room.regionId}:${nextX},${nextY}`;
+      const readyAt = this.springCooldowns.get(trapKey) ?? 0;
+      if (now >= readyAt) {
+        this.springCooldowns.set(trapKey, now + 20_000);
+        if (rollD20() + (player.luckBonus ?? 0) >= 13) {
+          mapNotice = `¡Trampa esquivada! ${player.name} saltó justo a tiempo.`;
+        } else {
+          player.hp = Math.max(1, player.hp - 4);
+          mapNotice = `¡Trampa oculta! ${player.name} pisó unos pinchos (-4 Vida).`;
+        }
+      }
+    } else if ((landedTile === 'grass' || landedTile === 'path') && !hitRoamingMonster) {
+      const surpriseReadyAt = this.surpriseCooldowns.get(room.code) ?? 0;
+      if (now >= surpriseReadyAt && Math.random() < 0.06) {
+        this.surpriseCooldowns.set(room.code, now + 35_000);
+        if (Math.random() < 0.6) {
+          player.gold = (player.gold ?? 0) + 6;
+          mapNotice = `¡Hallazgo en el camino! ${player.name} encontró una bolsita con +6 monedas.`;
+        } else {
+          player.hp = Math.min(player.maxHp, player.hp + 3);
+          mapNotice = `¡Fruta silvestre! ${player.name} recuperó +3 de Vida.`;
+        }
+      }
+    }
+
     this.scheduleSave();
     return {
       type: 'moved',
       room,
       player,
       steppedOnEventTile: landedTile === 'event',
-      steppedOnCombatTile: landedTile === 'combat',
+      steppedOnCombatTile: landedTile === 'combat' || hitRoamingMonster,
       isBossCombatTile: currentMap.id === 'camara-final' && landedTile === 'combat',
       steppedOnShopTile: landedTile === 'shop',
       steppedOnMinigameTile: landedTile === 'minigame',
+      mapNotice,
       openedChest,
       tileX: nextX,
       tileY: nextY,
@@ -806,7 +873,11 @@ export class RoomManager {
 
   public completeMinigame(
     socketId: string,
-    payload: { game: 'memory' | 'reflex'; difficulty: 'normal' | 'dificil'; score: number }
+    payload: {
+      game: 'memory' | 'reflex' | 'chest_guess' | 'riddle';
+      difficulty: 'normal' | 'dificil';
+      score: number;
+    }
   ):
     | {
         room: InternalRoom;
@@ -1344,6 +1415,29 @@ export class RoomManager {
     // Clear previous defending stance when player's new turn begins
     combat.defendingIds = combat.defendingIds.filter((id) => id !== player.id);
 
+    // Kingdom modifier: Valderroble healing breeze
+    if (room.regionId === 'valderroble' && player.hp < player.maxHp) {
+      player.hp = Math.min(player.maxHp, player.hp + 1);
+    }
+
+    // Tick player status effects (burn/poison) at start of turn
+    combat.playerStatuses = combat.playerStatuses ?? {};
+    const myStatuses = combat.playerStatuses[player.id] ?? [];
+    if (myStatuses.length > 0) {
+      let dotTotal = 0;
+      const nextStatuses: CombatStatus[] = [];
+      for (const st of myStatuses) {
+        if (st.kind === 'burn') dotTotal += 3;
+        else if (st.kind === 'poison') dotTotal += 2;
+        if (st.turns - 1 > 0) nextStatuses.push({ ...st, turns: st.turns - 1 });
+      }
+      combat.playerStatuses[player.id] = nextStatuses;
+      if (dotTotal > 0) {
+        player.hp = Math.max(1, player.hp - dotTotal);
+        combat.log = [...combat.log, `${player.name} sufre ${dotTotal} de daño por estado.`].slice(-20);
+      }
+    }
+
     const resolveTarget = (): { id: string; name: string; ac: number; applyDamage: (dmg: number) => void } | { error: string } => {
       if (combat.mode === 'pvp') {
         const livingRivals = room.players.filter((p) => p.id !== player.id && p.hp > 0);
@@ -1804,6 +1898,55 @@ export class RoomManager {
       };
     }
 
+    // Apply Co-op Combos & Statuses on hit
+    if (combat.mode === 'pve' && roll.hit && roll.targetId) {
+      const hitEnemy = combat.enemies.find((e) => e.id === roll.targetId);
+      if (hitEnemy && hitEnemy.hp > 0) {
+        hitEnemy.statuses = hitEnemy.statuses ?? [];
+        const hasMarkOrBurn = hitEnemy.statuses.some(
+          (s) => s.kind === 'marked' || s.kind === 'burn'
+        );
+        if (hasMarkOrBurn && (roll.actionType === 'attack' || roll.actionType === 'special')) {
+          const comboBonus = player.playerClass === 'Rogue' ? 6 : 3;
+          hitEnemy.hp = Math.max(0, hitEnemy.hp - comboBonus);
+          roll.damageTotal = (roll.damageTotal ?? 0) + comboBonus;
+          roll.headline = `${roll.headline ?? ''} (+${comboBonus} Combo!)`;
+          roll.summary = `${roll.summary} ¡Combo cooperativo (+${comboBonus} daño)!`;
+        }
+        if (
+          player.playerClass === 'Fighter' &&
+          (roll.actionType === 'special' || roll.actionType === 'skill_safe')
+        ) {
+          hitEnemy.statuses = [
+            ...hitEnemy.statuses.filter((s) => s.kind !== 'marked'),
+            { kind: 'marked', turns: 2 },
+          ];
+        } else if (
+          player.playerClass === 'Wizard' &&
+          (roll.actionType === 'special' || roll.actionType === 'skill_pierce')
+        ) {
+          hitEnemy.statuses = [
+            ...hitEnemy.statuses.filter((s) => s.kind !== 'burn'),
+            { kind: 'burn', turns: 2 },
+          ];
+        }
+      }
+    }
+
+    // Check Boss Phase 2 transition
+    if (combat.mode === 'pve') {
+      for (const e of combat.enemies) {
+        if (e.isBoss && e.hp > 0 && e.hp <= e.maxHp * 0.5 && e.bossPhase !== 2) {
+          e.bossPhase = 2;
+          e.attackMod += 2;
+          combat.log = [
+            ...combat.log,
+            `¡FASE 2! ${e.name} entra en furia (+2 Ataque y ataques en área).`,
+          ].slice(-20);
+        }
+      }
+    }
+
     combat.lastRoll = roll;
     combat.log = [...combat.log, roll.summary].slice(-20);
 
@@ -1875,14 +2018,85 @@ export class RoomManager {
       return null;
     }
 
+    // Tick enemy status effects (burn/poison) at start of enemy turn
+    if (enemy.statuses && enemy.statuses.length > 0) {
+      let dot = 0;
+      const next: CombatStatus[] = [];
+      for (const st of enemy.statuses) {
+        if (st.kind === 'burn') dot += 3;
+        else if (st.kind === 'poison') dot += 2;
+        if (st.turns - 1 > 0) next.push({ ...st, turns: st.turns - 1 });
+      }
+      enemy.statuses = next;
+      if (dot > 0) {
+        enemy.hp = Math.max(0, enemy.hp - dot);
+        combat.log = [...combat.log, `${enemy.name} sufre ${dot} de daño por quemadura/veneno.`].slice(-20);
+        if (enemy.hp <= 0) {
+          const anyAlive = combat.enemies.some((e) => e.hp > 0);
+          if (!anyAlive) {
+            return { type: 'ended', outcome: this.finishCombat(room, true) };
+          }
+          this.advanceTurnIndex(room);
+          this.scheduleSave();
+          return {
+            type: 'updated',
+            room,
+            roll: {
+              actorId: enemy.id,
+              actorName: enemy.name,
+              actorKind: 'enemy',
+              actionType: 'skip',
+              headline: `¡Derrotado por estado!`,
+              summary: `${enemy.name} cae por quemadura/veneno.`,
+            },
+          };
+        }
+      }
+    }
+
     const livingPlayers = room.players.filter((p) => p.hp > 0);
     if (livingPlayers.length === 0) {
       return { type: 'ended', outcome: this.finishCombat(room, false) };
     }
 
+    // Boss Phase 2 Area Attack (35% chance)
+    if (enemy.isBoss && enemy.bossPhase === 2 && Math.random() < 0.35) {
+      const aoeDmg = rollDiceExpression('1d6+3');
+      for (const lp of livingPlayers) {
+        lp.hp = Math.max(0, lp.hp - aoeDmg.total);
+        combat.playerStatuses = combat.playerStatuses ?? {};
+        const cur = combat.playerStatuses[lp.id] ?? [];
+        combat.playerStatuses[lp.id] = [
+          ...cur.filter((s) => s.kind !== 'burn'),
+          { kind: 'burn', turns: 2 },
+        ];
+      }
+      const roll: DiceRollBreakdown = {
+        actorId: enemy.id,
+        actorName: enemy.name,
+        actorKind: 'enemy',
+        targetName: 'todo el grupo',
+        actionType: 'attack',
+        headline: `¡Furia del Jefe! ${aoeDmg.total} a todos + Quemadura`,
+        hit: true,
+        critical: true,
+        damageTotal: aoeDmg.total,
+        summary: `¡Furia del Jefe! ${enemy.name} golpea a todo el grupo (${aoeDmg.total} de daño y Quemadura).`,
+      };
+      combat.lastRoll = roll;
+      combat.log = [...combat.log, roll.summary].slice(-20);
+      if (!room.players.some((p) => p.hp > 0)) {
+        return { type: 'ended', outcome: this.finishCombat(room, false) };
+      }
+      this.advanceTurnIndex(room);
+      this.scheduleSave();
+      return { type: 'updated', room, roll };
+    }
+
     const target = livingPlayers[Math.floor(Math.random() * livingPlayers.length)];
     const isDefending = combat.defendingIds.includes(target.id);
-    const targetAc = target.ac + (isDefending ? 2 : 0);
+    const frostBonus = room.regionId === 'ventisca' ? 1 : 0;
+    const targetAc = target.ac + (isDefending ? 2 : 0) + frostBonus;
 
     const d20 = rollD20();
     const attackTotal = d20 + enemy.attackMod;
@@ -1894,9 +2108,27 @@ export class RoomManager {
     if (hit) {
       const dmg = rollDiceExpression(enemy.damageDice, critical);
       target.hp = Math.max(0, target.hp - dmg.total);
+      let statusNote = '';
+      if (Math.random() < 0.25) {
+        const applied: StatusKind =
+          room.regionId === 'pantano-bruma'
+            ? 'poison'
+            : room.regionId === 'solceniza'
+              ? 'burn'
+              : Math.random() < 0.5
+                ? 'poison'
+                : 'burn';
+        combat.playerStatuses = combat.playerStatuses ?? {};
+        const cur = combat.playerStatuses[target.id] ?? [];
+        combat.playerStatuses[target.id] = [
+          ...cur.filter((s) => s.kind !== applied),
+          { kind: applied, turns: 2 },
+        ];
+        statusNote = applied === 'poison' ? ' (+Veneno)' : ' (+Quemadura)';
+      }
       const headline = critical
-        ? `¡Golpe crítico! ${dmg.total} de daño`
-        : `¡Impacto enemigo! ${dmg.total} de daño`;
+        ? `¡Golpe crítico! ${dmg.total} de daño${statusNote}`
+        : `¡Impacto enemigo! ${dmg.total} de daño${statusNote}`;
       roll = {
         actorId: enemy.id,
         actorName: enemy.name,
@@ -2291,6 +2523,82 @@ export class RoomManager {
     return {
       room,
       notice: `${player.name} soltó ${def?.name ?? itemId}.`,
+    };
+  }
+
+  public tickRoamingMonsters(): PublicRoomState[] {
+    const updated: PublicRoomState[] = [];
+    const dirs = [
+      { dx: 0, dy: -1 },
+      { dx: 0, dy: 1 },
+      { dx: -1, dy: 0 },
+      { dx: 1, dy: 0 },
+    ];
+
+    for (const room of this.rooms.values()) {
+      if (room.phase !== 'playing') continue;
+      const connectedCount = room.players.filter((p) => p.connected).length;
+      if (connectedCount === 0) continue;
+
+      const map = getRegion(room.regionId);
+      if (!room.roamingMonsters || room.roamingMonsters.length === 0) {
+        room.roamingMonsters = spawnRoamingMonstersForRegion(map);
+        if (room.roamingMonsters.length > 0) updated.push(this.toPublicRoom(room));
+        continue;
+      }
+
+      let moved = false;
+      for (const m of room.roamingMonsters) {
+        const d = dirs[Math.floor(Math.random() * dirs.length)];
+        const nx = m.x + d.dx;
+        const ny = m.y + d.dy;
+        const tile = map.tiles[ny]?.[nx];
+        if (
+          (tile === 'grass' || tile === 'path') &&
+          !room.players.some((p) => p.x === nx && p.y === ny)
+        ) {
+          m.x = nx;
+          m.y = ny;
+          moved = true;
+        }
+      }
+      if (moved) updated.push(this.toPublicRoom(room));
+    }
+    return updated;
+  }
+
+  public giveItem(
+    socketId: string,
+    itemId: string,
+    targetPlayerId: string
+  ): { room: InternalRoom; notice: string } | { error: string } {
+    const binding = this.socketToBinding.get(socketId);
+    if (!binding) return { error: 'No estás en ninguna sala.' };
+
+    const room = this.rooms.get(binding.roomCode);
+    if (!room || room.phase !== 'playing') {
+      return { error: 'Solo puedes regalar objetos fuera de combate.' };
+    }
+
+    const sender = room.players.find((p) => p.id === binding.playerId);
+    const receiver = room.players.find((p) => p.id === targetPlayerId && p.id !== binding.playerId);
+    if (!sender || !receiver) return { error: 'Jugador destino no encontrado.' };
+
+    const owned = sender.inventory?.[itemId] ?? 0;
+    if (owned <= 0) return { error: 'No tienes ese objeto en tu mochila.' };
+
+    if (!this.addItemToInventory(receiver, itemId)) {
+      return { error: `La mochila de ${receiver.name} (5/5) está llena.` };
+    }
+
+    sender.inventory[itemId] = owned - 1;
+    if (sender.inventory[itemId] <= 0) delete sender.inventory[itemId];
+
+    this.scheduleSave();
+    const def = ITEMS_BY_ID[itemId];
+    return {
+      room,
+      notice: `${sender.name} le regaló ${def?.name ?? itemId} a ${receiver.name}.`,
     };
   }
 

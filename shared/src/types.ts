@@ -12,7 +12,9 @@ export type TileType =
   | 'combat'
   | 'shop'
   | 'chest'
-  | 'minigame';
+  | 'minigame'
+  | 'spring'
+  | 'trap';
 
 export type RegionTheme =
   | 'verdant'
@@ -59,10 +61,18 @@ export interface PortalDef {
   requiredKeyLabel?: string;
 }
 
+export interface RoamingMonster {
+  id: string;
+  name: string;
+  x: number;
+  y: number;
+}
+
 export interface RegionMap {
   id: string;
   name: string;
   subtitle: string;
+  modifierLabel?: string;
   theme: RegionTheme;
   width: number;
   height: number;
@@ -124,10 +134,19 @@ export type PublicPlayerState = Omit<PlayerState, 'token'>;
 
 export type RoomPhase = 'lobby' | 'playing' | 'event' | 'combat';
 
+export type StatusKind = 'burn' | 'poison' | 'marked' | 'weak';
+
+export interface CombatStatus {
+  kind: StatusKind;
+  turns: number;
+}
+
 export interface CombatEnemy {
   id: string;
   name: string;
   isBoss?: boolean;
+  bossPhase?: 1 | 2;
+  statuses?: CombatStatus[];
   hp: number;
   maxHp: number;
   ac: number;
@@ -192,6 +211,7 @@ export interface CombatState {
   potionsLeftByPlayer: Record<string, number>;
   specialUsedByPlayer: Record<string, boolean>;
   unlockedSpecialsUsedByPlayer?: Record<string, string[]>;
+  playerStatuses?: Record<string, CombatStatus[]>;
   lastRoll: DiceRollBreakdown | null;
   log: string[];
 }
@@ -272,6 +292,7 @@ export interface PublicRoomState {
   combat: CombatState | null;
   quest: QuestState | null;
   bossKeys: string[];
+  roamingMonsters?: RoamingMonster[];
 }
 
 export interface JoinSuccessPayload {
@@ -332,7 +353,7 @@ export interface ServerToClientEvents {
     room: PublicRoomState;
   }) => void;
   open_shop: () => void;
-  open_minigame: (payload: { game: 'memory' | 'reflex' }) => void;
+  open_minigame: (payload: { game: 'memory' | 'reflex' | 'chest_guess' | 'riddle' }) => void;
   room_error: (payload: { message: string; code?: string }) => void;
   system_notice: (payload: { message: string }) => void;
 }
@@ -369,10 +390,11 @@ export interface ClientToServerEvents {
   equip_item: (payload: { itemId: string }) => void;
   unequip_item: (payload: { slot: 'weapon' | 'armor' }) => void;
   drop_item: (payload: { itemId: string }) => void;
+  give_item: (payload: { itemId: string; targetPlayerId: string }) => void;
   unlock_skill: (payload: { skillId: SkillNodeId }) => void;
   redeem_code: (payload: { code: string }) => void;
   complete_minigame: (payload: {
-    game: 'memory' | 'reflex';
+    game: 'memory' | 'reflex' | 'chest_guess' | 'riddle';
     difficulty: 'normal' | 'dificil';
     score: number;
   }) => void;

@@ -229,6 +229,11 @@ io.on('connection', (socket) => {
       regionId: outcome.player.regionId,
     });
 
+    if (outcome.mapNotice) {
+      io.to(outcome.room.code).emit('room_state', roomManager.toPublicRoom(outcome.room));
+      io.to(outcome.room.code).emit('system_notice', { message: outcome.mapNotice });
+    }
+
     if (outcome.openedChest) {
       const publicRoom = roomManager.toPublicRoom(outcome.room);
       io.to(publicRoom.code).emit('chest_opened', {
@@ -272,8 +277,14 @@ io.on('connection', (socket) => {
     } else if (outcome.steppedOnShopTile) {
       socket.emit('open_shop');
     } else if (outcome.steppedOnMinigameTile) {
-      const game = (outcome.tileX + outcome.tileY) % 2 === 0 ? 'memory' : 'reflex';
-      socket.emit('open_minigame', { game });
+      const games: Array<'memory' | 'reflex' | 'chest_guess' | 'riddle'> = [
+        'memory',
+        'reflex',
+        'chest_guess',
+        'riddle',
+      ];
+      const idx = Math.abs(outcome.tileX + outcome.tileY) % games.length;
+      socket.emit('open_minigame', { game: games[idx] });
     }
   });
 
@@ -474,6 +485,19 @@ io.on('connection', (socket) => {
     io.to(publicRoom.code).emit('system_notice', { message: result.notice });
   });
 
+  socket.on('give_item', (payload) => {
+    if (!payload || typeof payload.itemId !== 'string' || typeof payload.targetPlayerId !== 'string') return;
+    const result = roomManager.giveItem(socket.id, payload.itemId, payload.targetPlayerId);
+    if ('error' in result) {
+      socket.emit('room_error', { message: result.error });
+      return;
+    }
+
+    const publicRoom = roomManager.toPublicRoom(result.room);
+    io.to(publicRoom.code).emit('room_state', publicRoom);
+    io.to(publicRoom.code).emit('system_notice', { message: result.notice });
+  });
+
   socket.on('unlock_skill', (payload) => {
     if (!payload || typeof payload.skillId !== 'string') return;
     const result = roomManager.unlockSkill(socket.id, payload.skillId as any);
@@ -517,7 +541,7 @@ io.on('connection', (socket) => {
   socket.on('complete_minigame', (payload) => {
     if (
       !payload ||
-      (payload.game !== 'memory' && payload.game !== 'reflex') ||
+      !['memory', 'reflex', 'chest_guess', 'riddle'].includes(payload.game) ||
       (payload.difficulty !== 'normal' && payload.difficulty !== 'dificil') ||
       typeof payload.score !== 'number'
     ) {
@@ -574,7 +598,15 @@ io.on('connection', (socket) => {
   });
 });
 
+const roamingInterval = setInterval(() => {
+  const updatedRooms = roomManager.tickRoamingMonsters();
+  for (const room of updatedRooms) {
+    io.to(room.code).emit('room_state', room);
+  }
+}, 4500);
+
 process.on('SIGINT', () => {
+  clearInterval(roamingInterval);
   roomManager.saveNow();
   process.exit(0);
 });

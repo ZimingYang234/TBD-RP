@@ -12,6 +12,7 @@ export interface InventoryModalCallbacks {
   onUnequip: (slot: 'weapon' | 'armor') => void;
   onUse: (itemId: string) => void;
   onDrop: (itemId: string) => void;
+  onGive: (itemId: string, targetPlayerId: string) => void;
   onClosed: () => void;
 }
 
@@ -62,6 +63,7 @@ export class InventoryModal {
 
     const weaponDef = me.equippedWeaponId ? ITEMS_BY_ID[me.equippedWeaponId] : null;
     const armorDef = me.equippedArmorId ? ITEMS_BY_ID[me.equippedArmorId] : null;
+    const allies = room.players.filter((p) => p.id !== me.id);
 
     const entries = Object.entries(me.inventory ?? {}).filter(([, qty]) => qty > 0);
     const slotsHtml: string[] = [];
@@ -85,6 +87,7 @@ export class InventoryModal {
       const desc = def?.description ?? '';
       const isEquip = def?.kind === 'weapon' || def?.kind === 'armor';
       const isUsable = itemId === 'potion' || itemId === 'elixir';
+      const firstAlly = allies[0];
 
       slotsHtml.push(`
         <div class="inv-slot-card" style="border-left: 3px solid ${rarityColor}">
@@ -99,6 +102,11 @@ export class InventoryModal {
           <div class="inv-slot-actions">
             ${isEquip ? `<button type="button" class="btn btn-sm inv-equip-btn" data-item-id="${itemId}">Equipar</button>` : ''}
             ${isUsable ? `<button type="button" class="btn btn-sm inv-use-btn" data-item-id="${itemId}">Usar</button>` : ''}
+            ${
+              firstAlly
+                ? `<button type="button" class="btn btn-secondary btn-sm inv-give-btn" data-item-id="${itemId}" data-target-id="${firstAlly.id}" title="Regalar a ${this.escapeHtml(firstAlly.name)}">Dar a ${this.escapeHtml(firstAlly.name)}</button>`
+                : ''
+            }
             <button type="button" class="btn btn-secondary btn-sm inv-drop-btn" data-item-id="${itemId}">Soltar</button>
           </div>
         </div>
@@ -155,6 +163,13 @@ export class InventoryModal {
     this.overlayEl.querySelectorAll<HTMLButtonElement>('.inv-drop-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
         if (btn.dataset.itemId) this.callbacks.onDrop(btn.dataset.itemId);
+      });
+    });
+    this.overlayEl.querySelectorAll<HTMLButtonElement>('.inv-give-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (btn.dataset.itemId && btn.dataset.targetId) {
+          this.callbacks.onGive(btn.dataset.itemId, btn.dataset.targetId);
+        }
       });
     });
     this.overlayEl.querySelector('#unequip-weapon-btn')?.addEventListener('click', () => {

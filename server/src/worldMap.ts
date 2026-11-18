@@ -1,9 +1,11 @@
+import crypto from 'node:crypto';
 import {
   BOSS_PORTAL_MIN_LEVEL,
   type ChestDef,
   type PortalDef,
   type RegionMap,
   type RegionTheme,
+  type RoamingMonster,
   type TileType,
 } from '@tbd/shared';
 
@@ -18,6 +20,8 @@ const CHAR_TO_TILE: Record<string, TileType> = {
   S: 'shop',
   H: 'chest',
   M: 'minigame',
+  F: 'spring',
+  X: 'trap',
 };
 
 function parseGrid(rows: string[]): TileType[][] {
@@ -33,6 +37,7 @@ function makeRegion(config: {
   id: string;
   name: string;
   subtitle: string;
+  modifierLabel?: string;
   theme: RegionTheme;
   rows: string[];
   spawn: { x: number; y: number };
@@ -43,6 +48,7 @@ function makeRegion(config: {
     id: config.id,
     name: config.name,
     subtitle: config.subtitle,
+    modifierLabel: config.modifierLabel,
     theme: config.theme,
     width: config.rows[0].length,
     height: config.rows.length,
@@ -60,18 +66,19 @@ export const REGIONS: Record<string, RegionMap> = {
     id: 'valderroble',
     name: 'Reino de Valderroble',
     subtitle: 'Encrucijada Esmeralda',
+    modifierLabel: 'Brisa Curativa (+1 Vida al inicio de tu turno)',
     theme: 'verdant',
     spawn: { x: 9, y: 7 },
     rows: [
       '####################',
       '#........,P........#',
       '#..#####.,,....##P.#',
-      '#.#H..C..,,........#',
+      '#.#H..C..,,..F.....#',
       '#..#####.,,..~~....#',
       '#....~~..E,..~~....#',
       '#........,,........#',
       '#P,,,,,,S,,,,,,,,,P#',
-      '#........,,........#',
+      '#........,,..X.....#',
       '#..#.....,,..#####.#',
       '#..#..E..,,..#H..#.#',
       '#........,,..#.#C..#',
@@ -134,6 +141,7 @@ export const REGIONS: Record<string, RegionMap> = {
     id: 'solceniza',
     name: 'Reino de Solceniza',
     subtitle: 'Dunas y Forjas Ardientes',
+    modifierLabel: 'Calor Abrasador (+1 daño de fuego)',
     theme: 'desert',
     spawn: { x: 2, y: 7 },
     rows: [
@@ -199,6 +207,7 @@ export const REGIONS: Record<string, RegionMap> = {
     id: 'ventisca',
     name: 'Reino de Ventisca',
     subtitle: 'Cumbres del Invierno Eterno',
+    modifierLabel: 'Frío Cortante (+1 Defensa a todos)',
     theme: 'frost',
     spawn: { x: 10, y: 12 },
     rows: [
@@ -264,6 +273,7 @@ export const REGIONS: Record<string, RegionMap> = {
     id: 'plano-astral',
     name: 'Plano Astral',
     subtitle: 'Santuario entre Estrellas',
+    modifierLabel: 'Energía Arcana (+2 daño mágico)',
     theme: 'astral',
     spawn: { x: 10, y: 7 },
     rows: [
@@ -338,6 +348,7 @@ export const REGIONS: Record<string, RegionMap> = {
     id: 'pantano-bruma',
     name: 'Pantano de la Bruma',
     subtitle: 'Ciénagas de Niebla Eterna',
+    modifierLabel: 'Niebla Tóxica (probabilidad de veneno)',
     theme: 'swamp',
     spawn: { x: 10, y: 2 },
     rows: [
@@ -385,6 +396,7 @@ export const REGIONS: Record<string, RegionMap> = {
     id: 'ruinas-olvido',
     name: 'Ruinas del Olvido',
     subtitle: 'Templos de Piedra Antigua',
+    modifierLabel: 'Ecos Antiguos (+10% EXP extra)',
     theme: 'ruins',
     spawn: { x: 2, y: 7 },
     rows: [
@@ -432,6 +444,7 @@ export const REGIONS: Record<string, RegionMap> = {
     id: 'archipielago-coral',
     name: 'Archipiélago de Coral',
     subtitle: 'Islas de Arrecifes Profundos',
+    modifierLabel: 'Marea Rápida (+2 Iniciativa al grupo)',
     theme: 'ocean',
     spawn: { x: 17, y: 7 },
     rows: [
@@ -479,6 +492,7 @@ export const REGIONS: Record<string, RegionMap> = {
     id: 'abismo-cristal',
     name: 'Abismo de Cristal',
     subtitle: 'Cavernas de Cuarzo Vivo',
+    modifierLabel: 'Cristales Cargados (+1 Ataque al grupo)',
     theme: 'cavern',
     spawn: { x: 10, y: 12 },
     rows: [
@@ -750,4 +764,36 @@ export function findWalkableNearby(map: RegionMap, originX: number, originY: num
   }
 
   return { x: originX, y: originY };
+}
+
+export function spawnRoamingMonstersForRegion(map: RegionMap): RoamingMonster[] {
+  const isMiniWorld =
+    map.id === 'santuario-roble' ||
+    map.id === 'forja-oculta' ||
+    map.id === 'gruta-hielo' ||
+    map.id === 'observatorio-astral';
+  if (isMiniWorld || map.id === 'camara-final') return [];
+
+  const candidates: Array<{ x: number; y: number }> = [];
+  for (let y = 2; y < map.height - 2; y++) {
+    for (let x = 2; x < map.width - 2; x++) {
+      const t = map.tiles[y]?.[x];
+      if ((t === 'grass' || t === 'path') && Math.abs(x - map.spawn.x) + Math.abs(y - map.spawn.y) >= 4) {
+        candidates.push({ x, y });
+      }
+    }
+  }
+  const names = ['Patrulla Hostil', 'Acechador'];
+  const result: RoamingMonster[] = [];
+  for (let i = 0; i < 2 && candidates.length > 0; i++) {
+    const idx = Math.floor(Math.random() * candidates.length);
+    const pos = candidates.splice(idx, 1)[0];
+    result.push({
+      id: crypto.randomUUID(),
+      name: names[i],
+      x: pos.x,
+      y: pos.y,
+    });
+  }
+  return result;
 }

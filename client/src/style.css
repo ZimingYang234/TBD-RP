@@ -1283,7 +1283,82 @@ body {
 .dot-combat { background: #e05a47; }
 .dot-shop { background: #2dd4bf; }
 .dot-chest { background: #fbbf24; }
-.dot-minigame { background: #22d3ee; }
+.dot-minigame { background: #818cf8; }
+.dot-spring { background: #22d3ee; }
+.dot-trap { background: #9ca3af; }
+
+.status-tags-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 5px;
+}
+
+.status-tag {
+  font-size: 0.7rem;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 999px;
+}
+
+.tag-burn {
+  background: rgba(249, 115, 22, 0.22);
+  color: #fdba74;
+  border: 1px solid rgba(249, 115, 22, 0.5);
+}
+
+.tag-poison {
+  background: rgba(34, 197, 94, 0.2);
+  color: #86efac;
+  border: 1px solid rgba(34, 197, 94, 0.5);
+}
+
+.tag-marked {
+  background: rgba(250, 204, 21, 0.22);
+  color: #fde047;
+  border: 1px solid rgba(250, 204, 21, 0.55);
+}
+
+.tag-fury {
+  background: rgba(239, 68, 68, 0.25);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.6);
+}
+
+.guess-chest-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 10px;
+}
+
+.guess-chest-btn {
+  background: var(--panel-alt);
+  border: 2px solid var(--border);
+  border-radius: 10px;
+  padding: 18px 10px;
+  color: var(--text);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.guess-chest-btn.golden {
+  border-color: #fbbf24;
+  background: rgba(251, 191, 36, 0.2);
+  color: #fde68a;
+}
+
+.guess-chest-num {
+  font-size: 1.3rem;
+  font-weight: 800;
+}
+
+.guess-chest-label {
+  font-size: 0.85rem;
+  font-weight: 700;
+}
 
 .equip-grid {
   display: grid;
