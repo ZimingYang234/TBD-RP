@@ -2,15 +2,20 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import {
+  CHEST_RESPAWN_MS,
   COMBAT_TILE_COOLDOWN_MS,
   EVENT_TILE_COOLDOWN_MS,
+  ITEMS_BY_ID,
+  MAX_INVENTORY_SLOTS,
   MAX_PLAYERS,
   MOVE_COOLDOWN_MS,
   PLAYER_CLASSES,
   PORTAL_COOLDOWN_MS,
+  RARITY_LABELS,
   ROOM_CODE_LENGTH,
   SHOP_ITEMS,
   STARTING_GOLD,
+  xpForNextLevel,
   type ActiveEventState,
   type CombatEndedPayload,
   type CombatState,
@@ -20,6 +25,7 @@ import {
   type EventOutcomePayload,
   type EventSource,
   type EventTriggerType,
+  type ItemRarity,
   type PlayerClass,
   type PlayerState,
   type PublicPlayerState,
@@ -34,6 +40,7 @@ import { spawnBossForRegion, spawnEnemiesForParty } from './enemies.js';
 import {
   REGIONS,
   STARTING_REGION_ID,
+  findChestAt,
   findPortalAt,
   findWalkableNearby,
   getRegion,
@@ -75,7 +82,16 @@ export type MoveOutcome =
       player: PlayerState;
       steppedOnEventTile: boolean;
       steppedOnCombatTile: boolean;
+      isBossCombatTile: boolean;
       steppedOnShopTile: boolean;
+      openedChest: {
+        playerName: string;
+        rarity: ItemRarity;
+        gold: number;
+        xp: number;
+        itemName?: string;
+        inventoryFull?: boolean;
+      } | null;
       tileX: number;
       tileY: number;
     }
@@ -85,6 +101,11 @@ export type MoveOutcome =
       fromRegionName: string;
       toRegionName: string;
       triggeredByName: string;
+    }
+  | {
+      type: 'portal_blocked';
+      room: InternalRoom;
+      message: string;
     };
 
 export type VoteOutcome =
@@ -136,6 +157,7 @@ export class RoomManager {
   private lastPortalAt = new Map<string, number>();
   private eventTileCooldowns = new Map<string, number>();
   private combatTileCooldowns = new Map<string, number>();
+  private chestTileCooldowns = new Map<string, number>();
   private pendingEventRooms = new Set<string>();
   private saveTimer: NodeJS.Timeout | null = null;
   private readonly storePath: string;
@@ -171,8 +193,11 @@ export class RoomManager {
             y: safePos.y,
             gold: typeof p.gold === 'number' && Number.isFinite(p.gold) ? Math.max(0, p.gold) : STARTING_GOLD,
             xp: typeof p.xp === 'number' && Number.isFinite(p.xp) ? Math.max(0, p.xp) : 0,
+            level: typeof p.level === 'number' && Number.isFinite(p.level) ? Math.max(1, p.level) : 1,
             luckBonus: typeof p.luckBonus === 'number' && Number.isFinite(p.luckBonus) ? Math.max(0, p.luckBonus) : 0,
             inventory: p.inventory && typeof p.inventory === 'object' ? { ...p.inventory } : {},
+            equippedWeaponId: typeof p.equippedWeaponId === 'string' ? p.equippedWeaponId : null,
+            equippedArmorId: typeof p.equippedArmorId === 'string' ? p.equippedArmorId : null,
             redeemedCodes: Array.isArray(p.redeemedCodes) ? [...p.redeemedCodes] : [],
             connected: false,
           };
@@ -275,8 +300,11 @@ export class RoomManager {
       damageDice: template.damageDice,
       gold: STARTING_GOLD,
       xp: 0,
+      level: 1,
       luckBonus: 0,
       inventory: {},
+      equippedWeaponId: null,
+      equippedArmorId: null,
       redeemedCodes: [],
       connected: true,
     };
@@ -591,6 +619,18 @@ export class RoomManager {
 
     const portal = findPortalAt(currentMap, nextX, nextY);
     if (portal) {
+      if (portal.minLevel) {
+        const missing = room.players.filter((p) => (p.level ?? 1) < portal.minLevel!);
+        if (missing.length > 0) {
+          const names = missing.map((p) => `${p.name} (Nv.${p.level ?? 1})`).join(', ');
+          return {
+            type: 'portal_blocked',
+            room,
+            message: `Este portal requiere que todo el grupo sea Nivel ${portal.minLevel}+. Faltan: ${names}.`,
+          };
+        }
+      }
+
       const prevPortal = this.lastPortalAt.get(room.code) ?? 0;
       if (now - prevPortal >= PORTAL_COOLDOWN_MS) {
         this.lastPortalAt.set(room.code, now);
@@ -617,6 +657,14 @@ export class RoomManager {
     }
 
     const landedTile = currentMap.tiles[nextY]?.[nextX];
+    let openedChest: Extract<MoveOutcome, { type: 'moved' }>['openedChest'] = null;
+    if (landedTile === 'chest') {
+      const chest = findChestAt(currentMap, nextX, nextY);
+      if (chest) {
+        openedChest = this.tryOpenChest(room, player, chest.rarity, nextX, nextY, now);
+      }
+    }
+
     this.scheduleSave();
     return {
       type: 'moved',
@@ -624,9 +672,84 @@ export class RoomManager {
       player,
       steppedOnEventTile: landedTile === 'event',
       steppedOnCombatTile: landedTile === 'combat',
+      isBossCombatTile: currentMap.id === 'camara-final' && landedTile === 'combat',
       steppedOnShopTile: landedTile === 'shop',
+      openedChest,
       tileX: nextX,
       tileY: nextY,
+    };
+  }
+
+  private grantXp(player: PlayerState, amount: number): number {
+    if (amount <= 0) return 0;
+    player.xp = (player.xp ?? 0) + amount;
+    player.level = player.level ?? 1;
+    let gainedLevels = 0;
+
+    while (player.xp >= xpForNextLevel(player.level)) {
+      player.xp -= xpForNextLevel(player.level);
+      player.level += 1;
+      player.maxHp += 2;
+      player.hp = Math.min(player.maxHp, player.hp + 2);
+      player.attackMod += 1;
+      player.ac += 1;
+      gainedLevels += 1;
+    }
+    return gainedLevels;
+  }
+
+  private countInventorySlots(player: PlayerState): number {
+    return Object.values(player.inventory ?? {}).filter((qty) => qty > 0).length;
+  }
+
+  private addItemToInventory(player: PlayerState, itemId: string): boolean {
+    player.inventory = player.inventory ?? {};
+    if ((player.inventory[itemId] ?? 0) > 0) {
+      player.inventory[itemId] += 1;
+      return true;
+    }
+    if (this.countInventorySlots(player) >= MAX_INVENTORY_SLOTS) {
+      return false;
+    }
+    player.inventory[itemId] = 1;
+    return true;
+  }
+
+  private tryOpenChest(
+    room: InternalRoom,
+    player: PlayerState,
+    rarity: ItemRarity,
+    x: number,
+    y: number,
+    now: number
+  ) {
+    const chestKey = `${room.code}:${room.regionId}:${x},${y}`;
+    const readyAt = this.chestTileCooldowns.get(chestKey) ?? 0;
+    if (now < readyAt) return null;
+    this.chestTileCooldowns.set(chestKey, now + CHEST_RESPAWN_MS);
+
+    const rewards: Record<ItemRarity, { gold: number; xp: number; items: string[] }> = {
+      comun: { gold: 15, xp: 30, items: ['potion', 'weapon_rusty', 'armor_leather'] },
+      raro: { gold: 30, xp: 60, items: ['bomb', 'weapon_elven', 'armor_steel', 'potion'] },
+      epico: { gold: 55, xp: 100, items: ['elixir', 'weapon_fiery', 'armor_glacial', 'bomb'] },
+      legendario: { gold: 100, xp: 180, items: ['weapon_astral', 'armor_eternal', 'elixir'] },
+    };
+
+    const table = rewards[rarity];
+    player.gold = (player.gold ?? 0) + table.gold;
+    this.grantXp(player, table.xp);
+
+    const pickedId = table.items[Math.floor(Math.random() * table.items.length)];
+    const itemDef = ITEMS_BY_ID[pickedId];
+    const added = itemDef ? this.addItemToInventory(player, pickedId) : false;
+
+    return {
+      playerName: player.name,
+      rarity,
+      gold: table.gold,
+      xp: table.xp,
+      itemName: itemDef?.name,
+      inventoryFull: itemDef ? !added : false,
     };
   }
 
@@ -807,7 +930,7 @@ export class RoomManager {
         p.hp = Math.max(1, Math.min(p.maxHp, p.hp + hpDelta));
       }
       if (xpDelta !== 0) {
-        p.xp = Math.max(0, (p.xp ?? 0) + xpDelta);
+        this.grantXp(p, xpDelta);
       }
       if (goldDelta !== 0) {
         p.gold = Math.max(0, (p.gold ?? 0) + goldDelta);
@@ -847,7 +970,7 @@ export class RoomManager {
     const completed = room.quest;
     for (const p of room.players) {
       p.gold = (p.gold ?? 0) + completed.rewardGold;
-      p.xp = (p.xp ?? 0) + completed.rewardXp;
+      this.grantXp(p, completed.rewardXp);
     }
 
     const currentIdx = QUEST_ROTATION.findIndex((q) => q.id === completed.id);
@@ -1407,6 +1530,7 @@ export class RoomManager {
         return { error: 'No tienes bombas arcanas. Cómpralas en la tienda.' };
       }
       player.inventory.bomb = owned - 1;
+      if (player.inventory.bomb <= 0) delete player.inventory.bomb;
       const dmg = rollDiceExpression('2d6+4');
       target.applyDamage(dmg.total);
       const headline = `¡Explosión arcana! ${dmg.total} de daño`;
@@ -1447,6 +1571,7 @@ export class RoomManager {
         combat.potionsLeftByPlayer[player.id] = freeLeft - 1;
       } else {
         player.inventory.potion = bagLeft - 1;
+        if (player.inventory.potion <= 0) delete player.inventory.potion;
       }
       const heal = rollDiceExpression('1d6+4');
       const before = player.hp;
@@ -1650,7 +1775,7 @@ export class RoomManager {
         goldGained += e.goldReward;
       }
       for (const p of room.players) {
-        p.xp = (p.xp ?? 0) + xpGained;
+        this.grantXp(p, xpGained);
         p.gold = (p.gold ?? 0) + goldGained;
         if (p.hp <= 0) p.hp = 1;
       }
@@ -1685,7 +1810,7 @@ export class RoomManager {
     const goldGained = winner ? 25 : 0;
 
     if (winner) {
-      winner.xp = (winner.xp ?? 0) + xpGained;
+      this.grantXp(winner, xpGained);
       winner.gold = (winner.gold ?? 0) + goldGained;
     }
 
@@ -1737,15 +1862,22 @@ export class RoomManager {
       return { error: `Ya alcanzaste el límite máximo de "${item.name}" (${item.maxOwned}).` };
     }
 
-    player.gold -= item.price;
-    player.inventory[item.id] = owned + 1;
-
-    if (item.id === 'weapon_upgrade') {
-      player.attackMod += 2;
-    } else if (item.id === 'armor_upgrade') {
-      player.ac += 2;
-    } else if (item.id === 'luck_charm') {
-      player.luckBonus = (player.luckBonus ?? 0) + 2;
+    if (item.category === 'consumable') {
+      if (owned === 0 && this.countInventorySlots(player) >= MAX_INVENTORY_SLOTS) {
+        return { error: `Tu mochila (${MAX_INVENTORY_SLOTS}/${MAX_INVENTORY_SLOTS}) está llena. Usa o suelta algo antes.` };
+      }
+      player.gold -= item.price;
+      player.inventory[item.id] = owned + 1;
+    } else {
+      player.gold -= item.price;
+      player.inventory[item.id] = owned + 1;
+      if (item.id === 'weapon_upgrade') {
+        player.attackMod += 2;
+      } else if (item.id === 'armor_upgrade') {
+        player.ac += 2;
+      } else if (item.id === 'luck_charm') {
+        player.luckBonus = (player.luckBonus ?? 0) + 2;
+      }
     }
 
     this.scheduleSave();
@@ -1770,8 +1902,22 @@ export class RoomManager {
     const player = room.players.find((p) => p.id === binding.playerId);
     if (!player) return { error: 'Personaje no encontrado.' };
 
+    if (itemId === 'elixir') {
+      const owned = player.inventory?.elixir ?? 0;
+      if (owned <= 0) return { error: 'No tienes Elixir Dorado en tu mochila.' };
+      player.inventory.elixir = owned - 1;
+      if (player.inventory.elixir <= 0) delete player.inventory.elixir;
+      player.hp = player.maxHp;
+      this.grantXp(player, 30);
+      this.scheduleSave();
+      return {
+        room,
+        notice: `${player.name} bebió un Elixir Dorado: ¡Vida al máximo y +30 EXP!`,
+      };
+    }
+
     if (itemId !== 'potion') {
-      return { error: 'Ese objeto se usa automáticamente o en combate.' };
+      return { error: 'Ese objeto se equipa o se usa en combate.' };
     }
 
     const owned = player.inventory?.potion ?? 0;
@@ -1779,10 +1925,11 @@ export class RoomManager {
       return { error: 'No tienes pociones en tu mochila.' };
     }
     if (player.hp >= player.maxHp) {
-      return { error: 'Ya tienes todos tus PV al máximo.' };
+      return { error: 'Ya tienes toda tu Vida al máximo.' };
     }
 
     player.inventory.potion = owned - 1;
+    if (player.inventory.potion <= 0) delete player.inventory.potion;
     const heal = rollDiceExpression('1d6+4');
     const before = player.hp;
     player.hp = Math.min(player.maxHp, player.hp + heal.total);
@@ -1791,7 +1938,129 @@ export class RoomManager {
     this.scheduleSave();
     return {
       room,
-      notice: `${player.name} usó una Poción de vida y recuperó ${healed} PV.`,
+      notice: `${player.name} usó una Poción de vida y recuperó ${healed} de Vida.`,
+    };
+  }
+
+  private applyItemStats(player: PlayerState, itemId: string, sign: 1 | -1): void {
+    const def = ITEMS_BY_ID[itemId];
+    if (!def) return;
+    if (def.attackBonus) player.attackMod += sign * def.attackBonus;
+    if (def.defenseBonus) player.ac += sign * def.defenseBonus;
+    if (def.luckBonus) player.luckBonus = Math.max(0, (player.luckBonus ?? 0) + sign * def.luckBonus);
+    if (def.hpBonus) {
+      player.maxHp = Math.max(1, player.maxHp + sign * def.hpBonus);
+      player.hp = Math.min(player.maxHp, Math.max(1, player.hp + (sign > 0 ? def.hpBonus : 0)));
+    }
+  }
+
+  public equipItem(
+    socketId: string,
+    itemId: string
+  ): { room: InternalRoom; notice: string } | { error: string } {
+    const binding = this.socketToBinding.get(socketId);
+    if (!binding) return { error: 'No estás en ninguna sala.' };
+
+    const room = this.rooms.get(binding.roomCode);
+    if (!room || room.phase !== 'playing') {
+      return { error: 'Solo puedes cambiar de equipo fuera de combate.' };
+    }
+
+    const player = room.players.find((p) => p.id === binding.playerId);
+    if (!player) return { error: 'Personaje no encontrado.' };
+
+    const def = ITEMS_BY_ID[itemId];
+    if (!def || (def.kind !== 'weapon' && def.kind !== 'armor')) {
+      return { error: 'Ese objeto no se puede equipar.' };
+    }
+
+    const owned = player.inventory?.[itemId] ?? 0;
+    if (owned <= 0) return { error: 'No tienes ese objeto en tu mochila.' };
+
+    // Remove 1 of new item from bag first, then return previously equipped item if any
+    player.inventory[itemId] = owned - 1;
+    if (player.inventory[itemId] <= 0) delete player.inventory[itemId];
+
+    if (def.kind === 'weapon') {
+      if (player.equippedWeaponId) {
+        this.applyItemStats(player, player.equippedWeaponId, -1);
+        this.addItemToInventory(player, player.equippedWeaponId);
+      }
+      player.equippedWeaponId = itemId;
+    } else {
+      if (player.equippedArmorId) {
+        this.applyItemStats(player, player.equippedArmorId, -1);
+        this.addItemToInventory(player, player.equippedArmorId);
+      }
+      player.equippedArmorId = itemId;
+    }
+
+    this.applyItemStats(player, itemId, 1);
+    this.scheduleSave();
+    return {
+      room,
+      notice: `${player.name} equipó ${def.name} (${RARITY_LABELS[def.rarity]}).`,
+    };
+  }
+
+  public unequipItem(
+    socketId: string,
+    slot: 'weapon' | 'armor'
+  ): { room: InternalRoom; notice: string } | { error: string } {
+    const binding = this.socketToBinding.get(socketId);
+    if (!binding) return { error: 'No estás en ninguna sala.' };
+
+    const room = this.rooms.get(binding.roomCode);
+    if (!room || room.phase !== 'playing') {
+      return { error: 'Solo puedes desequipar fuera de combate.' };
+    }
+
+    const player = room.players.find((p) => p.id === binding.playerId);
+    if (!player) return { error: 'Personaje no encontrado.' };
+
+    const itemId = slot === 'weapon' ? player.equippedWeaponId : player.equippedArmorId;
+    if (!itemId) return { error: 'No llevas nada equipado en ese espacio.' };
+
+    if (!this.addItemToInventory(player, itemId)) {
+      return { error: `Tu mochila (${MAX_INVENTORY_SLOTS}/${MAX_INVENTORY_SLOTS}) está llena. Suelta algo antes.` };
+    }
+
+    this.applyItemStats(player, itemId, -1);
+    if (slot === 'weapon') player.equippedWeaponId = null;
+    else player.equippedArmorId = null;
+
+    this.scheduleSave();
+    const def = ITEMS_BY_ID[itemId];
+    return {
+      room,
+      notice: `${player.name} guardó ${def?.name ?? itemId} en su mochila.`,
+    };
+  }
+
+  public dropItem(
+    socketId: string,
+    itemId: string
+  ): { room: InternalRoom; notice: string } | { error: string } {
+    const binding = this.socketToBinding.get(socketId);
+    if (!binding) return { error: 'No estás en ninguna sala.' };
+
+    const room = this.rooms.get(binding.roomCode);
+    if (!room || room.phase !== 'playing') {
+      return { error: 'Solo puedes soltar objetos fuera de combate.' };
+    }
+
+    const player = room.players.find((p) => p.id === binding.playerId);
+    if (!player) return { error: 'Personaje no encontrado.' };
+
+    const owned = player.inventory?.[itemId] ?? 0;
+    if (owned <= 0) return { error: 'No tienes ese objeto en tu mochila.' };
+
+    delete player.inventory[itemId];
+    this.scheduleSave();
+    const def = ITEMS_BY_ID[itemId];
+    return {
+      room,
+      notice: `${player.name} soltó ${def?.name ?? itemId}.`,
     };
   }
 

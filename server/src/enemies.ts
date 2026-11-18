@@ -179,6 +179,16 @@ const REGION_BOSSES: Record<string, EnemyTemplate> = {
     xpReward: 150,
     goldReward: 140,
   },
+  'camara-final': {
+    name: 'Emperador del Abismo',
+    maxHp: 140,
+    ac: 18,
+    attackMod: 9,
+    initiativeMod: 4,
+    damageDice: '3d6+5',
+    xpReward: 320,
+    goldReward: 260,
+  },
 };
 
 export function spawnBossForRegion(regionId: string, partySize: number): CombatEnemy {

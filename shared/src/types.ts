@@ -2,9 +2,31 @@ export type PlayerClass = 'Fighter' | 'Wizard' | 'Rogue';
 
 export type Direction = 'up' | 'down' | 'left' | 'right';
 
-export type TileType = 'grass' | 'path' | 'wall' | 'water' | 'portal' | 'event' | 'combat' | 'shop';
+export type TileType = 'grass' | 'path' | 'wall' | 'water' | 'portal' | 'event' | 'combat' | 'shop' | 'chest';
 
-export type RegionTheme = 'verdant' | 'desert' | 'frost' | 'astral';
+export type RegionTheme = 'verdant' | 'desert' | 'frost' | 'astral' | 'boss';
+
+export type ItemRarity = 'comun' | 'raro' | 'epico' | 'legendario';
+
+export type ItemKind = 'consumable' | 'weapon' | 'armor' | 'upgrade';
+
+export interface ItemDef {
+  id: string;
+  name: string;
+  kind: ItemKind;
+  rarity: ItemRarity;
+  description: string;
+  attackBonus?: number;
+  defenseBonus?: number;
+  hpBonus?: number;
+  luckBonus?: number;
+}
+
+export interface ChestDef {
+  x: number;
+  y: number;
+  rarity: ItemRarity;
+}
 
 export interface PortalDef {
   x: number;
@@ -13,6 +35,7 @@ export interface PortalDef {
   targetRegionId: string;
   targetX: number;
   targetY: number;
+  minLevel?: number;
 }
 
 export interface RegionMap {
@@ -25,6 +48,7 @@ export interface RegionMap {
   tiles: TileType[][];
   spawn: { x: number; y: number };
   portals: PortalDef[];
+  chests: ChestDef[];
 }
 
 export interface PlayerState {
@@ -42,8 +66,11 @@ export interface PlayerState {
   damageDice: string;
   gold: number;
   xp: number;
+  level: number;
   luckBonus: number;
   inventory: Record<string, number>;
+  equippedWeaponId: string | null;
+  equippedArmorId: string | null;
   redeemedCodes: string[];
   connected: boolean;
 }
@@ -236,6 +263,15 @@ export interface ServerToClientEvents {
   combat_updated: (payload: { room: PublicRoomState; roll: DiceRollBreakdown }) => void;
   combat_ended: (payload: CombatEndedPayload) => void;
   tavern_result: (payload: TavernResultPayload) => void;
+  chest_opened: (payload: {
+    playerName: string;
+    rarity: ItemRarity;
+    gold: number;
+    xp: number;
+    itemName?: string;
+    inventoryFull?: boolean;
+    room: PublicRoomState;
+  }) => void;
   open_shop: () => void;
   room_error: (payload: { message: string; code?: string }) => void;
   system_notice: (payload: { message: string }) => void;
@@ -258,5 +294,8 @@ export interface ClientToServerEvents {
   play_tavern_dice: (payload: { bet: number }) => void;
   buy_item: (payload: { itemId: string }) => void;
   use_item: (payload: { itemId: string }) => void;
+  equip_item: (payload: { itemId: string }) => void;
+  unequip_item: (payload: { slot: 'weapon' | 'armor' }) => void;
+  drop_item: (payload: { itemId: string }) => void;
   redeem_code: (payload: { code: string }) => void;
 }

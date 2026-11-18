@@ -197,6 +197,11 @@ io.on('connection', (socket) => {
     const outcome = roomManager.movePlayer(socket.id, payload.direction);
     if (!outcome) return;
 
+    if (outcome.type === 'portal_blocked') {
+      socket.emit('room_error', { message: outcome.message });
+      return;
+    }
+
     if (outcome.type === 'teleported') {
       const publicRoom = roomManager.toPublicRoom(outcome.room);
       io.to(outcome.room.code).emit('party_teleported', {
@@ -224,6 +229,22 @@ io.on('connection', (socket) => {
       regionId: outcome.player.regionId,
     });
 
+    if (outcome.openedChest) {
+      const publicRoom = roomManager.toPublicRoom(outcome.room);
+      io.to(publicRoom.code).emit('chest_opened', {
+        ...outcome.openedChest,
+        room: publicRoom,
+      });
+      const itemPart = outcome.openedChest.itemName
+        ? outcome.openedChest.inventoryFull
+          ? ` (Mochila 5/5 llena: no pudo guardar ${outcome.openedChest.itemName})`
+          : ` y obtuvo ${outcome.openedChest.itemName}`
+        : '';
+      io.to(publicRoom.code).emit('system_notice', {
+        message: `${outcome.openedChest.playerName} abrió un cofre (${outcome.openedChest.rarity}): +${outcome.openedChest.gold} monedas, +${outcome.openedChest.xp} EXP${itemPart}.`,
+      });
+    }
+
     if (outcome.steppedOnEventTile) {
       void triggerAndBroadcastEvent({
         roomCode: outcome.room.code,
@@ -237,7 +258,8 @@ io.on('connection', (socket) => {
       const combatRoom = roomManager.startCombatForRoom(
         outcome.room.code,
         outcome.tileX,
-        outcome.tileY
+        outcome.tileY,
+        outcome.isBossCombatTile
       );
       if (combatRoom) {
         const publicRoom = roomManager.toPublicRoom(combatRoom);
@@ -385,6 +407,45 @@ io.on('connection', (socket) => {
   socket.on('use_item', (payload) => {
     if (!payload || typeof payload.itemId !== 'string') return;
     const result = roomManager.useItem(socket.id, payload.itemId);
+    if ('error' in result) {
+      socket.emit('room_error', { message: result.error });
+      return;
+    }
+
+    const publicRoom = roomManager.toPublicRoom(result.room);
+    io.to(publicRoom.code).emit('room_state', publicRoom);
+    io.to(publicRoom.code).emit('system_notice', { message: result.notice });
+  });
+
+  socket.on('equip_item', (payload) => {
+    if (!payload || typeof payload.itemId !== 'string') return;
+    const result = roomManager.equipItem(socket.id, payload.itemId);
+    if ('error' in result) {
+      socket.emit('room_error', { message: result.error });
+      return;
+    }
+
+    const publicRoom = roomManager.toPublicRoom(result.room);
+    io.to(publicRoom.code).emit('room_state', publicRoom);
+    io.to(publicRoom.code).emit('system_notice', { message: result.notice });
+  });
+
+  socket.on('unequip_item', (payload) => {
+    if (!payload || (payload.slot !== 'weapon' && payload.slot !== 'armor')) return;
+    const result = roomManager.unequipItem(socket.id, payload.slot);
+    if ('error' in result) {
+      socket.emit('room_error', { message: result.error });
+      return;
+    }
+
+    const publicRoom = roomManager.toPublicRoom(result.room);
+    io.to(publicRoom.code).emit('room_state', publicRoom);
+    io.to(publicRoom.code).emit('system_notice', { message: result.notice });
+  });
+
+  socket.on('drop_item', (payload) => {
+    if (!payload || typeof payload.itemId !== 'string') return;
+    const result = roomManager.dropItem(socket.id, payload.itemId);
     if ('error' in result) {
       socket.emit('room_error', { message: result.error });
       return;

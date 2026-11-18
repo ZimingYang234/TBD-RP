@@ -1,4 +1,4 @@
-import type { PlayerClass } from './types.js';
+import type { ItemDef, ItemRarity, PlayerClass } from './types.js';
 
 export const GAME_TITLE = 'TBD';
 
@@ -9,7 +9,124 @@ export const MOVE_COOLDOWN_MS = 130;
 export const PORTAL_COOLDOWN_MS = 700;
 export const EVENT_TILE_COOLDOWN_MS = 12_000;
 export const COMBAT_TILE_COOLDOWN_MS = 12_000;
+export const CHEST_RESPAWN_MS = 45_000;
 export const STARTING_GOLD = 20;
+export const MAX_INVENTORY_SLOTS = 5;
+export const BOSS_PORTAL_MIN_LEVEL = 10;
+
+export function xpForNextLevel(level: number): number {
+  return Math.round(100 * Math.pow(1.1, Math.max(0, level - 1)));
+}
+
+export const RARITY_LABELS: Record<ItemRarity, string> = {
+  comun: 'Común',
+  raro: 'Raro',
+  epico: 'Épico',
+  legendario: 'Legendario',
+};
+
+export const RARITY_COLORS: Record<ItemRarity, string> = {
+  comun: '#9ca3af',
+  raro: '#60a5fa',
+  epico: '#c084fc',
+  legendario: '#fbbf24',
+};
+
+export const ITEMS_BY_ID: Record<string, ItemDef> = {
+  potion: {
+    id: 'potion',
+    name: 'Poción de vida',
+    kind: 'consumable',
+    rarity: 'comun',
+    description: 'Recupera 1d6+4 de Vida.',
+  },
+  bomb: {
+    id: 'bomb',
+    name: 'Bomba arcana',
+    kind: 'consumable',
+    rarity: 'raro',
+    description: 'Inflige 2d6+4 de daño directo en combate.',
+  },
+  elixir: {
+    id: 'elixir',
+    name: 'Elixir Dorado',
+    kind: 'consumable',
+    rarity: 'epico',
+    description: 'Cura toda tu Vida y otorga +30 EXP.',
+  },
+  // Chest Weapons
+  weapon_rusty: {
+    id: 'weapon_rusty',
+    name: 'Espada Oxidada',
+    kind: 'weapon',
+    rarity: 'comun',
+    description: '+1 Ataque al equipar.',
+    attackBonus: 1,
+  },
+  weapon_elven: {
+    id: 'weapon_elven',
+    name: 'Hoja Élfica',
+    kind: 'weapon',
+    rarity: 'raro',
+    description: '+3 Ataque y +1 Suerte al equipar.',
+    attackBonus: 3,
+    luckBonus: 1,
+  },
+  weapon_fiery: {
+    id: 'weapon_fiery',
+    name: 'Mandoble Ígneo',
+    kind: 'weapon',
+    rarity: 'epico',
+    description: '+5 Ataque y +2 Suerte al equipar.',
+    attackBonus: 5,
+    luckBonus: 2,
+  },
+  weapon_astral: {
+    id: 'weapon_astral',
+    name: 'Matadragones Astral',
+    kind: 'weapon',
+    rarity: 'legendario',
+    description: '+8 Ataque y +4 Suerte al equipar.',
+    attackBonus: 8,
+    luckBonus: 4,
+  },
+  // Chest Armors
+  armor_leather: {
+    id: 'armor_leather',
+    name: 'Cota de Cuero',
+    kind: 'armor',
+    rarity: 'comun',
+    description: '+1 Defensa al equipar.',
+    defenseBonus: 1,
+  },
+  armor_steel: {
+    id: 'armor_steel',
+    name: 'Malla de Acero',
+    kind: 'armor',
+    rarity: 'raro',
+    description: '+3 Defensa y +3 Vida máx al equipar.',
+    defenseBonus: 3,
+    hpBonus: 3,
+  },
+  armor_glacial: {
+    id: 'armor_glacial',
+    name: 'Coraza Glacial',
+    kind: 'armor',
+    rarity: 'epico',
+    description: '+5 Defensa y +6 Vida máx al equipar.',
+    defenseBonus: 5,
+    hpBonus: 6,
+  },
+  armor_eternal: {
+    id: 'armor_eternal',
+    name: 'Égida Eterna',
+    kind: 'armor',
+    rarity: 'legendario',
+    description: '+8 Defensa y +10 Vida máx al equipar.',
+    defenseBonus: 8,
+    hpBonus: 10,
+  },
+};
 
 export interface ShopItemDef {
   id: 'potion' | 'bomb' | 'weapon_upgrade' | 'armor_upgrade' | 'luck_charm';

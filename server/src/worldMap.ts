@@ -1,4 +1,11 @@
-import type { PortalDef, RegionMap, RegionTheme, TileType } from '@tbd/shared';
+import {
+  BOSS_PORTAL_MIN_LEVEL,
+  type ChestDef,
+  type PortalDef,
+  type RegionMap,
+  type RegionTheme,
+  type TileType,
+} from '@tbd/shared';
 
 const CHAR_TO_TILE: Record<string, TileType> = {
   '#': 'wall',
@@ -9,6 +16,7 @@ const CHAR_TO_TILE: Record<string, TileType> = {
   E: 'event',
   C: 'combat',
   S: 'shop',
+  H: 'chest',
 };
 
 function parseGrid(rows: string[]): TileType[][] {
@@ -28,6 +36,7 @@ function makeRegion(config: {
   rows: string[];
   spawn: { x: number; y: number };
   portals: PortalDef[];
+  chests: ChestDef[];
 }): RegionMap {
   return {
     id: config.id,
@@ -39,6 +48,7 @@ function makeRegion(config: {
     tiles: parseGrid(config.rows),
     spawn: config.spawn,
     portals: config.portals,
+    chests: config.chests,
   };
 }
 
@@ -55,20 +65,29 @@ export const REGIONS: Record<string, RegionMap> = {
       '####################',
       '#........,P........#',
       '#..##....,,....##..#',
-      '#.....C..,,........#',
+      '#..H..C..,,........#',
       '#....~~..,,..~~....#',
       '#....~~..E,..~~....#',
       '#........,,........#',
-      '#,,,,,,,S,,,,,,,,,P#',
+      '#P,,,,,,S,,,,,,,,,P#',
       '#........,,........#',
       '#..#.....,,.....#..#',
       '#..#..E..,,.....#..#',
-      '#........,,...C....#',
+      '#........,,...C..H.#',
       '#....~~..,,..~~....#',
       '#........,,........#',
       '####################',
     ],
     portals: [
+      {
+        x: 1,
+        y: 7,
+        label: '→ Jefe Final (Nv.10+)',
+        targetRegionId: 'camara-final',
+        targetX: 2,
+        targetY: 7,
+        minLevel: BOSS_PORTAL_MIN_LEVEL,
+      },
       {
         x: 10,
         y: 1,
@@ -86,6 +105,10 @@ export const REGIONS: Record<string, RegionMap> = {
         targetY: 7,
       },
     ],
+    chests: [
+      { x: 3, y: 3, rarity: 'comun' },
+      { x: 17, y: 11, rarity: 'raro' },
+    ],
   }),
 
   solceniza: makeRegion({
@@ -99,14 +122,14 @@ export const REGIONS: Record<string, RegionMap> = {
       '#.........P........#',
       '#...~~~...,,..~~~..#',
       '#...~~~...,,..~~~..#',
-      '#.........,,..C....#',
+      '#.........,,..C..H.#',
       '#....##...,,...##..#',
       '#.........,E.......#',
       '#P,,,,,S,,,,.......#',
       '#.........,,.......#',
       '#..~~~....,,.......#',
       '#..~~~....,,..##...#',
-      '#.........,,...C...#',
+      '#..H......,,...C...#',
       '#......E..,,.......#',
       '#.........,,.......#',
       '####################',
@@ -129,6 +152,10 @@ export const REGIONS: Record<string, RegionMap> = {
         targetY: 12,
       },
     ],
+    chests: [
+      { x: 17, y: 4, rarity: 'raro' },
+      { x: 3, y: 11, rarity: 'epico' },
+    ],
   }),
 
   ventisca: makeRegion({
@@ -141,7 +168,7 @@ export const REGIONS: Record<string, RegionMap> = {
       '####################',
       '#..~~..........~~..#',
       '#..~~..##..##..~~..#',
-      '#........,,...C....#',
+      '#........,,...C..H.#',
       '#.....E..,,........#',
       '#........,,...~~...#',
       '#..##....,,...~~...#',
@@ -149,7 +176,7 @@ export const REGIONS: Record<string, RegionMap> = {
       '#........,,........#',
       '#...~~...,,..##....#',
       '#...~~C..,,........#',
-      '#........,,..E.....#',
+      '#..H.....,,..E.....#',
       '#........,,S.......#',
       '#.........P........#',
       '####################',
@@ -172,6 +199,10 @@ export const REGIONS: Record<string, RegionMap> = {
         targetY: 7,
       },
     ],
+    chests: [
+      { x: 17, y: 3, rarity: 'raro' },
+      { x: 3, y: 11, rarity: 'epico' },
+    ],
   }),
 
   'plano-astral': makeRegion({
@@ -187,8 +218,8 @@ export const REGIONS: Record<string, RegionMap> = {
       '#...C....,,........#',
       '#....E...,,...E....#',
       '#...#....,,....#...#',
-      '#...#....,,....#...#',
-      '#P,,,,,,S,,,,,,,,..#',
+      '#...#..H.,,..H.#...#',
+      '#P,,,,,,S,,,,,,,,,P#',
       '#...#....,,....#...#',
       '#...#....,,....#...#',
       '#........,,....C...#',
@@ -214,9 +245,65 @@ export const REGIONS: Record<string, RegionMap> = {
         targetX: 10,
         targetY: 2,
       },
+      {
+        x: 18,
+        y: 7,
+        label: '→ Jefe Final (Nv.10+)',
+        targetRegionId: 'camara-final',
+        targetX: 2,
+        targetY: 7,
+        minLevel: BOSS_PORTAL_MIN_LEVEL,
+      },
+    ],
+    chests: [
+      { x: 7, y: 6, rarity: 'epico' },
+      { x: 13, y: 6, rarity: 'legendario' },
+    ],
+  }),
+
+  'camara-final': makeRegion({
+    id: 'camara-final',
+    name: 'Cámara del Rey Final',
+    subtitle: 'Santuario del Emperador (Nv. 10+)',
+    theme: 'boss',
+    spawn: { x: 2, y: 7 },
+    rows: [
+      '####################',
+      '#..~~..........~~..#',
+      '#..~~..##..##..~~..#',
+      '#........,,.....H..#',
+      '#........,,........#',
+      '#...#....,,....#...#',
+      '#...#..........#...#',
+      '#P,,,,,,...C.......#',
+      '#...#..........#...#',
+      '#...#....,,....#...#',
+      '#........,,........#',
+      '#..~~..##,,##..~~..#',
+      '#..~~....,,.....H..#',
+      '#........,,........#',
+      '####################',
+    ],
+    portals: [
+      {
+        x: 1,
+        y: 7,
+        label: '→ Valderroble',
+        targetRegionId: 'valderroble',
+        targetX: 2,
+        targetY: 7,
+      },
+    ],
+    chests: [
+      { x: 16, y: 3, rarity: 'legendario' },
+      { x: 16, y: 12, rarity: 'legendario' },
     ],
   }),
 };
+
+export function findChestAt(map: RegionMap, x: number, y: number): ChestDef | undefined {
+  return map.chests.find((c) => c.x === x && c.y === y);
+}
 
 export function getRegion(regionId: string): RegionMap {
   return REGIONS[regionId] ?? REGIONS[STARTING_REGION_ID];

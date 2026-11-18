@@ -2,8 +2,10 @@ import Phaser from 'phaser';
 import {
   MOVE_COOLDOWN_MS,
   PLAYER_CLASSES,
+  RARITY_LABELS,
   TILE_SIZE,
   type Direction,
+  type ItemRarity,
   type PlayerClass,
   type PublicPlayerState,
   type PublicRoomState,
@@ -122,6 +124,26 @@ const THEME_PALETTES: Record<RegionTheme, ThemePalette> = {
     portalBase: 0x33165c,
     portalGlow: 0xe879f9,
     portalCore: 0xfdf4ff,
+    eventTile: 0xf5b942,
+    eventGlow: 0xfef08a,
+  },
+  boss: {
+    grassA: 0x1b1521,
+    grassB: 0x221a29,
+    grassDetail: 0x3b1f2b,
+    grassAccent: 0xd97706,
+    pathBase: 0x2e2130,
+    pathStoneA: 0x52394a,
+    pathStoneB: 0x432d3c,
+    wallFace: 0x110c14,
+    wallTop: 0x2c2030,
+    wallHighlight: 0xb45309,
+    waterBase: 0x3b0b12,
+    waterDeep: 0x220408,
+    waterHighlight: 0xef4444,
+    portalBase: 0x521b1b,
+    portalGlow: 0xfbbf24,
+    portalCore: 0xfef3c7,
     eventTile: 0xf5b942,
     eventGlow: 0xfef08a,
   },
@@ -373,6 +395,9 @@ export class OverworldScene extends Phaser.Scene {
         tip = 'Combate (clic o camina aquí)';
       } else if (tile === 'shop') {
         tip = 'Tienda (clic o camina aquí)';
+      } else if (tile === 'chest') {
+        const chest = this.room.map.chests?.find((c) => c.x === tx && c.y === ty);
+        tip = chest ? `Cofre ${RARITY_LABELS[chest.rarity]} (clic o camina aquí)` : 'Cofre';
       }
 
       if (!tip) {
@@ -539,7 +564,7 @@ export class OverworldScene extends Phaser.Scene {
         const py = y * TILE_SIZE;
         const rnd = hash2D(x, y);
 
-        if (tile === 'grass' || tile === 'event' || tile === 'combat' || tile === 'shop') {
+        if (tile === 'grass' || tile === 'event' || tile === 'combat' || tile === 'shop' || tile === 'chest') {
           const base = (x + y) % 2 === 0 ? palette.grassA : palette.grassB;
           g.fillStyle(base, 1);
           g.fillRect(px, py, TILE_SIZE, TILE_SIZE);
@@ -587,6 +612,9 @@ export class OverworldScene extends Phaser.Scene {
             this.spawnCombatMarker(px + TILE_SIZE / 2, py + TILE_SIZE / 2);
           } else if (tile === 'shop') {
             this.spawnShopMarker(px + TILE_SIZE / 2, py + TILE_SIZE / 2);
+          } else if (tile === 'chest') {
+            const chest = map.chests?.find((c) => c.x === x && c.y === y);
+            this.spawnChestMarker(px + TILE_SIZE / 2, py + TILE_SIZE / 2, chest?.rarity ?? 'comun');
           }
         } else if (tile === 'path') {
           g.fillStyle(palette.pathBase, 1);
@@ -780,6 +808,31 @@ export class OverworldScene extends Phaser.Scene {
       .setDepth(5);
 
     this.propObjects.push(base, coin, mark);
+  }
+
+  private spawnChestMarker(cx: number, cy: number, rarity: ItemRarity): void {
+    const chestColors: Record<ItemRarity, { body: number; trim: number }> = {
+      comun: { body: 0x7c5836, trim: 0x9ca3af },
+      raro: { body: 0x1e40af, trim: 0x60a5fa },
+      epico: { body: 0x581c87, trim: 0xc084fc },
+      legendario: { body: 0x92400e, trim: 0xfbbf24 },
+    };
+    const palette = chestColors[rarity];
+    const base = this.add
+      .circle(cx, cy, this.quality === 'low' ? 15 : 19, 0x0f121b, 0.72)
+      .setStrokeStyle(2, palette.trim, 0.9)
+      .setDepth(3);
+
+    const box = this.add
+      .rectangle(cx, cy + 2, 22, 15, palette.body, 1)
+      .setStrokeStyle(2, palette.trim, 1)
+      .setDepth(4);
+    const lid = this.add
+      .rectangle(cx, cy - 5, 24, 6, palette.trim, 0.95)
+      .setDepth(5);
+    const clasp = this.add.rectangle(cx, cy, 5, 6, 0xfef3c7, 1).setDepth(6);
+
+    this.propObjects.push(base, box, lid, clasp);
   }
 
   private spawnCombatMarker(cx: number, cy: number): void {

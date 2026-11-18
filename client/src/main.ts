@@ -1,7 +1,9 @@
 import Phaser from 'phaser';
 import {
   GAME_TITLE,
+  MAX_INVENTORY_SLOTS,
   PLAYER_CLASSES,
+  xpForNextLevel,
   type Direction,
   type PublicRoomState,
 } from '@tbd/shared';
@@ -18,6 +20,7 @@ import { CombatModal } from './ui/combatModal';
 import { ShopModal } from './ui/shopModal';
 import { TavernModal } from './ui/tavernModal';
 import { TutorialModal } from './ui/tutorialModal';
+import { InventoryModal } from './ui/inventoryModal';
 import { ICON_COIN, ICON_HEART, ICON_LUCK, ICON_SHIELD, ICON_SWORD } from './ui/icons';
 import { getSavedQuality, renderQualityControl } from './ui/quality';
 import { createPhaserGame } from './game/phaserGame';
@@ -143,6 +146,24 @@ const tavernModal = new TavernModal({
   },
 });
 
+const inventoryModal = new InventoryModal({
+  onEquip: (itemId) => {
+    socket.emit('equip_item', { itemId });
+  },
+  onUnequip: (slot) => {
+    socket.emit('unequip_item', { slot });
+  },
+  onUse: (itemId) => {
+    socket.emit('use_item', { itemId });
+  },
+  onDrop: (itemId) => {
+    socket.emit('drop_item', { itemId });
+  },
+  onClosed: () => {
+    syncInputLock();
+  },
+});
+
 function syncInputLock(): void {
   const blocked =
     eventModal.isOpen() ||
@@ -150,6 +171,7 @@ function syncInputLock(): void {
     shopModal.isOpen() ||
     tavernModal.isOpen() ||
     tutorialModal.isOpen() ||
+    inventoryModal.isOpen() ||
     currentRoom?.phase !== 'playing';
   overworldScene?.setInputBlocked(blocked);
 }
@@ -161,6 +183,7 @@ function requestMove(dir: Direction): void {
     shopModal.isOpen() ||
     tavernModal.isOpen() ||
     tutorialModal.isOpen() ||
+    inventoryModal.isOpen() ||
     currentRoom?.phase !== 'playing'
   ) {
     return;
@@ -214,12 +237,16 @@ function renderGameShell(room: PublicRoomState): void {
               <button type="button" id="hud-pvp-btn" class="btn btn-pvp-outline">Duelo PvP</button>
               <button type="button" id="hud-tavern-btn" class="btn btn-tavern-outline">Taberna</button>
             </div>
-            <button type="button" id="hud-shop-btn" class="btn btn-shop-outline">Tienda de Objetos</button>
+            <div class="hud-combat-row">
+              <button type="button" id="hud-shop-btn" class="btn btn-shop-outline">Tienda</button>
+              <button type="button" id="hud-bag-btn" class="btn btn-secondary">Mochila (0/5)</button>
+            </div>
             <div class="map-legend">
               <span class="legend-chip"><span class="legend-dot dot-portal"></span>Portal</span>
               <span class="legend-chip"><span class="legend-dot dot-event"></span>Evento</span>
               <span class="legend-chip"><span class="legend-dot dot-combat"></span>Combate</span>
               <span class="legend-chip"><span class="legend-dot dot-shop"></span>Tienda</span>
+              <span class="legend-chip"><span class="legend-dot dot-chest"></span>Cofre</span>
             </div>
             <div class="redeem-box">
               <input
@@ -286,6 +313,13 @@ function renderGameShell(room: PublicRoomState): void {
       }
     });
 
+    document.querySelector('#hud-bag-btn')?.addEventListener('click', () => {
+      if (currentRoom && currentRoom.phase === 'playing') {
+        inventoryModal.show(currentRoom, myPlayerId);
+        syncInputLock();
+      }
+    });
+
     const redeemInput = document.querySelector<HTMLInputElement>('#hud-code-input');
     const submitRedeem = () => {
       if (!redeemInput) return;
@@ -343,6 +377,7 @@ function renderGameShell(room: PublicRoomState): void {
   combatModal.render(room, myPlayerId);
   shopModal.render(room, myPlayerId);
   tavernModal.render(room, myPlayerId);
+  inventoryModal.render(room, myPlayerId);
   syncInputLock();
 }
 
@@ -374,6 +409,14 @@ function updateGameHud(room: PublicRoomState): void {
   const shopBtn = document.querySelector<HTMLButtonElement>('#hud-shop-btn');
   if (shopBtn) {
     shopBtn.disabled = room.phase !== 'playing';
+  }
+
+  const bagBtn = document.querySelector<HTMLButtonElement>('#hud-bag-btn');
+  if (bagBtn) {
+    const me = room.players.find((p) => p.id === myPlayerId);
+    const usedSlots = Object.values(me?.inventory ?? {}).filter((q) => q > 0).length;
+    bagBtn.textContent = `Mochila (${usedSlots}/${MAX_INVENTORY_SLOTS})`;
+    bagBtn.disabled = room.phase !== 'playing';
   }
 
   const questEl = document.querySelector<HTMLElement>('#hud-quest-box');
@@ -423,7 +466,7 @@ function updateGameHud(room: PublicRoomState): void {
             </div>
             <div class="party-stats-inline" style="color: #cbd5e8; margin-top: 3px;">
               <span class="stat-row-inline">${ICON_COIN} <strong>${p.gold ?? 0}</strong></span>
-              <span>EXP: <strong>${p.xp ?? 0}</strong></span>
+              <span><strong>Niv. ${p.level ?? 1}</strong> (${p.xp ?? 0}/${xpForNextLevel(p.level ?? 1)} EXP)</span>
             </div>
             <div class="hp-bar">
               <div class="hp-fill" style="width:${hpPct}%"></div>
@@ -452,6 +495,7 @@ function renderApp(): void {
   combatModal.hide();
   shopModal.hide();
   tavernModal.hide();
+  inventoryModal.hide();
   destroyPhaser();
   lobbyUI.render(currentRoom, myPlayerId, lastError);
 }
@@ -600,6 +644,12 @@ socket.on('tavern_result', (payload) => {
   currentRoom = payload.room;
   tavernModal.setResult(payload, myPlayerId);
   updateGameHud(payload.room);
+});
+
+socket.on('chest_opened', (payload) => {
+  currentRoom = payload.room;
+  updateGameHud(payload.room);
+  inventoryModal.render(payload.room, myPlayerId);
 });
 
 socket.on('open_shop', () => {

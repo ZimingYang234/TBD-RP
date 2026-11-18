@@ -1282,6 +1282,64 @@ body {
 .dot-event { background: #f5b942; }
 .dot-combat { background: #e05a47; }
 .dot-shop { background: #2dd4bf; }
+.dot-chest { background: #fbbf24; }
+
+.equip-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.equip-box {
+  background: var(--panel-alt);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.equip-value {
+  font-weight: 700;
+  font-size: 0.95rem;
+  margin-top: 4px;
+}
+
+.inv-slot-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: var(--panel-alt);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 12px;
+}
+
+.inv-slot-card.empty {
+  opacity: 0.6;
+  justify-content: center;
+}
+
+.inv-empty-label {
+  font-size: 0.84rem;
+  color: var(--muted);
+}
+
+.inv-slot-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.btn-sm {
+  padding: 5px 10px;
+  font-size: 0.8rem;
+}
+
+@media (max-width: 600px) {
+  .equip-grid {
+    grid-template-columns: 1fr;
+  }
+}
 
 .btn-shop-outline {
   width: 100%;
