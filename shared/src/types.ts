@@ -26,7 +26,8 @@ export type RegionTheme =
   | 'swamp'
   | 'ruins'
   | 'ocean'
-  | 'cavern';
+  | 'cavern'
+  | 'spaceship';
 
 export type ItemRarity = 'comun' | 'raro' | 'epico' | 'legendario';
 

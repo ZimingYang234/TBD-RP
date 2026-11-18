@@ -766,6 +766,43 @@ export const REGIONS: Record<string, RegionMap> = {
     ],
     chests: [],
   }),
+
+  'nave-rota': makeRegion({
+    id: 'nave-rota',
+    name: 'Nave Rota',
+    subtitle: 'Restos de algo que no debería existir aquí',
+    modifierLabel: 'soon...',
+    theme: 'spaceship',
+    spawn: { x: 9, y: 6 },
+    rows: [
+      '####################',
+      '#~~~~~~~~~~~~~~~~~~#',
+      '#~~##############~~#',
+      '#~~#,,,,,,,,,,,,#~~#',
+      '#~~#,,##,,,,##,,#~~#',
+      '#~~#,,,,,,,,,,,,#~~#',
+      '#~~#,,,,,..,,,,,#~~#',
+      '#~~#,,,,,,,,,,,,#~~#',
+      '#~~#,,##,,,,##,,#~~#',
+      '#~~#,,,,,,,,,,,,#~~#',
+      '#~~######,,######~~#',
+      '#~~~~~~~~,,~~~~~~~~#',
+      '#~~~~~~~~P~~~~~~~~~#',
+      '#~~~~~~~~~~~~~~~~~~#',
+      '####################',
+    ],
+    portals: [
+      {
+        x: 9,
+        y: 12,
+        label: '→ Valderroble',
+        targetRegionId: 'valderroble',
+        targetX: 16,
+        targetY: 13,
+      },
+    ],
+    chests: [],
+  }),
 };
 
 export function findChestAt(map: RegionMap, x: number, y: number): ChestDef | undefined {
@@ -820,7 +857,9 @@ export function spawnRoamingMonstersForRegion(map: RegionMap): RoamingMonster[] 
     map.id === 'forja-oculta' ||
     map.id === 'gruta-hielo' ||
     map.id === 'observatorio-astral';
-  if (isMiniWorld || map.id === 'camara-final') return [];
+  if (isMiniWorld || map.id === 'camara-final' || map.id === 'sala-secreta' || map.id === 'nave-rota') {
+    return [];
+  }
 
   const candidates: Array<{ x: number; y: number }> = [];
   for (let y = 2; y < map.height - 2; y++) {

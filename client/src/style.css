@@ -428,6 +428,60 @@ body {
   margin-top: 2px;
 }
 
+.map-soon-teaser {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  transform: translate(-50%, -50%);
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-size: clamp(42px, 8vw, 84px);
+  font-weight: 300;
+  letter-spacing: 0.28em;
+  text-transform: lowercase;
+  color: rgba(167, 243, 252, 0.92);
+  text-shadow:
+    0 0 18px rgba(34, 211, 238, 0.55),
+    0 0 48px rgba(14, 165, 233, 0.35),
+    0 2px 8px rgba(0, 0, 0, 0.75);
+  pointer-events: none;
+  z-index: 22;
+  animation: soon-pulse 2.8s ease-in-out infinite;
+  user-select: none;
+}
+
+@keyframes soon-pulse {
+  0%,
+  100% {
+    opacity: 0.72;
+    letter-spacing: 0.28em;
+  }
+  50% {
+    opacity: 1;
+    letter-spacing: 0.34em;
+  }
+}
+
+.map-soon-inline {
+  margin: 10px 0 4px;
+  padding: 14px 16px;
+  text-align: center;
+  border-radius: 10px;
+  background: linear-gradient(160deg, rgba(15, 23, 42, 0.95), rgba(8, 47, 73, 0.9));
+  border: 1px solid rgba(103, 232, 249, 0.45);
+  color: #cbd5e1;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.map-soon-inline span {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 1.55rem;
+  font-weight: 300;
+  letter-spacing: 0.28em;
+  color: #a5f3fc;
+}
+
 .sidebar {
   background: var(--panel);
   border-left: 1px solid var(--border);

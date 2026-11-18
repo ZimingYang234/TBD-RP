@@ -227,6 +227,26 @@ const THEME_PALETTES: Record<RegionTheme, ThemePalette> = {
     eventTile: 0xf5b942,
     eventGlow: 0xfef08a,
   },
+  spaceship: {
+    grassA: 0x2a323c,
+    grassB: 0x323b47,
+    grassDetail: 0x1c232b,
+    grassAccent: 0x5eead4,
+    pathBase: 0x3d4654,
+    pathStoneA: 0x6b7688,
+    pathStoneB: 0x556070,
+    wallFace: 0x12161c,
+    wallTop: 0x2c3440,
+    wallHighlight: 0x94a3b8,
+    waterBase: 0x05070c,
+    waterDeep: 0x020307,
+    waterHighlight: 0x22d3ee,
+    portalBase: 0x0f172a,
+    portalGlow: 0x67e8f9,
+    portalCore: 0xecfeff,
+    eventTile: 0x5eead4,
+    eventGlow: 0xa5f3fc,
+  },
 };
 
 function hash2D(x: number, y: number): number {
@@ -255,6 +275,7 @@ export class OverworldScene extends Phaser.Scene {
   private domOverlayEl: HTMLDivElement | null = null;
   private domTooltipEl: HTMLDivElement | null = null;
   private domBannerEl: HTMLDivElement | null = null;
+  private domSoonEl: HTMLDivElement | null = null;
   private domPortalEls: HTMLDivElement[] = [];
   private domBannerTimer: number | null = null;
 
@@ -627,6 +648,25 @@ export class OverworldScene extends Phaser.Scene {
     this.domPortalEls = [];
   }
 
+  private syncSoonTeaser(regionId: string): void {
+    const overlay = this.ensureDomOverlay();
+    if (!overlay) return;
+
+    if (regionId !== 'nave-rota') {
+      this.domSoonEl?.remove();
+      this.domSoonEl = null;
+      return;
+    }
+
+    if (!this.domSoonEl) {
+      const el = document.createElement('div');
+      el.className = 'map-soon-teaser';
+      el.textContent = 'soon...';
+      overlay.appendChild(el);
+      this.domSoonEl = el;
+    }
+  }
+
   private rebuildPlayerSprites(): void {
     for (const bundle of this.playerSprites.values()) {
       this.tweens.killTweensOf(bundle.avatar);
@@ -653,6 +693,7 @@ export class OverworldScene extends Phaser.Scene {
     this.mapLayer.clear();
     this.shadowLayer.clear();
     this.clearPropObjects();
+    this.syncSoonTeaser(map.id);
 
     const g = this.mapLayer;
     const s = this.shadowLayer;
@@ -705,6 +746,13 @@ export class OverworldScene extends Phaser.Scene {
               if (q === 'high') {
                 g.fillStyle(palette.grassDetail, 0.45);
                 g.fillEllipse(dx + 6, dy + 8, 12, 5);
+              }
+            } else if (map.theme === 'spaceship') {
+              g.fillStyle(palette.pathStoneA, 0.55);
+              g.fillRect(dx - 4, dy, 14, 3);
+              if (q === 'high' && rnd < 0.22) {
+                g.fillStyle(palette.grassAccent, 0.85);
+                g.fillCircle(dx + 10, dy - 4, 2);
               }
             } else {
               g.fillStyle(palette.grassAccent, 0.65);

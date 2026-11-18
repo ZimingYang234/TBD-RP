@@ -68,6 +68,7 @@ export class SecretQuestionModal {
           </div>
 
           <div class="qte-banner qte-success">${this.escapeHtml(this.feedback.message)}</div>
+          <div class="map-soon-inline">Habéis entrado en una nave rota.<br /><span>soon...</span></div>
 
           <div class="tutorial-section">
             <h3>Escribe tu propia pregunta secreta</h3>

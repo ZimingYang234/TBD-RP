@@ -741,7 +741,11 @@ socket.on('party_teleported', (payload) => {
   renderApp();
   if (overworldScene && myPlayerId) {
     overworldScene.configure(payload.room, myPlayerId, requestMove);
-    overworldScene.showRegionBanner(payload.room.map.name, payload.room.map.subtitle);
+    if (payload.room.map.id === 'nave-rota') {
+      overworldScene.showRegionBanner('Nave Rota', 'soon...');
+    } else {
+      overworldScene.showRegionBanner(payload.room.map.name, payload.room.map.subtitle);
+    }
   }
   syncInputLock();
 });

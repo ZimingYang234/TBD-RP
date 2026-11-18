@@ -620,7 +620,19 @@ io.on('connection', (socket) => {
 
     if (result.correct) {
       const publicRoom = roomManager.toPublicRoom(result.room);
-      io.to(publicRoom.code).emit('room_state', publicRoom);
+      if (result.teleported) {
+        io.to(publicRoom.code).emit('party_teleported', {
+          room: publicRoom,
+          fromRegionName: result.teleported.fromRegionName,
+          toRegionName: result.teleported.toRegionName,
+          triggeredByName: result.teleported.triggeredByName,
+        });
+        io.to(publicRoom.code).emit('system_notice', {
+          message: `${result.teleported.triggeredByName} resolvió el enigma. El grupo llega a una nave rota... soon...`,
+        });
+      } else {
+        io.to(publicRoom.code).emit('room_state', publicRoom);
+      }
     }
     socket.emit('secret_question_result', {
       correct: result.correct,

@@ -3240,7 +3240,18 @@ export class RoomManager {
   public answerSecretQuestion(
     socketId: string,
     choiceIndex: number
-  ): { room: InternalRoom; correct: boolean; message: string } | { error: string } {
+  ):
+    | {
+        room: InternalRoom;
+        correct: boolean;
+        message: string;
+        teleported?: {
+          fromRegionName: string;
+          toRegionName: string;
+          triggeredByName: string;
+        };
+      }
+    | { error: string } {
     const binding = this.socketToBinding.get(socketId);
     if (!binding) return { error: 'No estás en ninguna sala.' };
 
@@ -3252,11 +3263,29 @@ export class RoomManager {
     if (correct) {
       player.gold = (player.gold ?? 0) + 500;
       this.grantXp(player, 300);
+
+      const fromMap = getRegion(room.regionId);
+      const shipMap = getRegion('nave-rota');
+      room.regionId = shipMap.id;
+      room.players.forEach((p, idx) => {
+        const pos = findWalkableNearby(shipMap, shipMap.spawn.x, shipMap.spawn.y, idx);
+        p.regionId = shipMap.id;
+        p.x = pos.x;
+        p.y = pos.y;
+      });
+      room.roamingMonsters = spawnRoamingMonstersForRegion(shipMap);
       this.scheduleSave();
+
       return {
         room,
         correct: true,
-        message: '¡Correcto! +500 monedas y +300 EXP. Ahora puedes escribir la próxima pregunta secreta.',
+        message:
+          '¡Correcto! +500 monedas y +300 EXP. Habéis encontrado los restos de una nave rota... soon...',
+        teleported: {
+          fromRegionName: fromMap.name,
+          toRegionName: shipMap.name,
+          triggeredByName: player.name,
+        },
       };
     }
 
