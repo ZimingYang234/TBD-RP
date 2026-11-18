@@ -25,6 +25,7 @@ import { ChestModal } from './ui/chestModal';
 import { SkillTreeModal } from './ui/skillTreeModal';
 import { MinigameModal } from './ui/minigameModal';
 import { ArenaModal } from './ui/arenaModal';
+import { ProgressModal } from './ui/progressModal';
 import { ICON_COIN, ICON_HEART, ICON_LUCK, ICON_SHIELD, ICON_SWORD } from './ui/icons';
 import { getSavedQuality, renderQualityControl } from './ui/quality';
 import { createPhaserGame } from './game/phaserGame';
@@ -216,6 +217,21 @@ const arenaModal = new ArenaModal({
   },
 });
 
+const progressModal = new ProgressModal({
+  onRequestSaveCode: () => {
+    socket.emit('export_save_code');
+  },
+  onLoadSaveCode: (saveCode) => {
+    socket.emit('load_save_code', { saveCode });
+  },
+  onResetProgress: () => {
+    socket.emit('reset_progress');
+  },
+  onClosed: () => {
+    syncInputLock();
+  },
+});
+
 function syncInputLock(): void {
   const blocked =
     eventModal.isOpen() ||
@@ -228,6 +244,7 @@ function syncInputLock(): void {
     skillTreeModal.isOpen() ||
     minigameModal.isOpen() ||
     arenaModal.isOpen() ||
+    progressModal.isOpen() ||
     currentRoom?.phase !== 'playing';
   overworldScene?.setInputBlocked(blocked);
 }
@@ -244,6 +261,7 @@ function requestMove(dir: Direction): void {
     skillTreeModal.isOpen() ||
     minigameModal.isOpen() ||
     arenaModal.isOpen() ||
+    progressModal.isOpen() ||
     currentRoom?.phase !== 'playing'
   ) {
     return;
@@ -277,6 +295,7 @@ function renderGameShell(room: PublicRoomState): void {
             <span class="badge" id="hud-region-name"></span>
           </div>
           <div class="topbar-right">
+            <button type="button" id="hud-progress-btn" class="btn btn-secondary">Guardar / Reiniciar</button>
             <button type="button" id="hud-tutorial-btn" class="btn btn-secondary">? Tutorial</button>
             <div id="hud-quality-slot"></div>
             <span class="badge" id="hud-net-status"></span>
@@ -418,6 +437,13 @@ function renderGameShell(room: PublicRoomState): void {
       if (e.key === 'Enter') {
         e.preventDefault();
         submitRedeem();
+      }
+    });
+
+    document.querySelector('#hud-progress-btn')?.addEventListener('click', () => {
+      if (currentRoom && currentRoom.phase === 'playing') {
+        progressModal.show(currentRoom, myPlayerId);
+        syncInputLock();
       }
     });
 
@@ -601,6 +627,7 @@ function renderApp(): void {
   skillTreeModal.hide();
   minigameModal.hide();
   arenaModal.hide();
+  progressModal.hide();
   destroyPhaser();
   lobbyUI.render(currentRoom, myPlayerId, lastError);
 }
@@ -773,6 +800,10 @@ socket.on('chest_opened', (payload) => {
     });
     syncInputLock();
   }
+});
+
+socket.on('save_code_generated', ({ saveCode }) => {
+  progressModal.setGeneratedCode(saveCode, currentRoom, myPlayerId);
 });
 
 socket.on('open_shop', () => {

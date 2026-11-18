@@ -552,6 +552,40 @@ io.on('connection', (socket) => {
     io.to(publicRoom.code).emit('system_notice', { message: result.notice });
   });
 
+  socket.on('export_save_code', () => {
+    const result = roomManager.exportSaveCode(socket.id);
+    if ('error' in result) {
+      socket.emit('room_error', { message: result.error });
+      return;
+    }
+    socket.emit('save_code_generated', { saveCode: result.saveCode });
+  });
+
+  socket.on('load_save_code', (payload) => {
+    if (!payload || typeof payload.saveCode !== 'string') return;
+    const result = roomManager.loadSaveCode(socket.id, payload.saveCode);
+    if ('error' in result) {
+      socket.emit('room_error', { message: result.error });
+      return;
+    }
+
+    const publicRoom = roomManager.toPublicRoom(result.room);
+    io.to(publicRoom.code).emit('room_state', publicRoom);
+    io.to(publicRoom.code).emit('system_notice', { message: result.notice });
+  });
+
+  socket.on('reset_progress', () => {
+    const result = roomManager.resetProgress(socket.id);
+    if ('error' in result) {
+      socket.emit('room_error', { message: result.error });
+      return;
+    }
+
+    const publicRoom = roomManager.toPublicRoom(result.room);
+    io.to(publicRoom.code).emit('room_state', publicRoom);
+    io.to(publicRoom.code).emit('system_notice', { message: result.notice });
+  });
+
   socket.on('play_tavern_dice', (payload) => {
     if (!payload || typeof payload.bet !== 'number') return;
     const result = roomManager.playTavernDice(socket.id, payload.bet);

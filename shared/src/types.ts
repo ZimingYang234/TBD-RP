@@ -361,6 +361,7 @@ export interface ServerToClientEvents {
   }) => void;
   open_shop: () => void;
   open_minigame: (payload: { game: 'memory' | 'reflex' | 'chest_guess' | 'riddle' | 'arena' }) => void;
+  save_code_generated: (payload: { saveCode: string }) => void;
   room_error: (payload: { message: string; code?: string }) => void;
   system_notice: (payload: { message: string }) => void;
 }
@@ -403,6 +404,9 @@ export interface ClientToServerEvents {
   give_item: (payload: { itemId: string; targetPlayerId: string }) => void;
   unlock_skill: (payload: { skillId: SkillNodeId }) => void;
   redeem_code: (payload: { code: string }) => void;
+  export_save_code: () => void;
+  load_save_code: (payload: { saveCode: string }) => void;
+  reset_progress: () => void;
   complete_minigame: (payload: {
     game: 'memory' | 'reflex' | 'chest_guess' | 'riddle' | 'arena';
     difficulty: 'normal' | 'dificil';

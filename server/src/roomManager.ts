@@ -2785,6 +2785,150 @@ export class RoomManager {
     };
   }
 
+  private signSavePayload(encoded: string): string {
+    const secret = process.env.SAVE_SECRET || 'tbd_rpg_save_v1_salt';
+    return crypto.createHmac('sha256', secret).update(encoded).digest('hex').slice(0, 10);
+  }
+
+  public exportSaveCode(socketId: string): { saveCode: string } | { error: string } {
+    const binding = this.socketToBinding.get(socketId);
+    if (!binding) return { error: 'No estás en ninguna sala.' };
+
+    const room = this.rooms.get(binding.roomCode);
+    const player = room?.players.find((p) => p.id === binding.playerId);
+    if (!player) return { error: 'Personaje no encontrado.' };
+
+    const payload = {
+      v: 1,
+      c: player.playerClass,
+      lv: player.level ?? 1,
+      xp: player.xp ?? 0,
+      g: player.gold ?? 0,
+      sp: player.skillPoints ?? 0,
+      sk: player.unlockedSkills ?? [],
+      lk: player.luckBonus ?? 0,
+      inv: player.inventory ?? {},
+      up: player.shopUpgrades ?? {},
+      ew: player.equippedWeaponId ?? null,
+      ea: player.equippedArmorId ?? null,
+      hp: player.hp,
+      mhp: player.maxHp,
+      ac: player.ac,
+      atk: player.attackMod,
+      rc: player.redeemedCodes ?? [],
+    };
+    const encoded = Buffer.from(JSON.stringify(payload), 'utf-8').toString('base64url');
+    const sig = this.signSavePayload(encoded);
+    return { saveCode: `TBD1-${encoded}.${sig}` };
+  }
+
+  public loadSaveCode(
+    socketId: string,
+    rawCode: string
+  ): { room: InternalRoom; notice: string } | { error: string } {
+    const binding = this.socketToBinding.get(socketId);
+    if (!binding) return { error: 'No estás en ninguna sala.' };
+
+    const room = this.rooms.get(binding.roomCode);
+    if (!room || room.phase !== 'playing') {
+      return { error: 'Solo puedes cargar progreso mientras exploras (fuera de combate).' };
+    }
+
+    const player = room.players.find((p) => p.id === binding.playerId);
+    if (!player) return { error: 'Personaje no encontrado.' };
+
+    const trimmed = rawCode.trim();
+    if (!trimmed.startsWith('TBD1-')) {
+      return { error: 'Código de guardado inválido (debe empezar por TBD1-).' };
+    }
+
+    const body = trimmed.slice(5);
+    const dotIdx = body.lastIndexOf('.');
+    if (dotIdx <= 0) {
+      return { error: 'Formato de código de guardado incorrecto.' };
+    }
+
+    const encoded = body.slice(0, dotIdx);
+    const sig = body.slice(dotIdx + 1);
+    if (sig !== this.signSavePayload(encoded)) {
+      return { error: 'El código de guardado está dañado o no es válido.' };
+    }
+
+    try {
+      const parsed = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf-8')) as Record<string, unknown>;
+      if (parsed.v !== 1) return { error: 'Versión de guardado incompatible.' };
+
+      const cls = parsed.c as PlayerClass;
+      if (PLAYER_CLASSES[cls]) {
+        player.playerClass = cls;
+        player.damageDice = PLAYER_CLASSES[cls].damageDice;
+      }
+      player.level = Math.max(1, Number(parsed.lv) || 1);
+      player.xp = Math.max(0, Number(parsed.xp) || 0);
+      player.gold = Math.max(0, Number(parsed.g) || 0);
+      player.skillPoints = Math.max(0, Number(parsed.sp) || 0);
+      player.unlockedSkills = Array.isArray(parsed.sk) ? (parsed.sk as SkillNodeId[]) : [];
+      player.luckBonus = Math.max(0, Number(parsed.lk) || 0);
+      player.inventory =
+        parsed.inv && typeof parsed.inv === 'object' ? { ...(parsed.inv as Record<string, number>) } : {};
+      player.shopUpgrades =
+        parsed.up && typeof parsed.up === 'object' ? { ...(parsed.up as Record<string, number>) } : {};
+      player.equippedWeaponId = typeof parsed.ew === 'string' ? parsed.ew : null;
+      player.equippedArmorId = typeof parsed.ea === 'string' ? parsed.ea : null;
+      player.maxHp = Math.max(1, Number(parsed.mhp) || player.maxHp);
+      player.hp = Math.max(1, Math.min(player.maxHp, Number(parsed.hp) || player.maxHp));
+      player.ac = Number(parsed.ac) || player.ac;
+      player.attackMod = Number(parsed.atk) || player.attackMod;
+      player.redeemedCodes = Array.isArray(parsed.rc) ? (parsed.rc as string[]) : [];
+
+      this.scheduleSave();
+      return {
+        room,
+        notice: `${player.name} cargó su progreso guardado (Nivel ${player.level}).`,
+      };
+    } catch {
+      return { error: 'No se pudo leer el código de guardado.' };
+    }
+  }
+
+  public resetProgress(socketId: string): { room: InternalRoom; notice: string } | { error: string } {
+    const binding = this.socketToBinding.get(socketId);
+    if (!binding) return { error: 'No estás en ninguna sala.' };
+
+    const room = this.rooms.get(binding.roomCode);
+    if (!room || room.phase !== 'playing') {
+      return { error: 'Solo puedes reiniciar tu progreso fuera de combate.' };
+    }
+
+    const player = room.players.find((p) => p.id === binding.playerId);
+    if (!player) return { error: 'Personaje no encontrado.' };
+
+    const tpl = PLAYER_CLASSES[player.playerClass];
+    player.maxHp = tpl.maxHp;
+    player.hp = tpl.maxHp;
+    player.ac = tpl.ac;
+    player.attackMod = tpl.attackMod;
+    player.damageDice = tpl.damageDice;
+    player.level = 1;
+    player.xp = 0;
+    player.gold = STARTING_GOLD;
+    player.skillPoints = 1;
+    player.unlockedSkills = [];
+    player.luckBonus = 0;
+    player.inventory = {};
+    player.shopUpgrades = {};
+    player.equippedWeaponId = null;
+    player.equippedArmorId = null;
+    player.redeemedCodes = [];
+    player.tavernPlays = [];
+
+    this.scheduleSave();
+    return {
+      room,
+      notice: `${player.name} reinició su progreso a Nivel 1.`,
+    };
+  }
+
   public redeemCode(
     socketId: string,
     rawCode: string
