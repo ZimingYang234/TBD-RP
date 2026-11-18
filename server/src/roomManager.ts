@@ -1939,9 +1939,10 @@ export class RoomManager {
         if (e.isBoss && e.hp > 0 && e.hp <= e.maxHp * 0.5 && e.bossPhase !== 2) {
           e.bossPhase = 2;
           e.attackMod += 2;
+          e.ac += 2;
           combat.log = [
             ...combat.log,
-            `¡FASE 2! ${e.name} entra en furia (+2 Ataque y ataques en área).`,
+            `¡FASE 2! ${e.name} entra en furia (+2 Ataque, +2 Defensa y ataques en área).`,
           ].slice(-20);
         }
       }

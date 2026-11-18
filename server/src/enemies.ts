@@ -207,17 +207,18 @@ export function spawnEnemiesForParty(
   avgLevel = 1
 ): CombatEnemy[] {
   const pool = REGION_ENEMIES[regionId] ?? REGION_ENEMIES.valderroble;
-  const count = partySize >= 2 ? 2 : 1;
+  const count = partySize >= 2 ? 3 : 2;
   const enemies: CombatEnemy[] = [];
   const lvAbove1 = Math.max(0, avgLevel - 1);
-  const extraHp = lvAbove1 * 6;
+  const extraHp = lvAbove1 * 10;
   const extraAtk = Math.floor(lvAbove1 / 2);
   const extraAc = Math.floor(lvAbove1 / 3);
+  const numerals = ['I', 'II', 'III'];
 
   for (let i = 0; i < count; i++) {
     const tpl = pool[Math.floor(Math.random() * pool.length)];
-    const suffix = count > 1 ? ` ${i === 0 ? 'I' : 'II'}` : '';
-    const maxHp = tpl.maxHp + extraHp;
+    const suffix = count > 1 ? ` ${numerals[i] ?? String(i + 1)}` : '';
+    const maxHp = Math.round(tpl.maxHp * 1.6) + extraHp;
     enemies.push({
       id: crypto.randomUUID(),
       name: `${tpl.name}${suffix}`,
@@ -227,8 +228,8 @@ export function spawnEnemiesForParty(
       attackMod: tpl.attackMod + extraAtk,
       initiativeMod: tpl.initiativeMod,
       damageDice: tpl.damageDice,
-      xpReward: tpl.xpReward + lvAbove1 * 5,
-      goldReward: tpl.goldReward + lvAbove1 * 3,
+      xpReward: tpl.xpReward + lvAbove1 * 6,
+      goldReward: tpl.goldReward + lvAbove1 * 4,
     });
   }
 
@@ -335,10 +336,10 @@ export function spawnBossForRegion(
 ): CombatEnemy {
   const tpl = REGION_BOSSES[regionId] ?? REGION_BOSSES.valderroble;
   const lvAbove1 = Math.max(0, avgLevel - 1);
-  const extraHp = Math.max(0, partySize - 1) * 35 + lvAbove1 * 12;
+  const extraHp = Math.max(0, partySize - 1) * 50 + lvAbove1 * 18;
   const extraAtk = Math.floor(lvAbove1 / 3);
   const extraAc = Math.floor(lvAbove1 / 4);
-  const maxHp = tpl.maxHp + extraHp;
+  const maxHp = Math.round(tpl.maxHp * 1.5) + extraHp;
   return {
     id: crypto.randomUUID(),
     name: tpl.name,
@@ -349,7 +350,7 @@ export function spawnBossForRegion(
     attackMod: tpl.attackMod + extraAtk,
     initiativeMod: tpl.initiativeMod,
     damageDice: tpl.damageDice,
-    xpReward: tpl.xpReward + lvAbove1 * 12,
-    goldReward: tpl.goldReward + lvAbove1 * 8,
+    xpReward: tpl.xpReward + lvAbove1 * 15,
+    goldReward: tpl.goldReward + lvAbove1 * 10,
   };
 }
