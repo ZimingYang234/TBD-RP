@@ -267,6 +267,21 @@ io.on('connection', (socket) => {
     scheduleEnemyTurnIfNeeded(publicRoom.code);
   });
 
+  socket.on('start_boss_fight', () => {
+    const result = roomManager.startBossFightBySocket(socket.id);
+    if ('error' in result) {
+      socket.emit('room_error', { message: result.error });
+      return;
+    }
+
+    const publicRoom = roomManager.toPublicRoom(result.room);
+    io.to(publicRoom.code).emit('combat_started', { room: publicRoom });
+    io.to(publicRoom.code).emit('system_notice', {
+      message: `¡DESAFÍO DE JEFE! Aparece ${publicRoom.combat?.enemies[0]?.name ?? 'el Jefe'}.`,
+    });
+    scheduleEnemyTurnIfNeeded(publicRoom.code);
+  });
+
   socket.on('start_pvp_duel', () => {
     const result = roomManager.startPvpDuel(socket.id);
     if ('error' in result) {
@@ -282,7 +297,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('combat_action', (payload) => {
-    if (!payload || !['attack', 'luck', 'defend', 'potion', 'bomb'].includes(payload.action)) return;
+    if (!payload || !['attack', 'luck', 'special', 'defend', 'potion', 'bomb'].includes(payload.action)) return;
     const result = roomManager.performCombatAction(socket.id, payload.action, payload.targetId);
     if ('error' in result) {
       socket.emit('room_error', { message: result.error });
@@ -378,6 +393,20 @@ io.on('connection', (socket) => {
     const publicRoom = roomManager.toPublicRoom(result.room);
     io.to(publicRoom.code).emit('room_state', publicRoom);
     io.to(publicRoom.code).emit('system_notice', { message: result.notice });
+  });
+
+  socket.on('play_tavern_dice', (payload) => {
+    if (!payload || typeof payload.bet !== 'number') return;
+    const result = roomManager.playTavernDice(socket.id, payload.bet);
+    if ('error' in result) {
+      socket.emit('room_error', { message: result.error });
+      return;
+    }
+
+    const code = result.payload.room.code;
+    socket.emit('tavern_result', result.payload);
+    io.to(code).emit('room_state', result.payload.room);
+    io.to(code).emit('system_notice', { message: result.payload.summary });
   });
 
   socket.on('redeem_code', (payload) => {

@@ -137,3 +137,64 @@ export function spawnEnemiesForParty(regionId: string, partySize: number): Comba
 
   return enemies;
 }
+
+const REGION_BOSSES: Record<string, EnemyTemplate> = {
+  valderroble: {
+    name: 'Rey Trasgo Gruk',
+    maxHp: 42,
+    ac: 14,
+    attackMod: 5,
+    initiativeMod: 2,
+    damageDice: '1d10+3',
+    xpReward: 100,
+    goldReward: 90,
+  },
+  solceniza: {
+    name: 'Dragón Menor de Ceniza',
+    maxHp: 48,
+    ac: 15,
+    attackMod: 6,
+    initiativeMod: 3,
+    damageDice: '2d6+3',
+    xpReward: 120,
+    goldReward: 110,
+  },
+  ventisca: {
+    name: 'Señor de la Escarcha',
+    maxHp: 50,
+    ac: 15,
+    attackMod: 6,
+    initiativeMod: 2,
+    damageDice: '2d6+4',
+    xpReward: 130,
+    goldReward: 120,
+  },
+  'plano-astral': {
+    name: 'Titán del Vacío',
+    maxHp: 56,
+    ac: 16,
+    attackMod: 7,
+    initiativeMod: 3,
+    damageDice: '2d8+3',
+    xpReward: 150,
+    goldReward: 140,
+  },
+};
+
+export function spawnBossForRegion(regionId: string, partySize: number): CombatEnemy {
+  const tpl = REGION_BOSSES[regionId] ?? REGION_BOSSES.valderroble;
+  const extraHp = Math.max(0, partySize - 1) * 14;
+  return {
+    id: crypto.randomUUID(),
+    name: tpl.name,
+    isBoss: true,
+    hp: tpl.maxHp + extraHp,
+    maxHp: tpl.maxHp + extraHp,
+    ac: tpl.ac,
+    attackMod: tpl.attackMod,
+    initiativeMod: tpl.initiativeMod,
+    damageDice: tpl.damageDice,
+    xpReward: tpl.xpReward,
+    goldReward: tpl.goldReward,
+  };
+}

@@ -72,6 +72,8 @@ export interface ClassTemplate {
   attackMod: number;
   initiativeMod: number;
   damageDice: string;
+  specialName: string;
+  specialDesc: string;
   colorHex: string;
   colorNum: number;
   shortDesc: string;
@@ -87,6 +89,8 @@ export const PLAYER_CLASSES: Record<PlayerClass, ClassTemplate> = {
     attackMod: 4,
     initiativeMod: 1,
     damageDice: '1d8+3',
+    specialName: 'Tajo Sísmico',
+    specialDesc: 'Golpea a todos los enemigos',
     colorHex: '#e05a47',
     colorNum: 0xe05a47,
     shortDesc: 'Alta vida y armadura (PV 24, CA 15)',
@@ -100,6 +104,8 @@ export const PLAYER_CLASSES: Record<PlayerClass, ClassTemplate> = {
     attackMod: 5,
     initiativeMod: 2,
     damageDice: '1d10+2',
+    specialName: 'Bola de Fuego',
+    specialDesc: 'Daño directo (ignora CA)',
     colorHex: '#4a90e2',
     colorNum: 0x4a90e2,
     shortDesc: 'Poder arcano (PV 16, CA 12)',
@@ -113,6 +119,8 @@ export const PLAYER_CLASSES: Record<PlayerClass, ClassTemplate> = {
     attackMod: 5,
     initiativeMod: 3,
     damageDice: '1d6+4',
+    specialName: 'Golpe Furtivo',
+    specialDesc: 'Crítico fácil (15–20)',
     colorHex: '#48b878',
     colorNum: 0x48b878,
     shortDesc: 'Atacante ágil (PV 19, CA 14)',

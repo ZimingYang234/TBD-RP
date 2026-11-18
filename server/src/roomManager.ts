@@ -24,11 +24,13 @@ import {
   type PlayerState,
   type PublicPlayerState,
   type PublicRoomState,
+  type QuestState,
   type RoomPhase,
+  type TavernResultPayload,
 } from '@tbd/shared';
 import { generateEventForParty, type DmEvent } from './aiDm.js';
-import { rollD20, rollDiceExpression } from './dice.js';
-import { spawnEnemiesForParty } from './enemies.js';
+import { rollD20, rollDiceExpression, rollDie } from './dice.js';
+import { spawnBossForRegion, spawnEnemiesForParty } from './enemies.js';
 import {
   REGIONS,
   STARTING_REGION_ID,
@@ -57,6 +59,7 @@ export interface InternalRoom {
   createdAt: number;
   activeInternalEvent: InternalActiveEvent | null;
   combat: CombatState | null;
+  quest: QuestState | null;
   recentEventIds?: string[];
 }
 
@@ -91,6 +94,38 @@ export type VoteOutcome =
 export type CombatStepOutcome =
   | { type: 'updated'; room: InternalRoom; roll: DiceRollBreakdown }
   | { type: 'ended'; outcome: CombatEndedPayload };
+
+const QUEST_ROTATION: Omit<QuestState, 'progress'>[] = [
+  {
+    id: 'quest-combat',
+    title: 'Cazador de Monstruos',
+    type: 'combat',
+    target: 2,
+    rewardGold: 50,
+    rewardXp: 60,
+  },
+  {
+    id: 'quest-portal',
+    title: 'Viajero de Reinos',
+    type: 'portal',
+    target: 2,
+    rewardGold: 45,
+    rewardXp: 55,
+  },
+  {
+    id: 'quest-event',
+    title: 'Explorador Curioso',
+    type: 'event',
+    target: 2,
+    rewardGold: 45,
+    rewardXp: 55,
+  },
+];
+
+function createQuestByIndex(idx: number): QuestState {
+  const tpl = QUEST_ROTATION[idx % QUEST_ROTATION.length];
+  return { ...tpl, progress: 0 };
+}
 
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
 
@@ -171,6 +206,9 @@ export class RoomManager {
           room.phase = 'playing';
         }
         room.recentEventIds = Array.isArray(room.recentEventIds) ? room.recentEventIds : [];
+        if (!room.quest || typeof room.quest.target !== 'number') {
+          room.quest = createQuestByIndex(0);
+        }
 
         this.rooms.set(room.code, room);
       }
@@ -273,6 +311,7 @@ export class RoomManager {
       map: getRegion(room.regionId),
       activeEvent: this.toPublicActiveEvent(room.activeInternalEvent),
       combat: room.combat,
+      quest: room.quest ?? null,
     };
   }
 
@@ -306,6 +345,7 @@ export class RoomManager {
       createdAt: Date.now(),
       activeInternalEvent: null,
       combat: null,
+      quest: createQuestByIndex(0),
       recentEventIds: [],
     };
 
@@ -564,6 +604,7 @@ export class RoomManager {
           p.y = pos.y;
         });
 
+        this.advanceQuest(room, 'portal');
         this.scheduleSave();
         return {
           type: 'teleported',
@@ -779,6 +820,7 @@ export class RoomManager {
 
     room.activeInternalEvent = null;
     room.phase = 'playing';
+    this.advanceQuest(room, 'event');
     this.scheduleSave();
 
     return {
@@ -793,6 +835,24 @@ export class RoomManager {
       },
       room: this.toPublicRoom(room),
     };
+  }
+
+  private advanceQuest(room: InternalRoom, type: 'combat' | 'portal' | 'event'): string | null {
+    if (!room.quest || room.quest.type !== type) return null;
+    room.quest.progress += 1;
+    if (room.quest.progress < room.quest.target) {
+      return null;
+    }
+
+    const completed = room.quest;
+    for (const p of room.players) {
+      p.gold = (p.gold ?? 0) + completed.rewardGold;
+      p.xp = (p.xp ?? 0) + completed.rewardXp;
+    }
+
+    const currentIdx = QUEST_ROTATION.findIndex((q) => q.id === completed.id);
+    room.quest = createQuestByIndex((currentIdx + 1) % QUEST_ROTATION.length);
+    return `¡Misión completada: "${completed.title}"! (+${completed.rewardGold} monedas, +${completed.rewardXp} EXP). Nueva misión: "${room.quest.title}".`;
   }
 
   public startCombatBySocket(socketId: string): { room: InternalRoom } | { error: string } {
@@ -811,10 +871,27 @@ export class RoomManager {
     return { room: started };
   }
 
+  public startBossFightBySocket(socketId: string): { room: InternalRoom } | { error: string } {
+    const binding = this.socketToBinding.get(socketId);
+    if (!binding) return { error: 'No estás en ninguna sala.' };
+
+    const room = this.rooms.get(binding.roomCode);
+    if (!room) return { error: 'Sala no encontrada.' };
+
+    if (room.phase !== 'playing' || room.combat) {
+      return { error: 'No se puede desafiar al jefe ahora mismo.' };
+    }
+
+    const started = this.startCombatForRoom(room.code, undefined, undefined, true);
+    if (!started) return { error: 'No se pudo iniciar el combate contra el jefe.' };
+    return { room: started };
+  }
+
   public startCombatForRoom(
     roomCode: string,
     tileX?: number,
-    tileY?: number
+    tileY?: number,
+    isBoss = false
   ): InternalRoom | null {
     const room = this.rooms.get(roomCode);
     if (!room || room.phase !== 'playing' || room.combat || room.activeInternalEvent) {
@@ -829,7 +906,9 @@ export class RoomManager {
       this.combatTileCooldowns.set(tileKey, now + COMBAT_TILE_COOLDOWN_MS);
     }
 
-    const enemies = spawnEnemiesForParty(room.regionId, room.players.length);
+    const enemies = isBoss
+      ? [spawnBossForRegion(room.regionId, room.players.length)]
+      : spawnEnemiesForParty(room.regionId, room.players.length);
     const turnEntries: CombatTurnEntry[] = [];
 
     for (const p of room.players) {
@@ -859,8 +938,10 @@ export class RoomManager {
     turnEntries.sort((a, b) => b.initiative - a.initiative || b.initiativeRoll - a.initiativeRoll);
 
     const potionsLeftByPlayer: Record<string, number> = {};
+    const specialUsedByPlayer: Record<string, boolean> = {};
     for (const p of room.players) {
       potionsLeftByPlayer[p.id] = 2;
+      specialUsedByPlayer[p.id] = false;
     }
 
     const initSummary = turnEntries
@@ -870,14 +951,20 @@ export class RoomManager {
     room.combat = {
       id: crypto.randomUUID(),
       mode: 'pve',
+      isBoss,
       round: 1,
       enemies,
       turnOrder: turnEntries,
       turnIndex: 0,
       defendingIds: [],
       potionsLeftByPlayer,
+      specialUsedByPlayer,
       lastRoll: null,
-      log: [`¡Combate iniciado! Orden de iniciativa: ${initSummary}.`],
+      log: [
+        isBoss
+          ? `¡JEFE DEL REINO! Aparece ${enemies[0].name}. Iniciativa: ${initSummary}.`
+          : `¡Combate iniciado! Orden de iniciativa: ${initSummary}.`,
+      ],
     };
     room.phase = 'combat';
     this.scheduleSave();
@@ -901,10 +988,12 @@ export class RoomManager {
 
     const turnEntries: CombatTurnEntry[] = [];
     const potionsLeftByPlayer: Record<string, number> = {};
+    const specialUsedByPlayer: Record<string, boolean> = {};
 
     for (const p of room.players) {
       p.hp = p.maxHp;
       potionsLeftByPlayer[p.id] = 2;
+      specialUsedByPlayer[p.id] = false;
       const d20 = rollD20();
       const mod = PLAYER_CLASSES[p.playerClass].initiativeMod;
       turnEntries.push({
@@ -931,6 +1020,7 @@ export class RoomManager {
       turnIndex: 0,
       defendingIds: [],
       potionsLeftByPlayer,
+      specialUsedByPlayer,
       lastRoll: null,
       log: [`¡Duelo PvP iniciado! Orden de iniciativa: ${initSummary}.`],
     };
@@ -975,7 +1065,7 @@ export class RoomManager {
 
   public performCombatAction(
     socketId: string,
-    action: 'attack' | 'luck' | 'defend' | 'potion' | 'bomb',
+    action: 'attack' | 'luck' | 'special' | 'defend' | 'potion' | 'bomb',
     targetId?: string
   ): CombatStepOutcome | { error: string } {
     const binding = this.socketToBinding.get(socketId);
@@ -1191,6 +1281,123 @@ export class RoomManager {
           damageTotal: selfDmg.total,
           summary: `¡Mala suerte! ${player.name} tropieza y recibe ${selfDmg.total} de daño.`,
         };
+      }
+    } else if (action === 'special') {
+      combat.specialUsedByPlayer = combat.specialUsedByPlayer ?? {};
+      if (combat.specialUsedByPlayer[player.id]) {
+        return { error: 'Ya usaste tu habilidad especial en este combate.' };
+      }
+      combat.specialUsedByPlayer[player.id] = true;
+
+      if (player.playerClass === 'Fighter') {
+        const dmg = rollDiceExpression('1d8+4');
+        if (combat.mode === 'pvp') {
+          const target = resolveTarget();
+          if ('error' in target) return target;
+          target.applyDamage(dmg.total);
+          const headline = `¡Tajo Sísmico! ${dmg.total} de daño`;
+          roll = {
+            actorId: player.id,
+            actorName: player.name,
+            actorKind: 'player',
+            targetId: target.id,
+            targetName: target.name,
+            actionType: 'special',
+            headline,
+            hit: true,
+            damageDice: '1d8+4',
+            damageRolls: dmg.rolls,
+            damageMod: dmg.modifier,
+            damageTotal: dmg.total,
+            summary: `${headline} — ${player.name} sacude el suelo bajo ${target.name}.`,
+          };
+        } else {
+          const living = combat.enemies.filter((e) => e.hp > 0);
+          for (const e of living) {
+            e.hp = Math.max(0, e.hp - dmg.total);
+          }
+          const headline = `¡Tajo Sísmico! ${dmg.total} a todos`;
+          roll = {
+            actorId: player.id,
+            actorName: player.name,
+            actorKind: 'player',
+            targetName: `${living.length} enemigo(s)`,
+            actionType: 'special',
+            headline,
+            hit: true,
+            damageDice: '1d8+4',
+            damageRolls: dmg.rolls,
+            damageMod: dmg.modifier,
+            damageTotal: dmg.total,
+            summary: `${headline} — ${player.name} golpea la tierra e impacta a todos los enemigos.`,
+          };
+        }
+      } else if (player.playerClass === 'Wizard') {
+        const target = resolveTarget();
+        if ('error' in target) return target;
+        const dmg = rollDiceExpression('2d8+3');
+        target.applyDamage(dmg.total);
+        const headline = `¡Bola de Fuego! ${dmg.total} de daño`;
+        roll = {
+          actorId: player.id,
+          actorName: player.name,
+          actorKind: 'player',
+          targetId: target.id,
+          targetName: target.name,
+          actionType: 'special',
+          headline,
+          hit: true,
+          critical: true,
+          damageDice: '2d8+3',
+          damageRolls: dmg.rolls,
+          damageMod: dmg.modifier,
+          damageTotal: dmg.total,
+          summary: `${headline} — ${player.name} incinera a ${target.name} sin piedad.`,
+        };
+      } else {
+        const target = resolveTarget();
+        if ('error' in target) return target;
+        const d20 = rollD20();
+        const isCrit = d20 >= 15;
+        const hit = isCrit || d20 + player.attackMod >= target.ac;
+        if (hit) {
+          const dmg = rollDiceExpression('2d6+5', isCrit);
+          target.applyDamage(dmg.total);
+          const headline = isCrit
+            ? `¡Golpe Furtivo Letal! ${dmg.total} de daño`
+            : `¡Golpe Furtivo! ${dmg.total} de daño`;
+          roll = {
+            actorId: player.id,
+            actorName: player.name,
+            actorKind: 'player',
+            targetId: target.id,
+            targetName: target.name,
+            actionType: 'special',
+            headline,
+            d20,
+            hit: true,
+            critical: isCrit,
+            damageDice: '2d6+5',
+            damageRolls: dmg.rolls,
+            damageMod: dmg.modifier,
+            damageTotal: dmg.total,
+            summary: `${headline} — ${player.name} aparece por la espalda de ${target.name}.`,
+          };
+        } else {
+          const headline = '¡Esquivado por los pelos!';
+          roll = {
+            actorId: player.id,
+            actorName: player.name,
+            actorKind: 'player',
+            targetId: target.id,
+            targetName: target.name,
+            actionType: 'special',
+            headline,
+            d20,
+            hit: false,
+            summary: `${headline} — ${target.name} detectó la sombra de ${player.name}.`,
+          };
+        }
       }
     } else if (action === 'bomb') {
       const target = resolveTarget();
@@ -1447,6 +1654,7 @@ export class RoomManager {
         p.gold = (p.gold ?? 0) + goldGained;
         if (p.hp <= 0) p.hp = 1;
       }
+      this.advanceQuest(room, 'combat');
     } else {
       const map = getRegion(room.regionId);
       room.players.forEach((p, idx) => {
@@ -1629,5 +1837,65 @@ export class RoomManager {
     }
 
     return { error: `Código "${code}" no válido.` };
+  }
+
+  public playTavernDice(
+    socketId: string,
+    rawBet: number
+  ): { payload: TavernResultPayload } | { error: string } {
+    const binding = this.socketToBinding.get(socketId);
+    if (!binding) return { error: 'No estás en ninguna sala.' };
+
+    const room = this.rooms.get(binding.roomCode);
+    if (!room || room.phase !== 'playing') {
+      return { error: 'Solo puedes jugar en la taberna mientras exploras.' };
+    }
+
+    const player = room.players.find((p) => p.id === binding.playerId);
+    if (!player) return { error: 'Personaje no encontrado.' };
+
+    const bet = Math.floor(Number(rawBet));
+    if (![5, 10, 20, 50].includes(bet)) {
+      return { error: 'Apuesta no válida (elige 5, 10, 20 o 50 monedas).' };
+    }
+    if ((player.gold ?? 0) < bet) {
+      return { error: `No tienes suficientes monedas para apostar ${bet}.` };
+    }
+
+    const die1 = rollDie(6);
+    const die2 = rollDie(6);
+    const total = die1 + die2;
+
+    let payout = 0;
+    let headline = '';
+    if (total === 12) {
+      payout = bet * 4;
+      headline = `¡BOTE REAL! +${payout - bet} monedas`;
+    } else if (total >= 7) {
+      payout = bet * 2;
+      headline = `¡Ganaste! +${payout - bet} monedas`;
+    } else {
+      payout = 0;
+      headline = `¡La taberna gana! -${bet} monedas`;
+    }
+
+    const net = payout - bet;
+    player.gold = Math.max(0, (player.gold ?? 0) + net);
+    this.scheduleSave();
+
+    const summary = `${player.name} apostó ${bet} monedas en la Taberna (sacó ${die1}+${die2}=${total}) → ${headline}.`;
+    return {
+      payload: {
+        die1,
+        die2,
+        total,
+        bet,
+        payout,
+        net,
+        headline,
+        summary,
+        room: this.toPublicRoom(room),
+      },
+    };
   }
 }

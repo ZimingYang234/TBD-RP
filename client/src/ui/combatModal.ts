@@ -7,7 +7,10 @@ import {
 } from '@tbd/shared';
 
 export interface CombatModalCallbacks {
-  onAction: (action: 'attack' | 'luck' | 'defend' | 'potion' | 'bomb', targetId?: string) => void;
+  onAction: (
+    action: 'attack' | 'luck' | 'special' | 'defend' | 'potion' | 'bomb',
+    targetId?: string
+  ) => void;
   onSkipTurn: () => void;
   onOutcomeClosed: () => void;
 }
@@ -223,6 +226,8 @@ export class CombatModal {
     const bagPotions = me?.inventory?.potion ?? 0;
     const potionsLeft = freePotions + bagPotions;
     const bombsLeft = me?.inventory?.bomb ?? 0;
+    const specialUsed = myPlayerId ? Boolean(combat.specialUsedByPlayer?.[myPlayerId]) : true;
+    const myClassCfg = me ? PLAYER_CLASSES[me.playerClass] : null;
     const roll = combat.lastRoll;
     const logHtml = combat.log
       .slice(-5)
@@ -233,7 +238,9 @@ export class CombatModal {
       <div class="modal-card combat-modal-card" role="dialog" aria-modal="true" aria-labelledby="combat-title">
         <div class="modal-header">
           <div>
-            <div class="modal-kicker">${isPvp ? 'Duelo PvP' : 'Combate PvE'} • Ronda ${combat.round}</div>
+            <div class="modal-kicker">${
+              isPvp ? 'Duelo PvP' : combat.isBoss ? 'Jefe del Reino' : 'Combate PvE'
+            } • Ronda ${combat.round}</div>
             <h2 id="combat-title" class="modal-title">
               ${
                 isMyTurn
@@ -276,6 +283,14 @@ export class CombatModal {
               <span class="combat-btn-title">Suerte (50/50)</span>
               <span class="combat-btn-sub">¡Doble daño o tropiezo!</span>
             </button>
+            ${
+              myClassCfg
+                ? `<button type="button" id="combat-special-btn" class="btn btn-special combat-action-btn" ${!isMyTurn || specialUsed || !this.selectedTargetId ? 'disabled' : ''}>
+                    <span class="combat-btn-title">${this.escapeHtml(myClassCfg.specialName)}</span>
+                    <span class="combat-btn-sub">${specialUsed ? 'Usada' : this.escapeHtml(myClassCfg.specialDesc)}</span>
+                  </button>`
+                : ''
+            }
             <button type="button" id="combat-defend-btn" class="btn btn-secondary combat-action-btn" ${!isMyTurn ? 'disabled' : ''}>
               <span class="combat-btn-title">Defender</span>
               <span class="combat-btn-sub">+2 CA</span>
@@ -319,6 +334,9 @@ export class CombatModal {
     });
     overlay.querySelector('#combat-luck-btn')?.addEventListener('click', () => {
       this.callbacks.onAction('luck', this.selectedTargetId ?? undefined);
+    });
+    overlay.querySelector('#combat-special-btn')?.addEventListener('click', () => {
+      this.callbacks.onAction('special', this.selectedTargetId ?? undefined);
     });
     overlay.querySelector('#combat-defend-btn')?.addEventListener('click', () => {
       this.callbacks.onAction('defend');
@@ -367,14 +385,25 @@ export class CombatModal {
       `;
     }
 
-    if (roll.actionType === 'bomb') {
+    if (roll.actionType === 'bomb' || roll.actionType === 'special') {
+      const badgeText =
+        roll.actionType === 'bomb'
+          ? '¡BOMBA!'
+          : roll.hit
+            ? '¡HABILIDAD!'
+            : '¡ESQUIVADO!';
+      const badgeCls = roll.hit ? 'crit' : 'miss';
       return `
         <div class="dice-visual-row">
-          <div class="die-box die-dmg crit" id="anim-die-dmg">${roll.damageTotal ?? '?'}</div>
+          ${
+            roll.hit
+              ? `<div class="die-box die-dmg crit" id="anim-die-dmg">${roll.damageTotal ?? '?'}</div>`
+              : `<div class="die-box die-d20 miss" id="anim-die-d20">${roll.d20 ?? '?'}</div>`
+          }
           <div class="dice-detail">
             <div class="dice-headline">
-              <span class="roll-badge crit">¡BOMBA!</span>
-              <span>${this.escapeHtml(roll.headline ?? `${roll.damageTotal ?? 0} de daño`)}</span>
+              <span class="roll-badge ${badgeCls}">${badgeText}</span>
+              <span>${this.escapeHtml(roll.headline ?? '')}</span>
             </div>
             <div class="dice-formula">${this.escapeHtml(roll.actorName)} → ${this.escapeHtml(roll.targetName ?? '')}</div>
           </div>

@@ -55,6 +55,7 @@ export type RoomPhase = 'lobby' | 'playing' | 'event' | 'combat';
 export interface CombatEnemy {
   id: string;
   name: string;
+  isBoss?: boolean;
   hp: number;
   maxHp: number;
   ac: number;
@@ -79,7 +80,7 @@ export interface DiceRollBreakdown {
   actorKind: 'player' | 'enemy';
   targetId?: string;
   targetName?: string;
-  actionType: 'attack' | 'luck' | 'defend' | 'potion' | 'bomb' | 'skip';
+  actionType: 'attack' | 'luck' | 'special' | 'defend' | 'potion' | 'bomb' | 'skip';
   luckOutcome?: 'jackpot' | 'backfire';
   headline?: string;
   d20?: number;
@@ -100,14 +101,38 @@ export interface DiceRollBreakdown {
 export interface CombatState {
   id: string;
   mode: 'pve' | 'pvp';
+  isBoss?: boolean;
   round: number;
   enemies: CombatEnemy[];
   turnOrder: CombatTurnEntry[];
   turnIndex: number;
   defendingIds: string[];
   potionsLeftByPlayer: Record<string, number>;
+  specialUsedByPlayer: Record<string, boolean>;
   lastRoll: DiceRollBreakdown | null;
   log: string[];
+}
+
+export interface QuestState {
+  id: string;
+  title: string;
+  type: 'combat' | 'portal' | 'event';
+  progress: number;
+  target: number;
+  rewardGold: number;
+  rewardXp: number;
+}
+
+export interface TavernResultPayload {
+  die1: number;
+  die2: number;
+  total: number;
+  bet: number;
+  payout: number;
+  net: number;
+  headline: string;
+  summary: string;
+  room: PublicRoomState;
 }
 
 export interface CombatEndedPayload {
@@ -162,6 +187,7 @@ export interface PublicRoomState {
   map: RegionMap;
   activeEvent: ActiveEventState | null;
   combat: CombatState | null;
+  quest: QuestState | null;
 }
 
 export interface JoinSuccessPayload {
@@ -209,6 +235,7 @@ export interface ServerToClientEvents {
   combat_started: (payload: { room: PublicRoomState }) => void;
   combat_updated: (payload: { room: PublicRoomState; roll: DiceRollBreakdown }) => void;
   combat_ended: (payload: CombatEndedPayload) => void;
+  tavern_result: (payload: TavernResultPayload) => void;
   open_shop: () => void;
   room_error: (payload: { message: string; code?: string }) => void;
   system_notice: (payload: { message: string }) => void;
@@ -224,9 +251,11 @@ export interface ClientToServerEvents {
   vote_event: (payload: { choiceId: string }) => void;
   resolve_event_now: () => void;
   start_combat_encounter: () => void;
+  start_boss_fight: () => void;
   start_pvp_duel: () => void;
-  combat_action: (payload: { action: 'attack' | 'luck' | 'defend' | 'potion' | 'bomb'; targetId?: string }) => void;
+  combat_action: (payload: { action: 'attack' | 'luck' | 'special' | 'defend' | 'potion' | 'bomb'; targetId?: string }) => void;
   skip_combat_turn: () => void;
+  play_tavern_dice: (payload: { bet: number }) => void;
   buy_item: (payload: { itemId: string }) => void;
   use_item: (payload: { itemId: string }) => void;
   redeem_code: (payload: { code: string }) => void;

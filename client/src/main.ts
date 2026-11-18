@@ -16,6 +16,7 @@ import { LobbyUI } from './ui/lobby';
 import { EventModal } from './ui/eventModal';
 import { CombatModal } from './ui/combatModal';
 import { ShopModal } from './ui/shopModal';
+import { TavernModal } from './ui/tavernModal';
 import { getSavedQuality, renderQualityControl } from './ui/quality';
 import { createPhaserGame } from './game/phaserGame';
 import type { OverworldScene } from './game/OverworldScene';
@@ -124,11 +125,21 @@ const shopModal = new ShopModal({
   },
 });
 
+const tavernModal = new TavernModal({
+  onPlay: (bet) => {
+    socket.emit('play_tavern_dice', { bet });
+  },
+  onClosed: () => {
+    syncInputLock();
+  },
+});
+
 function syncInputLock(): void {
   const blocked =
     eventModal.isOpen() ||
     combatModal.isOpen() ||
     shopModal.isOpen() ||
+    tavernModal.isOpen() ||
     currentRoom?.phase !== 'playing';
   overworldScene?.setInputBlocked(blocked);
 }
@@ -138,6 +149,7 @@ function requestMove(dir: Direction): void {
     eventModal.isOpen() ||
     combatModal.isOpen() ||
     shopModal.isOpen() ||
+    tavernModal.isOpen() ||
     currentRoom?.phase !== 'playing'
   ) {
     return;
@@ -179,11 +191,16 @@ function renderGameShell(room: PublicRoomState): void {
         <div class="game-main">
           <div id="phaser-host" class="canvas-host"></div>
           <aside class="sidebar">
+            <div id="hud-quest-box" class="quest-box"></div>
             <h3>Grupo</h3>
             <div id="hud-party-cards" class="party-cards"></div>
             <div class="hud-combat-row">
               <button type="button" id="hud-combat-btn" class="btn btn-danger-outline">Combate PvE</button>
+              <button type="button" id="hud-boss-btn" class="btn btn-boss-outline">Jefe</button>
+            </div>
+            <div class="hud-combat-row">
               <button type="button" id="hud-pvp-btn" class="btn btn-pvp-outline">Duelo PvP</button>
+              <button type="button" id="hud-tavern-btn" class="btn btn-tavern-outline">Taberna</button>
             </div>
             <button type="button" id="hud-shop-btn" class="btn btn-shop-outline">Tienda de Objetos</button>
             <div class="map-legend">
@@ -235,8 +252,19 @@ function renderGameShell(room: PublicRoomState): void {
       socket.emit('start_combat_encounter');
     });
 
+    document.querySelector('#hud-boss-btn')?.addEventListener('click', () => {
+      socket.emit('start_boss_fight');
+    });
+
     document.querySelector('#hud-pvp-btn')?.addEventListener('click', () => {
       socket.emit('start_pvp_duel');
+    });
+
+    document.querySelector('#hud-tavern-btn')?.addEventListener('click', () => {
+      if (currentRoom && currentRoom.phase === 'playing') {
+        tavernModal.show(currentRoom, myPlayerId);
+        syncInputLock();
+      }
     });
 
     document.querySelector('#hud-shop-btn')?.addEventListener('click', () => {
@@ -297,6 +325,7 @@ function renderGameShell(room: PublicRoomState): void {
   eventModal.render(room, myPlayerId);
   combatModal.render(room, myPlayerId);
   shopModal.render(room, myPlayerId);
+  tavernModal.render(room, myPlayerId);
   syncInputLock();
 }
 
@@ -315,9 +344,31 @@ function updateGameHud(room: PublicRoomState): void {
     combatBtn.disabled = room.phase !== 'playing';
   }
 
+  const bossBtn = document.querySelector<HTMLButtonElement>('#hud-boss-btn');
+  if (bossBtn) {
+    bossBtn.disabled = room.phase !== 'playing';
+  }
+
+  const tavernBtn = document.querySelector<HTMLButtonElement>('#hud-tavern-btn');
+  if (tavernBtn) {
+    tavernBtn.disabled = room.phase !== 'playing';
+  }
+
   const shopBtn = document.querySelector<HTMLButtonElement>('#hud-shop-btn');
   if (shopBtn) {
     shopBtn.disabled = room.phase !== 'playing';
+  }
+
+  const questEl = document.querySelector<HTMLElement>('#hud-quest-box');
+  if (questEl) {
+    if (room.quest) {
+      questEl.innerHTML = `
+        <div class="quest-title">Misión: ${escapeHtml(room.quest.title)}</div>
+        <div class="quest-meta">Progreso ${room.quest.progress}/${room.quest.target} • +${room.quest.rewardGold} monedas</div>
+      `;
+    } else {
+      questEl.innerHTML = '';
+    }
   }
 
   const pvpBtn = document.querySelector<HTMLButtonElement>('#hud-pvp-btn');
@@ -379,6 +430,7 @@ function renderApp(): void {
   combatModal.clearOutcome();
   combatModal.hide();
   shopModal.hide();
+  tavernModal.hide();
   destroyPhaser();
   lobbyUI.render(currentRoom, myPlayerId, lastError);
 }
@@ -521,6 +573,12 @@ socket.on('combat_ended', (payload) => {
     overworldScene.configure(payload.room, myPlayerId, requestMove);
   }
   syncInputLock();
+});
+
+socket.on('tavern_result', (payload) => {
+  currentRoom = payload.room;
+  tavernModal.setResult(payload, myPlayerId);
+  updateGameHud(payload.room);
 });
 
 socket.on('open_shop', () => {

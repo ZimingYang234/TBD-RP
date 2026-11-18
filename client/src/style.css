@@ -1297,3 +1297,65 @@ body {
   text-transform: uppercase;
 }
 
+.quest-box {
+  background: rgba(242, 183, 73, 0.1);
+  border: 1px solid rgba(242, 183, 73, 0.35);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.quest-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--accent-hover);
+}
+
+.quest-meta {
+  font-size: 0.76rem;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.btn-boss-outline {
+  background: rgba(245, 158, 11, 0.16);
+  color: #fcd34d;
+  border: 1px solid rgba(245, 158, 11, 0.5);
+  box-shadow: none;
+}
+
+.btn-boss-outline:hover:not(:disabled) {
+  background: rgba(245, 158, 11, 0.28);
+}
+
+.btn-tavern-outline {
+  background: rgba(167, 139, 250, 0.16);
+  color: #ddd6fe;
+  border: 1px solid rgba(167, 139, 250, 0.5);
+  box-shadow: none;
+}
+
+.btn-tavern-outline:hover:not(:disabled) {
+  background: rgba(167, 139, 250, 0.28);
+}
+
+.btn-special {
+  background: linear-gradient(180deg, #6366f1, #4f46e5);
+  color: #ffffff;
+}
+
+.btn-special:hover:not(:disabled) {
+  background: linear-gradient(180deg, #818cf8, #6366f1);
+}
+
+.tavern-bets-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+@media (max-width: 600px) {
+  .tavern-bets-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
