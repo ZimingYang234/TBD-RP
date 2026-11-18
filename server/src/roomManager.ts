@@ -1146,9 +1146,12 @@ export class RoomManager {
       this.combatTileCooldowns.set(tileKey, now + COMBAT_TILE_COOLDOWN_MS);
     }
 
+    const avgLevel =
+      room.players.reduce((sum, p) => sum + (p.level ?? 1), 0) /
+      Math.max(1, room.players.length);
     const enemies = isBoss
-      ? [spawnBossForRegion(room.regionId, room.players.length)]
-      : spawnEnemiesForParty(room.regionId, room.players.length);
+      ? [spawnBossForRegion(room.regionId, room.players.length, Math.round(avgLevel))]
+      : spawnEnemiesForParty(room.regionId, room.players.length, Math.round(avgLevel));
     const turnEntries: CombatTurnEntry[] = [];
 
     for (const p of room.players) {
