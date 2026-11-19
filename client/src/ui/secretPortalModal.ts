@@ -28,7 +28,7 @@ export class SecretPortalModal {
     this.onClosed();
   }
 
-  private render(reqs: SecretPortalReqs): void {
+  private render(_reqs: SecretPortalReqs): void {
     if (!this.overlayEl) {
       const el = document.createElement('div');
       el.id = 'secret-portal-overlay';
@@ -36,18 +36,6 @@ export class SecretPortalModal {
       document.body.appendChild(el);
       this.overlayEl = el;
     }
-
-    const row = (label: string, ok: boolean, detail?: string) => `
-      <div class="inv-slot-card" style="border-left: 3px solid ${ok ? '#48b878' : '#e05a47'}">
-        <div>
-          <strong>${label}</strong>
-          ${detail ? `<div class="shop-item-desc">${detail}</div>` : ''}
-        </div>
-        <span class="status-pill ${ok ? 'status-online' : 'status-offline'}">
-          ${ok ? '✓ Listo' : '✗ Falta'}
-        </span>
-      </div>
-    `;
 
     this.overlayEl.innerHTML = `
       <div class="modal-card shop-modal-card" role="dialog" aria-modal="true" aria-labelledby="sp-title">
@@ -59,13 +47,7 @@ export class SecretPortalModal {
           <button type="button" id="sp-close-x" class="btn btn-secondary">Cerrar</button>
         </div>
 
-        <p class="modal-narration">Este portal está sellado. Necesitas reunir los 3 requisitos para abrirlo:</p>
-
-        <div class="shop-items-list">
-          ${row('1. Llave del Eclipse', reqs.hasSanctumKey, 'Se compra en la tienda por 10.000 monedas.')}
-          ${row('2. Llave del Emperador', reqs.hasFinalKey, 'Se obtiene al derrotar al jefe final, nivel 30.')}
-          ${row('3. Criaturas celestes', reqs.celestialDefeated >= 3, `${reqs.celestialDefeated}/3. Cada una es más fuerte y más difícil de encontrar.`)}
-        </div>
+        <p class="modal-narration">Está sellado.</p>
 
         <div class="modal-footer" style="justify-content: flex-end;">
           <button type="button" id="sp-ok-btn" class="btn">Entendido</button>

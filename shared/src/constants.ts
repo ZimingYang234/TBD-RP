@@ -236,7 +236,7 @@ export const SHOP_ITEMS: ShopItemDef[] = [
     category: 'charm',
     price: 10000,
     maxOwned: 1,
-    description: 'Abre el camino a la sala secreta. Hace falta, además, la llave del jefe final y vencer a 3 criaturas celestes.',
+    description: 'Una llave negra con un eclipse grabado. No dice para qué sirve.',
   },
 ];
 

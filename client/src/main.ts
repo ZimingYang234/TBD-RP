@@ -435,17 +435,17 @@ function renderGameShell(room: PublicRoomState): void {
     document.querySelector('#hud-boss-btn')?.addEventListener('click', () => {
       if (!currentRoom || currentRoom.phase !== 'playing') return;
       const bossNames: Record<string, { name: string; hp: number }> = {
-        valderroble: { name: 'Rey Trasgo Gruk', hp: 520 },
-        solceniza: { name: 'Dragón Menor de Ceniza', hp: 640 },
-        ventisca: { name: 'Señor de la Escarcha', hp: 680 },
-        'plano-astral': { name: 'Titán del Vacío', hp: 820 },
-        'pantano-bruma': { name: 'Hidra del Pantano', hp: 660 },
-        'ruinas-olvido': { name: 'Coloso de Piedra', hp: 740 },
-        'archipielago-coral': { name: 'Leviatán de Coral', hp: 780 },
-        'abismo-cristal': { name: 'Dragón de Cristal', hp: 900 },
-        'camara-final': { name: 'Emperador del Abismo', hp: 1200 },
+        valderroble: { name: 'Rey Trasgo Gruk', hp: 220 },
+        solceniza: { name: 'Dragón Menor de Ceniza', hp: 260 },
+        ventisca: { name: 'Señor de la Escarcha', hp: 280 },
+        'plano-astral': { name: 'Titán del Vacío', hp: 340 },
+        'pantano-bruma': { name: 'Hidra del Pantano', hp: 270 },
+        'ruinas-olvido': { name: 'Coloso de Piedra', hp: 300 },
+        'archipielago-coral': { name: 'Leviatán de Coral', hp: 320 },
+        'abismo-cristal': { name: 'Dragón de Cristal', hp: 380 },
+        'camara-final': { name: 'Emperador del Abismo', hp: 460 },
       };
-      const meta = bossNames[currentRoom.regionId] ?? { name: 'Jefe del Reino', hp: 600 };
+      const meta = bossNames[currentRoom.regionId] ?? { name: 'Jefe del Reino', hp: 280 };
       arenaModal.showBossBattle(meta.name, meta.hp, currentRoom.regionId);
       syncInputLock();
     });

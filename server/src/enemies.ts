@@ -210,15 +210,15 @@ export function spawnEnemiesForParty(
   const count = partySize >= 2 ? 2 : 1;
   const enemies: CombatEnemy[] = [];
   const lvAbove1 = Math.max(0, avgLevel - 1);
-  const extraHp = lvAbove1 * 6;
-  const extraAtk = Math.floor(lvAbove1 / 2);
+  const extraHp = lvAbove1 * 8;
+  const extraAtk = Math.floor(lvAbove1 / 2) + 1;
   const extraAc = Math.floor(lvAbove1 / 3);
   const numerals = ['I', 'II', 'III'];
 
   for (let i = 0; i < count; i++) {
     const tpl = pool[Math.floor(Math.random() * pool.length)];
     const suffix = count > 1 ? ` ${numerals[i] ?? String(i + 1)}` : '';
-    const maxHp = tpl.maxHp + extraHp;
+    const maxHp = Math.round(tpl.maxHp * 1.4) + extraHp;
     enemies.push({
       id: crypto.randomUUID(),
       name: `${tpl.name}${suffix}`,
@@ -336,10 +336,10 @@ export function spawnBossForRegion(
 ): CombatEnemy {
   const tpl = REGION_BOSSES[regionId] ?? REGION_BOSSES.valderroble;
   const lvAbove1 = Math.max(0, avgLevel - 1);
-  const extraHp = Math.max(0, partySize - 1) * 40 + lvAbove1 * 18;
-  const extraAtk = Math.floor(lvAbove1 / 2);
-  const extraAc = Math.floor(lvAbove1 / 3);
-  const maxHp = Math.round(tpl.maxHp * 1.35) + extraHp;
+  const extraHp = Math.max(0, partySize - 1) * 16 + lvAbove1 * 6;
+  const extraAtk = Math.floor(lvAbove1 / 3);
+  const extraAc = Math.floor(lvAbove1 / 4);
+  const maxHp = tpl.maxHp + extraHp;
   return {
     id: crypto.randomUUID(),
     name: tpl.name,

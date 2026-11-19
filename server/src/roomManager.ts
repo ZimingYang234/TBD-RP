@@ -2862,7 +2862,7 @@ export class RoomManager {
       }
       if (combat.isBlueCreature) {
         room.celestialDefeated = Math.min(3, (room.celestialDefeated ?? 0) + 1);
-        earnedBossKeyLabel = `Criatura celeste ${room.celestialDefeated}/3`;
+        earnedBossKeyLabel = null;
         if (room.celestialDefeated < 3) {
           const nextTier = (room.celestialDefeated + 1) as 1 | 2 | 3;
           room.blueCreature = spawnBlueCreature(room.regionId, nextTier);
@@ -3725,8 +3725,8 @@ export class RoomManager {
       if ((room.celestialDefeated ?? 0) >= 3) continue;
 
       const tier = (room.blueCreature?.tier ?? ((room.celestialDefeated ?? 0) + 1)) as 1 | 2 | 3;
-      const jumpEvery = tier === 1 ? 6 : tier === 2 ? 4 : 3;
-      const hideThisTick = tier > 1 && this.blueCreatureTicks % tier !== 0;
+      const jumpEvery = tier === 1 ? 3 : 2;
+      const hideThisTick = this.blueCreatureTicks % (tier + 2) !== 0;
 
       if (!room.blueCreature || this.blueCreatureTicks % jumpEvery === 0) {
         room.blueCreature = spawnBlueCreature(room.blueCreature?.regionId, tier);

@@ -962,8 +962,11 @@ const BLUE_CREATURE_KINGDOMS = [
   'abismo-cristal',
 ];
 
+const BLUE_CREATURE_LATE_REGIONS = ['abismo-cristal', 'observatorio-astral', 'camara-final'];
+
 export function spawnBlueCreature(excludeRegionId?: string, tier: 1 | 2 | 3 = 1): BlueCreatureState {
-  const pool = BLUE_CREATURE_KINGDOMS.filter((id) => id !== excludeRegionId);
+  const source = tier >= 3 ? BLUE_CREATURE_LATE_REGIONS : BLUE_CREATURE_KINGDOMS;
+  const pool = source.filter((id) => id !== excludeRegionId);
   const regionId = pool[Math.floor(Math.random() * pool.length)] ?? 'valderroble';
   const map = getRegion(regionId);
 
