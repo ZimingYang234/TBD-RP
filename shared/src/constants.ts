@@ -1,4 +1,13 @@
-import type { ItemDef, ItemRarity, PlayerClass, SkillNodeDef } from './types.js';
+import type {
+  ItemDef,
+  ItemRarity,
+  MythicId,
+  PlayerClass,
+  Race,
+  SkillNodeDef,
+  SlotRarity,
+  SubclassId,
+} from './types.js';
 
 export const GAME_TITLE = 'TBD';
 
@@ -13,13 +22,53 @@ export const CHEST_RESPAWN_MS = 45_000;
 export const MINIGAME_COOLDOWN_MS = 20_000;
 export const STARTING_GOLD = 20;
 export const MAX_INVENTORY_SLOTS = 5;
-export const BOSS_PORTAL_MIN_LEVEL = 10;
+export const BOSS_PORTAL_MIN_LEVEL = 30;
 export const TAVERN_MAX_PLAYS = 3;
 export const TAVERN_WINDOW_MS = 15 * 60 * 1000;
 
 export function xpForNextLevel(level: number): number {
-  return Math.round(100 * Math.pow(1.1, Math.max(0, level - 1)));
+  return Math.round(120 * Math.pow(1.16, Math.max(0, level - 1)));
 }
+
+/** 1 point every 2 levels through 10, then every 3 levels. */
+export function skillPointOnLevel(level: number): boolean {
+  if (level <= 1) return false;
+  if (level <= 10) return level % 2 === 0;
+  return (level - 10) % 3 === 0;
+}
+
+export const LOCAL_BOSS_KEY_IDS = [
+  'key_valderroble',
+  'key_solceniza',
+  'key_ventisca',
+  'key_astral',
+] as const;
+
+export const SLOT_COST_GOLD = 100;
+
+export const SLOT_ODDS: Array<{ id: SlotRarity; label: string; pct: number }> = [
+  { id: 'comun', label: 'Común', pct: 25 },
+  { id: 'raro', label: 'Raro', pct: 35 },
+  { id: 'epico', label: 'Épico', pct: 30 },
+  { id: 'legendario', label: 'Legendario', pct: 9 },
+  { id: 'mitico', label: 'Mítico', pct: 1 },
+];
+
+export const MYTHICS: Record<
+  MythicId,
+  { name: string; title: string; blurb: string }
+> = {
+  uriel: {
+    name: 'Uriel',
+    title: 'Defensa Absoluta',
+    blurb: '3 rondas sin daño. Tres esquivas perfectas devuelven el golpe.',
+  },
+  raphael: {
+    name: 'Raphael',
+    title: 'Inteligencia Absoluta',
+    blurb: '3 turnos enemigos: -30% de daño y cura un 15% de tu vida. Luego un haz de 150 y una maldición del 90%.',
+  },
+};
 
 export const RARITY_LABELS: Record<ItemRarity, string> = {
   comun: 'Común',
@@ -132,7 +181,7 @@ export const ITEMS_BY_ID: Record<string, ItemDef> = {
 };
 
 export interface ShopItemDef {
-  id: 'potion' | 'bomb' | 'weapon_upgrade' | 'armor_upgrade' | 'luck_charm';
+  id: 'potion' | 'bomb' | 'weapon_upgrade' | 'armor_upgrade' | 'luck_charm' | 'sanctum_key';
   name: string;
   category: 'consumable' | 'gear' | 'charm';
   price: number;
@@ -181,7 +230,50 @@ export const SHOP_ITEMS: ShopItemDef[] = [
     maxOwned: 2,
     description: '+2 permanente a tus tiradas de Suerte.',
   },
+  {
+    id: 'sanctum_key',
+    name: 'Llave del Eclipse',
+    category: 'charm',
+    price: 10000,
+    maxOwned: 1,
+    description: 'Abre el camino a la sala secreta. Hace falta, además, la llave del jefe final y vencer a 3 criaturas celestes.',
+  },
 ];
+
+export const RACE_LIST: Race[] = ['Human', 'Elf', 'Dwarf'];
+
+export const RACES: Record<Race, { name: string; perk: string; colorHex: string }> = {
+  Human: {
+    name: 'Humano',
+    perk: '+10% EXP y 1 punto de habilidad extra al empezar.',
+    colorHex: '#e7c27a',
+  },
+  Elf: {
+    name: 'Elfo',
+    perk: '+3 Suerte y la zona de esquiva perfecta es más ancha.',
+    colorHex: '#6ee7b7',
+  },
+  Dwarf: {
+    name: 'Enano',
+    perk: '+8 Vida máxima y +2 Defensa.',
+    colorHex: '#f0a08a',
+  },
+};
+
+export const SUBCLASSES: Record<
+  SubclassId,
+  { name: string; race: Race; archetype: PlayerClass; perk: string }
+> = {
+  knight: { name: 'Caballero', race: 'Human', archetype: 'Fighter', perk: '+1 Ataque' },
+  rogue: { name: 'Pícaro', race: 'Human', archetype: 'Rogue', perk: '+1 Suerte' },
+  mage: { name: 'Mago', race: 'Human', archetype: 'Wizard', perk: '+1 Ataque' },
+  explorer: { name: 'Explorador', race: 'Elf', archetype: 'Rogue', perk: '+2 Suerte' },
+  summoner: { name: 'Invocador', race: 'Elf', archetype: 'Wizard', perk: '+1 Ataque' },
+  dancer: { name: 'Bailarín', race: 'Elf', archetype: 'Rogue', perk: '+2 Suerte' },
+  guardian: { name: 'Guardián', race: 'Dwarf', archetype: 'Fighter', perk: '+4 Vida y +1 Defensa' },
+  forgemaster: { name: 'Forjador', race: 'Dwarf', archetype: 'Fighter', perk: '+2 Ataque' },
+  berserker: { name: 'Berserker', race: 'Dwarf', archetype: 'Fighter', perk: '+3 Ataque y -1 Defensa' },
+};
 
 export const SKILL_TREE: SkillNodeDef[] = [
   {
@@ -199,7 +291,7 @@ export const SKILL_TREE: SkillNodeDef[] = [
     tier: 2,
     name: 'Golpe Seguro',
     kind: 'active',
-    cost: 1,
+    cost: 2,
     requires: 'martial_1',
     combatAction: 'skill_safe',
     description: 'Activa (1/combate): Nunca falla. Inflige 10 + Ataque + 10% de tu Vida.',
@@ -219,7 +311,7 @@ export const SKILL_TREE: SkillNodeDef[] = [
     tier: 2,
     name: 'Escudo de Grupo',
     kind: 'active',
-    cost: 1,
+    cost: 2,
     requires: 'guard_1',
     combatAction: 'skill_shield',
     description: 'Activa (1/combate): Cura al grupo según tu Vida y da +2 Defensa.',
@@ -239,10 +331,40 @@ export const SKILL_TREE: SkillNodeDef[] = [
     tier: 2,
     name: 'Descarga Certera',
     kind: 'active',
-    cost: 1,
+    cost: 2,
     requires: 'focus_1',
     combatAction: 'skill_pierce',
     description: 'Activa (1/combate): Ignora Defensa e inflige 14 + mitad de Ataque + 10% de tu Vida.',
+  },
+  {
+    id: 'martial_3',
+    branch: 'Marcial',
+    tier: 3,
+    name: 'Maestría del Filo',
+    kind: 'passive',
+    cost: 3,
+    requires: 'martial_2',
+    description: 'Pasiva: +3 Ataque permanente.',
+  },
+  {
+    id: 'guard_3',
+    branch: 'Baluarte',
+    tier: 3,
+    name: 'Muralla Viviente',
+    kind: 'passive',
+    cost: 3,
+    requires: 'guard_2',
+    description: 'Pasiva: +3 Defensa y +6 Vida máxima.',
+  },
+  {
+    id: 'focus_3',
+    branch: 'Arcano',
+    tier: 3,
+    name: 'Ojo del Oráculo',
+    kind: 'passive',
+    cost: 3,
+    requires: 'focus_2',
+    description: 'Pasiva: +4 Suerte permanente.',
   },
 ];
 

@@ -4,6 +4,8 @@ import {
   PLAYER_CLASSES,
   RARITY_LABELS,
   TILE_SIZE,
+  portalNeedsRoad,
+  questBoardSpot,
   type Direction,
   type ItemRarity,
   type PlayerClass,
@@ -520,6 +522,8 @@ export class OverworldScene extends Phaser.Scene {
         tip = 'Trampa oculta';
       } else if (tile === 'secret_question') {
         tip = 'Enigma Secreto (?)';
+      } else if (tile === 'slot') {
+        tip = 'Tragaperras (100 monedas y 1 llave)';
       } else if (tile === 'chest') {
         const chest = this.room.map.chests?.find((c) => c.x === tx && c.y === ty);
         tip = chest ? `Cofre ${RARITY_LABELS[chest.rarity]} (clic o camina aquí)` : 'Cofre';
@@ -759,7 +763,8 @@ export class OverworldScene extends Phaser.Scene {
           tile === 'minigame' ||
           tile === 'spring' ||
           tile === 'trap' ||
-          tile === 'secret_question'
+          tile === 'secret_question' ||
+          tile === 'slot'
         ) {
           const base = (x + y) % 2 === 0 ? palette.grassA : palette.grassB;
           g.fillStyle(base, 1);
@@ -824,6 +829,8 @@ export class OverworldScene extends Phaser.Scene {
             this.spawnTrapMarker(px + TILE_SIZE / 2, py + TILE_SIZE / 2);
           } else if (tile === 'secret_question') {
             this.spawnSecretQuestionMarker(px + TILE_SIZE / 2, py + TILE_SIZE / 2);
+          } else if (tile === 'slot') {
+            this.spawnSlotMarker(px + TILE_SIZE / 2, py + TILE_SIZE / 2);
           } else if (tile === 'chest') {
             const chest = map.chests?.find((c) => c.x === x && c.y === y);
             this.spawnChestMarker(px + TILE_SIZE / 2, py + TILE_SIZE / 2, chest?.rarity ?? 'comun');
@@ -920,6 +927,8 @@ export class OverworldScene extends Phaser.Scene {
 
     this.bakeStaticMap(q);
 
+    this.spawnQuestBoards(map);
+
     // Portals & crisp destination labels
     const mapPixelWidth = map.width * TILE_SIZE;
     for (const portal of map.portals) {
@@ -1006,6 +1015,51 @@ export class OverworldScene extends Phaser.Scene {
       .setDepth(5);
 
     this.propObjects.push(base, coin, mark);
+  }
+
+  private spawnQuestBoards(map: PublicRoomState['map']): void {
+    const overlay = this.ensureDomOverlay();
+    for (const portal of map.portals) {
+      if (!portalNeedsRoad(portal.targetRegionId)) continue;
+      const spot = questBoardSpot(map, portal);
+      if (!spot) continue;
+      const cx = spot.x * TILE_SIZE + TILE_SIZE / 2;
+      const cy = spot.y * TILE_SIZE + TILE_SIZE / 2;
+      const post = this.add
+        .rectangle(cx, cy + 6, 10, 22, 0x6b4f2a, 1)
+        .setDepth(4);
+      const sign = this.add
+        .rectangle(cx, cy - 8, 28, 16, 0xf5e6c8, 1)
+        .setStrokeStyle(2, 0x92400e, 1)
+        .setDepth(5);
+      this.propObjects.push(post, sign);
+      if (!overlay) continue;
+      const label = document.createElement('div');
+      label.className = 'map-portal-label';
+      label.textContent = 'Tablón';
+      overlay.appendChild(label);
+      this.positionDomLabel(label, cx, cy - 34);
+      this.domPortalEls.push(label);
+    }
+  }
+
+  private spawnSlotMarker(cx: number, cy: number): void {
+    const machine = this.add
+      .rectangle(cx, cy, 36, 28, 0x1c1917, 1)
+      .setStrokeStyle(2, 0xfbbf24, 0.95)
+      .setDepth(4);
+    const light = this.add.rectangle(cx, cy - 2, 22, 10, 0xfde68a, 0.9).setDepth(5);
+    this.propObjects.push(machine, light);
+
+    const overlay = this.ensureDomOverlay();
+    if (overlay) {
+      const label = document.createElement('div');
+      label.className = 'map-portal-label';
+      label.textContent = 'Tragaperras';
+      overlay.appendChild(label);
+      this.positionDomLabel(label, cx, cy - 36);
+      this.domPortalEls.push(label);
+    }
   }
 
   private spawnMinigameMarker(cx: number, cy: number): void {

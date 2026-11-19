@@ -28,7 +28,10 @@ import { ArenaModal } from './ui/arenaModal';
 import { ProgressModal } from './ui/progressModal';
 import { SecretQuestionModal } from './ui/secretQuestionModal';
 import { SecretPortalModal } from './ui/secretPortalModal';
-import { ICON_COIN, ICON_HEART, ICON_LUCK, ICON_SHIELD, ICON_SWORD } from './ui/icons';
+import { SlotModal } from './ui/slotModal';
+import { SubclassModal } from './ui/subclassModal';
+import { QuestBoardModal } from './ui/questBoardModal';
+import { ICON_BOSS_KEY, ICON_COIN, ICON_HEART, ICON_LUCK, ICON_SHIELD, ICON_SWORD } from './ui/icons';
 import { getSavedQuality, renderQualityControl } from './ui/quality';
 import type { OverworldScene } from './game/OverworldScene';
 
@@ -70,17 +73,17 @@ function escapeHtml(str: string): string {
 }
 
 const lobbyUI = new LobbyUI(appEl, {
-  onCreateRoom: (playerName, playerClass) => {
+  onCreateRoom: (playerName, race) => {
     lastError = null;
-    socket.emit('create_room', { playerName, playerClass });
+    socket.emit('create_room', { playerName, race });
   },
-  onJoinRoom: (roomCode, playerName, playerClass) => {
+  onJoinRoom: (roomCode, playerName, race) => {
     lastError = null;
     const saved = loadSavedSession();
     socket.emit('join_room', {
       roomCode,
       playerName,
-      playerClass,
+      race,
       playerToken: saved?.roomCode === roomCode.trim().toUpperCase() ? saved.playerToken : undefined,
     });
   },
@@ -250,6 +253,35 @@ const secretPortalModal = new SecretPortalModal(() => {
   syncInputLock();
 });
 
+const questBoardModal = new QuestBoardModal(
+  (portalKey, kind) => {
+    socket.emit('accept_board_task', { portalKey, kind });
+  },
+  () => {
+    syncInputLock();
+  }
+);
+
+const subclassModal = new SubclassModal((subclassId) => {
+  socket.emit('choose_subclass', { subclassId });
+});
+
+const slotModal = new SlotModal(
+  () => {
+    socket.emit('spin_slot');
+  },
+  () => {
+    syncInputLock();
+  }
+);
+
+function maybeOfferSubclass(): void {
+  if (!currentRoom || currentRoom.phase !== 'playing' || subclassModal.isOpen()) return;
+  const me = currentRoom.players.find((p) => p.id === myPlayerId);
+  if (!me || (me.level ?? 1) < 5 || me.subclass) return;
+  subclassModal.show(me.race ?? 'Human');
+}
+
 function syncInputLock(): void {
   const blocked =
     eventModal.isOpen() ||
@@ -265,6 +297,8 @@ function syncInputLock(): void {
     progressModal.isOpen() ||
     secretQuestionModal.isOpen() ||
     secretPortalModal.isOpen() ||
+    slotModal.isOpen() ||
+    questBoardModal.isOpen() ||
     currentRoom?.phase !== 'playing';
   overworldScene?.setInputBlocked(blocked);
 }
@@ -284,6 +318,8 @@ function requestMove(dir: Direction): void {
     progressModal.isOpen() ||
     secretQuestionModal.isOpen() ||
     secretPortalModal.isOpen() ||
+    slotModal.isOpen() ||
+    questBoardModal.isOpen() ||
     currentRoom?.phase !== 'playing'
   ) {
     return;
@@ -399,17 +435,17 @@ function renderGameShell(room: PublicRoomState): void {
     document.querySelector('#hud-boss-btn')?.addEventListener('click', () => {
       if (!currentRoom || currentRoom.phase !== 'playing') return;
       const bossNames: Record<string, { name: string; hp: number }> = {
-        valderroble: { name: 'Rey Trasgo Gruk', hp: 28 },
-        solceniza: { name: 'Dragón Menor de Ceniza', hp: 34 },
-        ventisca: { name: 'Señor de la Escarcha', hp: 36 },
-        'plano-astral': { name: 'Titán del Vacío', hp: 42 },
-        'pantano-bruma': { name: 'Hidra del Pantano', hp: 34 },
-        'ruinas-olvido': { name: 'Coloso de Piedra', hp: 38 },
-        'archipielago-coral': { name: 'Leviatán de Coral', hp: 40 },
-        'abismo-cristal': { name: 'Dragón de Cristal', hp: 44 },
-        'camara-final': { name: 'Emperador del Abismo', hp: 60 },
+        valderroble: { name: 'Rey Trasgo Gruk', hp: 520 },
+        solceniza: { name: 'Dragón Menor de Ceniza', hp: 640 },
+        ventisca: { name: 'Señor de la Escarcha', hp: 680 },
+        'plano-astral': { name: 'Titán del Vacío', hp: 820 },
+        'pantano-bruma': { name: 'Hidra del Pantano', hp: 660 },
+        'ruinas-olvido': { name: 'Coloso de Piedra', hp: 740 },
+        'archipielago-coral': { name: 'Leviatán de Coral', hp: 780 },
+        'abismo-cristal': { name: 'Dragón de Cristal', hp: 900 },
+        'camara-final': { name: 'Emperador del Abismo', hp: 1200 },
       };
-      const meta = bossNames[currentRoom.regionId] ?? { name: 'Jefe del Reino', hp: 30 };
+      const meta = bossNames[currentRoom.regionId] ?? { name: 'Jefe del Reino', hp: 600 };
       arenaModal.showBossBattle(meta.name, meta.hp, currentRoom.regionId);
       syncInputLock();
     });
@@ -513,6 +549,7 @@ function renderGameShell(room: PublicRoomState): void {
   }
 
   updateGameHud(room);
+  maybeOfferSubclass();
   renderLogs();
   eventModal.render(room, myPlayerId);
   combatModal.render(room, myPlayerId);
@@ -600,7 +637,13 @@ function updateGameHud(room: PublicRoomState): void {
       : '';
     questEl.innerHTML = `
       ${questHtml}
-      <div class="quest-keys-row">🔑 Llaves: <strong>${keysCount}/4</strong></div>
+      <div class="quest-keys-row stat-row-inline">${ICON_BOSS_KEY} Llaves de jefe: <strong>${keysCount}/4</strong></div>
+      ${(room.boardTasks ?? [])
+        .map(
+          (task) =>
+            `<div class="quest-meta">Tablón hacia ${escapeHtml(task.destination)}: ${task.progress}/${task.target} ${task.kind === 'event' ? 'eventos' : 'combates'}</div>`
+        )
+        .join('')}
       ${modHtml}
     `;
   }
@@ -677,6 +720,8 @@ function renderApp(): void {
   progressModal.hide();
   secretQuestionModal.hide();
   secretPortalModal.hide();
+  slotModal.hide();
+  questBoardModal.hide();
   destroyPhaser();
   lobbyUI.render(currentRoom, myPlayerId, lastError);
 }
@@ -870,6 +915,27 @@ socket.on('open_secret_question', (payload) => {
 
 socket.on('secret_question_result', (payload) => {
   secretQuestionModal.setResult(payload);
+});
+
+socket.on('open_quest_board', (payload) => {
+  if (currentRoom && currentRoom.phase === 'playing') {
+    questBoardModal.show(payload);
+    syncInputLock();
+  }
+});
+
+socket.on('open_slot', () => {
+  if (currentRoom && currentRoom.phase === 'playing') {
+    slotModal.show(currentRoom, myPlayerId);
+    syncInputLock();
+  }
+});
+
+socket.on('slot_result', (payload) => {
+  currentRoom = payload.room;
+  slotModal.play(payload);
+  updateGameHud(payload.room);
+  addLog(`[Tragaperras] ${payload.summary}`);
 });
 
 socket.on('open_secret_portal_reqs', (reqs) => {

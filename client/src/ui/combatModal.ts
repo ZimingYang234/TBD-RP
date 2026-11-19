@@ -1,15 +1,17 @@
 import {
+  MYTHICS,
   PLAYER_CLASSES,
   SKILL_TREE,
   lifeDamageBonus,
   potionHealFlat,
+  type MythicId,
   type CombatEndedPayload,
   type CombatState,
   type CombatStatus,
   type DiceRollBreakdown,
   type PublicRoomState,
 } from '@tbd/shared';
-import { ICON_HEART, ICON_LUCK, ICON_POTION, ICON_SHIELD, ICON_SWORD } from './icons';
+import { ICON_HEART, ICON_LUCK, ICON_POTION, ICON_RAPHAEL, ICON_SHIELD, ICON_SWORD, ICON_URIEL } from './icons';
 
 export type CombatActionType =
   | 'attack'
@@ -20,7 +22,9 @@ export type CombatActionType =
   | 'skill_pierce'
   | 'defend'
   | 'potion'
-  | 'bomb';
+  | 'bomb'
+  | 'mythic_uriel'
+  | 'mythic_raphael';
 
 export interface CombatModalCallbacks {
   onAction: (action: CombatActionType, targetId?: string, qteScore?: number) => void;
@@ -32,6 +36,8 @@ export interface CombatModalCallbacks {
 export class CombatModal {
   private overlayEl: HTMLElement | null = null;
   private outcome: CombatEndedPayload | null = null;
+  private pendingOutcome: CombatEndedPayload | null = null;
+  private finalBlowStarted = false;
   private selectedTargetId: string | null = null;
   private lastAnimatedSignature: string | null = null;
   private diceTimer: number | null = null;
@@ -41,6 +47,7 @@ export class CombatModal {
   private qteKeyListener: ((e: KeyboardEvent) => void) | null = null;
   private dodgeKeyListener: ((e: KeyboardEvent) => void) | null = null;
   private myPlayerId: string | null = null;
+  private viewerRace: 'Human' | 'Elf' | 'Dwarf' | null = null;
 
   constructor(private readonly callbacks: CombatModalCallbacks) {}
 
@@ -49,11 +56,15 @@ export class CombatModal {
   }
 
   public setOutcome(outcome: CombatEndedPayload): void {
-    this.outcome = outcome;
+    this.outcome = null;
+    this.pendingOutcome = outcome;
+    this.finalBlowStarted = false;
   }
 
   public clearOutcome(): void {
     this.outcome = null;
+    this.pendingOutcome = null;
+    this.finalBlowStarted = false;
   }
 
   public hide(): void {
@@ -106,6 +117,11 @@ export class CombatModal {
     this.myPlayerId = myPlayerId;
     if (this.outcome) {
       this.renderOutcome(this.outcome);
+      return;
+    }
+
+    if (this.pendingOutcome) {
+      this.renderFinalBlow();
       return;
     }
 
@@ -287,6 +303,7 @@ export class CombatModal {
         (me?.unlockedSkills ?? []).includes(n.id)
     );
     const myClassCfg = me ? PLAYER_CLASSES[me.playerClass] : null;
+    this.viewerRace = me?.race ?? null;
     const lifeDmg = me ? lifeDamageBonus(me.maxHp) : 0;
     const potionFlat = me ? potionHealFlat(me.maxHp) : 0;
     const roll = combat.lastRoll;
@@ -358,6 +375,7 @@ export class CombatModal {
               <span class="combat-btn-title stat-row-inline">${ICON_SHIELD} Defender</span>
               <span class="combat-btn-sub">+2 Defensa</span>
             </button>
+            ${this.renderMythicButtons(me, isMyTurn, combat)}
             <button type="button" id="combat-potion-btn" class="btn btn-secondary combat-action-btn" ${!isMyTurn || potionsLeft <= 0 ? 'disabled' : ''}>
               <span class="combat-btn-title stat-row-inline">${ICON_POTION} Poción (${potionsLeft})</span>
               <span class="combat-btn-sub">1d4+${potionFlat} según tu vida</span>
@@ -419,6 +437,14 @@ export class CombatModal {
     });
     overlay.querySelector('#combat-potion-btn')?.addEventListener('click', () => {
       this.callbacks.onAction('potion');
+    });
+    overlay.querySelectorAll<HTMLButtonElement>('[data-mythic]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const action = btn.dataset.mythic;
+        if (action === 'mythic_uriel' || action === 'mythic_raphael') {
+          this.callbacks.onAction(action);
+        }
+      });
     });
     overlay.querySelector('#combat-bomb-btn')?.addEventListener('click', () => {
       this.callbacks.onAction('bomb', this.selectedTargetId ?? undefined);
@@ -595,6 +621,59 @@ export class CombatModal {
     }, 55);
   }
 
+  private renderMythicButtons(
+    me: { id: string; unlockedMythics?: MythicId[] } | undefined,
+    isMyTurn: boolean,
+    combat: CombatState
+  ): string {
+    const owned = me?.unlockedMythics ?? [];
+    const used = me ? combat.mythicsUsedByPlayer?.[me.id] ?? [] : [];
+    return (['uriel', 'raphael'] as MythicId[])
+      .filter((id) => owned.includes(id))
+      .map((id) => {
+        const info = MYTHICS[id];
+        const spent = used.includes(id);
+        const icon = id === 'uriel' ? ICON_URIEL : ICON_RAPHAEL;
+        const action = id === 'uriel' ? 'mythic_uriel' : 'mythic_raphael';
+        return `<button type="button" class="btn btn-special combat-action-btn" data-mythic="${action}" ${!isMyTurn || spent ? 'disabled' : ''}>
+          <span class="combat-btn-title stat-row-inline">${icon} ${info.name}</span>
+          <span class="combat-btn-sub">${spent ? 'Usada' : this.escapeHtml(info.title)}</span>
+        </button>`;
+      })
+      .join('');
+  }
+
+  private renderFinalBlow(): void {
+    if (this.finalBlowStarted || !this.pendingOutcome) return;
+    this.finalBlowStarted = true;
+    const roll = this.pendingOutcome.lastRoll ?? null;
+    const hasDice = Boolean(
+      roll && (roll.d20 !== undefined || roll.damageTotal !== undefined || roll.healAmount !== undefined)
+    );
+    if (hasDice && roll) {
+      const overlay = this.ensureOverlay();
+      overlay.innerHTML = `
+        <div class="modal-card" role="dialog" aria-modal="true" aria-label="Último golpe">
+          <div class="modal-kicker">Último golpe</div>
+          <div class="dice-stage">${this.renderDiceStageHtml(roll)}</div>
+        </div>
+      `;
+      this.animateDice(roll);
+    }
+    window.setTimeout(() => this.commitOutcome(), hasDice ? 7 * 55 + 700 : 500);
+  }
+
+  private commitOutcome(): void {
+    if (!this.pendingOutcome) return;
+    if (this.diceTimer !== null) {
+      window.clearInterval(this.diceTimer);
+      this.diceTimer = null;
+    }
+    this.outcome = this.pendingOutcome;
+    this.pendingOutcome = null;
+    this.renderOutcome(this.outcome);
+  }
+
   private renderOutcome(outcome: CombatEndedPayload): void {
     const overlay = this.ensureOverlay();
     overlay.innerHTML = `
@@ -664,7 +743,7 @@ export class CombatModal {
         </div>
         <button type="button" id="combat-dodge-now-btn" class="dodge-track" aria-label="Barra de esquiva">
           <span class="dodge-zone-med"></span>
-          <span class="dodge-zone-perf"></span>
+          <span class="dodge-zone-perf ${this.viewerRace === 'Elf' ? 'wide' : ''}"></span>
           <span class="dodge-cursor" id="dodge-cursor" style="left:10%"></span>
         </button>
       </div>
@@ -691,8 +770,13 @@ export class CombatModal {
     const triggerDodge = () => {
       if (dodged) return;
       dodged = true;
+      const perfectBand = this.viewerRace === 'Elf' ? 11 : 7;
       const quality: 'perfect' | 'medium' | 'bad' =
-        pos >= 43 && pos <= 57 ? 'perfect' : pos >= 28 && pos <= 72 ? 'medium' : 'bad';
+        pos >= 50 - perfectBand && pos <= 50 + perfectBand
+          ? 'perfect'
+          : pos >= 28 && pos <= 72
+            ? 'medium'
+            : 'bad';
       this.clearActionListeners();
       this.callbacks.onDodge(quality);
 

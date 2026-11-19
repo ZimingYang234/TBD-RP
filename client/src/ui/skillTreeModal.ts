@@ -107,10 +107,12 @@ export class SkillTreeModal {
           <span class="gold-badge">${points} punto${points === 1 ? '' : 's'} disponible${points === 1 ? '' : 's'}</span>
         </div>
 
-        <div class="skill-tree-grid">${branchesHtml}</div>
+        <div class="skill-tree-scroll">
+          <div class="skill-tree-grid">${branchesHtml}</div>
+        </div>
 
         <div class="modal-footer" style="justify-content: space-between; flex-wrap: wrap;">
-          <span style="font-size:0.82rem; color: var(--muted);">Ganas +1 punto de habilidad cada vez que subes de nivel.</span>
+          <span style="font-size:0.82rem; color: var(--muted);">1 punto cada 2 niveles hasta el 10. Después, cada 3. Cada rama cuesta 1, luego 2 y luego 3.</span>
           <button type="button" id="skilltree-close-btn" class="btn">Cerrar</button>
         </div>
       </div>

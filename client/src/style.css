@@ -471,6 +471,163 @@ body {
   line-height: 1.45;
 }
 
+.slot-card {
+  width: min(720px, 100%);
+}
+
+.slot-cost,
+.slot-status,
+.slot-keys,
+.slot-owned {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.slot-layout {
+  display: grid;
+  grid-template-columns: 1fr 180px;
+  gap: 16px;
+  align-items: start;
+}
+
+@media (max-width: 720px) {
+  .slot-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.slot-reels {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 8px 0 12px;
+}
+
+.slot-reel {
+  height: 84px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: #12151d;
+  border: 2px solid rgba(251, 191, 36, 0.45);
+  font-size: 2rem;
+  font-weight: 800;
+  color: #fde68a;
+}
+
+.slot-reel.spinning {
+  animation: reel-spin 0.12s linear infinite;
+  color: transparent;
+  background:
+    repeating-linear-gradient(
+      180deg,
+      #1c2230 0 14px,
+      #2a3142 14px 28px
+    );
+}
+
+@keyframes reel-spin {
+  from { background-position: 0 0; }
+  to { background-position: 0 28px; }
+}
+
+.slot-odds {
+  background: rgba(15, 18, 27, 0.7);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.slot-odds h3 {
+  margin: 0 0 8px;
+  font-size: 0.95rem;
+}
+
+.slot-odds ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.slot-odd {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.88rem;
+}
+
+.slot-odd-mitico strong { color: #fb7185; }
+.slot-odd-legendario strong { color: #fbbf24; }
+.slot-odd-epico strong { color: #c084fc; }
+.slot-odd-raro strong { color: #60a5fa; }
+
+.slot-result {
+  margin-bottom: 10px;
+  line-height: 1.45;
+}
+
+.slot-result.jackpot {
+  text-align: center;
+  padding: 12px;
+  border-radius: 12px;
+  background: radial-gradient(circle at center, rgba(251, 191, 36, 0.28), rgba(15, 23, 42, 0.2));
+  border: 1px solid rgba(251, 191, 36, 0.7);
+  animation: jackpot-pop 0.7s ease;
+}
+
+.slot-jackpot {
+  font-size: 1.8rem;
+  letter-spacing: 0.18em;
+  font-weight: 800;
+  color: #fde68a;
+}
+
+.slot-mythic-badge {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  font-weight: 700;
+}
+
+.slot-card-jackpot {
+  box-shadow: 0 0 40px rgba(251, 191, 36, 0.35);
+}
+
+@keyframes jackpot-pop {
+  0% { transform: scale(0.86); opacity: 0; }
+  60% { transform: scale(1.04); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.icon-boss-key { color: #fbbf24; }
+.icon-uriel { color: #fde68a; }
+.icon-raphael { color: #a5f3fc; }
+.icon-eclipse-key { color: #e9d5ff; filter: drop-shadow(0 0 6px #c084fc); }
+
+.shop-relic {
+  position: relative;
+  margin-top: 8px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(232, 121, 249, 0.7);
+  background:
+    radial-gradient(circle at 12% 20%, rgba(250, 204, 21, 0.28), transparent 42%),
+    radial-gradient(circle at 90% 80%, rgba(168, 85, 247, 0.4), transparent 46%),
+    linear-gradient(145deg, #1a1030, #0b1020 60%, #241018);
+  box-shadow: 0 0 24px rgba(192, 132, 252, 0.35);
+  animation: relic-glow 2.8s ease-in-out infinite;
+}
+
+@keyframes relic-glow {
+  0%, 100% { box-shadow: 0 0 16px rgba(192, 132, 252, 0.28); }
+  50% { box-shadow: 0 0 32px rgba(250, 204, 21, 0.45); }
+}
+
 .map-soon-inline span {
   display: inline-block;
   margin-top: 6px;
@@ -1561,6 +1718,11 @@ body {
   background: rgba(251, 191, 36, 0.55);
 }
 
+.dodge-zone-perf.wide {
+  left: 39%;
+  width: 22%;
+}
+
 .dodge-cursor {
   position: absolute;
   top: 2px;
@@ -1733,6 +1895,13 @@ body {
 
 .btn-special-outline:hover:not(:disabled) {
   background: rgba(99, 102, 241, 0.28);
+}
+
+.skill-tree-scroll {
+  max-height: min(62vh, 560px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 4px;
 }
 
 .skill-tree-grid {

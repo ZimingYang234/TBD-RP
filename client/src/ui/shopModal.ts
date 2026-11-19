@@ -1,5 +1,5 @@
 import { SHOP_ITEMS, type PublicRoomState } from '@tbd/shared';
-import { ICON_COIN, ICON_HEART, ICON_LUCK, ICON_SHIELD, ICON_SWORD } from './icons';
+import { ICON_COIN, ICON_ECLIPSE_KEY, ICON_HEART, ICON_LUCK, ICON_SHIELD, ICON_SWORD } from './icons';
 
 export interface ShopModalCallbacks {
   onBuy: (itemId: string) => void;
@@ -64,16 +64,24 @@ export class ShopModal {
     const potionsOwned = myInv.potion ?? 0;
 
     const itemsHtml = SHOP_ITEMS.map((item) => {
-      const owned = item.category === 'consumable' ? (myInv[item.id] ?? 0) : (myUpgrades[item.id] ?? 0);
+      const owned =
+        item.id === 'sanctum_key'
+          ? room.sanctumKey
+            ? 1
+            : 0
+          : item.category === 'consumable'
+            ? (myInv[item.id] ?? 0)
+            : (myUpgrades[item.id] ?? 0);
       const maxed = owned >= item.maxOwned;
       const canAfford = myGold >= item.price;
       const disabled = maxed || !canAfford;
+      const relic = item.id === 'sanctum_key';
 
       return `
-        <div class="shop-item-row">
+        <div class="shop-item-row ${relic ? 'shop-relic' : ''}">
           <div class="shop-item-info">
             <div class="shop-item-head">
-              <strong>${this.escapeHtml(item.name)}</strong>
+              <strong>${relic ? ICON_ECLIPSE_KEY : ''} ${this.escapeHtml(item.name)}</strong>
               <span class="shop-cat-pill">${CATEGORY_LABELS[item.category]}</span>
               <span class="shop-owned-pill">${owned}/${item.maxOwned}</span>
             </div>

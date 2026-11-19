@@ -1,23 +1,24 @@
 import {
   GAME_TITLE,
   MAX_PLAYERS,
-  PLAYER_CLASSES,
-  PLAYER_CLASS_LIST,
-  type PlayerClass,
+  RACE_LIST,
+  RACES,
+  SUBCLASSES,
   type PublicRoomState,
+  type Race,
 } from '@tbd/shared';
 import { getSavedQuality, renderQualityControl } from './quality';
 
 export interface LobbyCallbacks {
-  onCreateRoom: (playerName: string, playerClass: PlayerClass) => void;
-  onJoinRoom: (roomCode: string, playerName: string, playerClass: PlayerClass) => void;
+  onCreateRoom: (playerName: string, race: Race) => void;
+  onJoinRoom: (roomCode: string, playerName: string, race: Race) => void;
   onStartGame: () => void;
   onLeaveRoom: () => void;
   onOpenTutorial: () => void;
 }
 
 export class LobbyUI {
-  private selectedClass: PlayerClass = 'Fighter';
+  private selectedRace: Race = 'Human';
   private playerName = '';
   private roomCodeInput = '';
 
@@ -35,16 +36,16 @@ export class LobbyUI {
   }
 
   private renderEntryForm(errorMsg: string | null): void {
-    const classCardsHtml = PLAYER_CLASS_LIST.map((cls) => {
-      const cfg = PLAYER_CLASSES[cls];
-      const selected = cls === this.selectedClass ? 'selected' : '';
+    const classCardsHtml = RACE_LIST.map((race) => {
+      const cfg = RACES[race];
+      const selected = race === this.selectedRace ? 'selected' : '';
       return `
-        <button type="button" class="class-card ${selected}" data-class="${cls}">
+        <button type="button" class="class-card ${selected}" data-race="${race}">
           <div class="class-name">
             <span class="class-dot" style="background:${cfg.colorHex}; color:${cfg.colorHex}"></span>
             <span>${cfg.name}</span>
           </div>
-          <div class="class-desc">${cfg.shortDesc}</div>
+          <div class="class-desc">${cfg.perk}</div>
         </button>
       `;
     }).join('');
@@ -72,7 +73,7 @@ export class LobbyUI {
           </div>
 
           <div class="lobby-step">
-            <span class="field-label">2. Elige tu clase</span>
+            <span class="field-label">2. Elige tu raza</span>
             <div class="class-grid">${classCardsHtml}</div>
           </div>
 
@@ -129,20 +130,20 @@ export class LobbyUI {
 
     this.container.querySelectorAll<HTMLButtonElement>('.class-card').forEach((btn) => {
       btn.addEventListener('click', () => {
-        const cls = btn.dataset.class as PlayerClass;
-        if (cls) {
-          this.selectedClass = cls;
+        const race = btn.dataset.race as Race;
+        if (race && RACES[race]) {
+          this.selectedRace = race;
           this.renderEntryForm(null);
         }
       });
     });
 
     this.container.querySelector('#create-room-btn')?.addEventListener('click', () => {
-      this.callbacks.onCreateRoom(this.playerName, this.selectedClass);
+      this.callbacks.onCreateRoom(this.playerName, this.selectedRace);
     });
 
     this.container.querySelector('#join-room-btn')?.addEventListener('click', () => {
-      this.callbacks.onJoinRoom(this.roomCodeInput, this.playerName, this.selectedClass);
+      this.callbacks.onJoinRoom(this.roomCodeInput, this.playerName, this.selectedRace);
     });
 
     this.container.querySelector('.lobby-tutorial-btn')?.addEventListener('click', () => {
@@ -158,7 +159,8 @@ export class LobbyUI {
     const isHost = room.hostId === myPlayerId;
     const rosterHtml = room.players
       .map((p) => {
-        const cfg = PLAYER_CLASSES[p.playerClass];
+        const race = RACES[p.race ?? 'Human'];
+        const sub = p.subclass ? SUBCLASSES[p.subclass].name : 'Sin subclase';
         const hostTag = p.id === room.hostId ? ' • Líder' : '';
         const meTag = p.id === myPlayerId ? ' • Tú' : '';
         const statusCls = p.connected ? 'status-online' : 'status-offline';
@@ -166,11 +168,11 @@ export class LobbyUI {
         return `
           <li class="roster-item">
             <div class="roster-left">
-              <span class="class-dot" style="background:${cfg.colorHex}; color:${cfg.colorHex}"></span>
+              <span class="class-dot" style="background:${race.colorHex}; color:${race.colorHex}"></span>
               <div>
                 <strong>${this.escapeHtml(p.name)}</strong><span style="color: var(--muted); font-size: 0.85rem;">${hostTag}${meTag}</span>
                 <div style="font-size: 0.8rem; color: var(--muted)">
-                  ${cfg.name} • ${p.hp}/${p.maxHp} PV • CA ${p.ac}
+                  ${race.name} • ${sub} • ${p.hp}/${p.maxHp} PV • CA ${p.ac}
                 </div>
               </div>
             </div>

@@ -7,7 +7,8 @@ import cors from 'cors';
 import express from 'express';
 import { Server } from 'socket.io';
 import {
-  PLAYER_CLASSES,
+  RACES,
+  type SubclassId,
   type ClientToServerEvents,
   type EventOutcomePayload,
   type ServerToClientEvents,
@@ -126,7 +127,7 @@ async function triggerAndBroadcastEvent(params: {
 
 io.on('connection', (socket) => {
   socket.on('create_room', (payload) => {
-    const result = roomManager.createRoom(socket.id, payload.playerName, payload.playerClass);
+    const result = roomManager.createRoom(socket.id, payload.playerName, payload.race);
     if ('error' in result) {
       socket.emit('room_error', { message: result.error });
       return;
@@ -146,7 +147,7 @@ io.on('connection', (socket) => {
       socket.id,
       payload.roomCode,
       payload.playerName,
-      payload.playerClass,
+      payload.race,
       payload.playerToken
     );
     if ('error' in result) {
@@ -155,7 +156,7 @@ io.on('connection', (socket) => {
     }
 
     const { room, player, reconnected } = result;
-    const classNameEs = PLAYER_CLASSES[player.playerClass].name;
+    const classNameEs = RACES[player.race ?? 'Human'].name;
     socket.join(room.code);
     socket.emit('room_joined', {
       room: roomManager.toPublicRoom(room),
@@ -310,6 +311,10 @@ io.on('connection', (socket) => {
       socket.emit('open_secret_portal_reqs', outcome.secretPortalPrompt);
     } else if (outcome.steppedOnShopTile) {
       socket.emit('open_shop');
+    } else if (outcome.questBoard) {
+      socket.emit('open_quest_board', outcome.questBoard);
+    } else if (outcome.steppedOnSlotTile) {
+      socket.emit('open_slot');
     } else if (outcome.steppedOnMinigameTile) {
       if (outcome.room.regionId === 'valderroble') {
         socket.emit('open_minigame', { game: 'arena' });
@@ -384,6 +389,8 @@ io.on('connection', (socket) => {
         'defend',
         'potion',
         'bomb',
+        'mythic_uriel',
+        'mythic_raphael',
       ].includes(payload.action)
     ) {
       return;
@@ -563,6 +570,32 @@ io.on('connection', (socket) => {
     io.to(publicRoom.code).emit('system_notice', { message: result.notice });
   });
 
+  socket.on('accept_board_task', (payload) => {
+    if (!payload || (payload.kind !== 'combat' && payload.kind !== 'event') || typeof payload.portalKey !== 'string') {
+      return;
+    }
+    const result = roomManager.acceptBoardTask(socket.id, payload.portalKey, payload.kind);
+    if ('error' in result) {
+      socket.emit('room_error', { message: result.error });
+      return;
+    }
+    const publicRoom = roomManager.toPublicRoom(result.room);
+    io.to(publicRoom.code).emit('room_state', publicRoom);
+    io.to(publicRoom.code).emit('system_notice', { message: result.notice });
+  });
+
+  socket.on('choose_subclass', (payload) => {
+    if (!payload || typeof payload.subclassId !== 'string') return;
+    const result = roomManager.chooseSubclass(socket.id, payload.subclassId as SubclassId);
+    if ('error' in result) {
+      socket.emit('room_error', { message: result.error });
+      return;
+    }
+    const publicRoom = roomManager.toPublicRoom(result.room);
+    io.to(publicRoom.code).emit('room_state', publicRoom);
+    io.to(publicRoom.code).emit('system_notice', { message: result.notice });
+  });
+
   socket.on('unlock_skill', (payload) => {
     if (!payload || typeof payload.skillId !== 'string') return;
     const result = roomManager.unlockSkill(socket.id, payload.skillId as any);
@@ -654,6 +687,16 @@ io.on('connection', (socket) => {
     if (binding) {
       io.to(binding.roomCode).emit('system_notice', { message: result.notice });
     }
+  });
+
+  socket.on('spin_slot', () => {
+    const result = roomManager.spinSlot(socket.id);
+    if ('error' in result) {
+      socket.emit('room_error', { message: result.error });
+      return;
+    }
+    socket.emit('slot_result', result);
+    io.to(result.room.code).emit('room_state', result.room);
   });
 
   socket.on('play_tavern_dice', (payload) => {

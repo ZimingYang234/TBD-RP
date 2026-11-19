@@ -1,8 +1,7 @@
 export interface SecretPortalReqs {
   hasFinalKey: boolean;
-  hasBlueEssence: boolean;
-  hasCoins: boolean;
-  coins: number;
+  hasSanctumKey: boolean;
+  celestialDefeated: number;
 }
 
 export class SecretPortalModal {
@@ -63,9 +62,9 @@ export class SecretPortalModal {
         <p class="modal-narration">Este portal está sellado. Necesitas reunir los 3 requisitos para abrirlo:</p>
 
         <div class="shop-items-list">
-          ${row('1. Llave del Emperador', reqs.hasFinalKey, 'Se obtiene al derrotar al Jefe Final.')}
-          ${row('2. 1000 monedas', reqs.hasCoins, `Tienes ${reqs.coins}/1000 monedas.`)}
-          ${row('3. ?', reqs.hasBlueEssence, '???')}
+          ${row('1. Llave del Eclipse', reqs.hasSanctumKey, 'Se compra en la tienda por 10.000 monedas.')}
+          ${row('2. Llave del Emperador', reqs.hasFinalKey, 'Se obtiene al derrotar al jefe final, nivel 30.')}
+          ${row('3. Criaturas celestes', reqs.celestialDefeated >= 3, `${reqs.celestialDefeated}/3. Cada una es más fuerte y más difícil de encontrar.`)}
         </div>
 
         <div class="modal-footer" style="justify-content: flex-end;">

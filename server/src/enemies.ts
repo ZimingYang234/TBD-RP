@@ -336,10 +336,10 @@ export function spawnBossForRegion(
 ): CombatEnemy {
   const tpl = REGION_BOSSES[regionId] ?? REGION_BOSSES.valderroble;
   const lvAbove1 = Math.max(0, avgLevel - 1);
-  const extraHp = Math.max(0, partySize - 1) * 30 + lvAbove1 * 10;
-  const extraAtk = Math.floor(lvAbove1 / 3);
-  const extraAc = Math.floor(lvAbove1 / 4);
-  const maxHp = tpl.maxHp + extraHp;
+  const extraHp = Math.max(0, partySize - 1) * 40 + lvAbove1 * 18;
+  const extraAtk = Math.floor(lvAbove1 / 2);
+  const extraAc = Math.floor(lvAbove1 / 3);
+  const maxHp = Math.round(tpl.maxHp * 1.35) + extraHp;
   return {
     id: crypto.randomUUID(),
     name: tpl.name,
@@ -355,18 +355,20 @@ export function spawnBossForRegion(
   };
 }
 
-export function spawnBlueCreatureEnemy(): CombatEnemy {
+export function spawnBlueCreatureEnemy(tier = 1): CombatEnemy {
+  const step = Math.max(1, Math.min(3, tier));
+  const hp = step === 1 ? 90 : step === 2 ? 220 : 520;
   return {
     id: crypto.randomUUID(),
-    name: '? (Criatura Celeste)',
+    name: `? (Criatura Celeste ${step}/3)`,
     isBoss: true,
-    hp: 75,
-    maxHp: 75,
-    ac: 17,
-    attackMod: 9,
-    initiativeMod: 8,
-    damageDice: '2d8+4',
-    xpReward: 200,
-    goldReward: 150,
+    hp,
+    maxHp: hp,
+    ac: 16 + step,
+    attackMod: 8 + step * 2,
+    initiativeMod: 7 + step,
+    damageDice: step === 1 ? '2d8+4' : step === 2 ? '2d10+8' : '3d10+12',
+    xpReward: 180 * step,
+    goldReward: 120 * step,
   };
 }

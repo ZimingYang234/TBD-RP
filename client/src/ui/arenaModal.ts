@@ -58,6 +58,8 @@ export class ArenaModal {
 
   // World state
   private bossMode: { bossName: string; bossHp: number; regionId: string } | null = null;
+  private bossCycleMs = 0;
+  private bossVulnerable = false;
   private wave = 1;
   private kills = 0;
   private finished = false;
@@ -90,6 +92,8 @@ export class ArenaModal {
 
   public showBossBattle(bossName: string, bossHp: number, regionId: string): void {
     this.bossMode = { bossName, bossHp, regionId };
+    this.bossCycleMs = 0;
+    this.bossVulnerable = false;
     this.difficulty = 'normal';
     this.open = true;
     this.resetRun();
@@ -277,11 +281,13 @@ export class ArenaModal {
 
   private swingSword(): void {
     if (this.finished || this.swordCooldownMs > 0) return;
+    if (this.bossMode && !this.bossVulnerable) return;
     this.swordCooldownMs = 300;
     this.swordSwingMs = 150;
     this.swordAngle = this.aimAngle;
 
-    const reach = 64;
+    const reach = this.bossMode ? 92 : 64;
+    const dmg = this.bossMode ? 18 : 2;
     for (const enemy of this.enemies) {
       const dx = enemy.x - this.px;
       const dy = enemy.y - this.py;
@@ -290,7 +296,7 @@ export class ArenaModal {
         const angleToEnemy = Math.atan2(dy, dx);
         const diff = Math.abs(Math.atan2(Math.sin(angleToEnemy - this.swordAngle), Math.cos(angleToEnemy - this.swordAngle)));
         if (diff <= 1.25 || dist < 24) {
-          enemy.hp -= 2;
+          enemy.hp -= dmg;
           enemy.hitFlashMs = 140;
           const push = dist > 0 ? 18 / dist : 0;
           enemy.x = Math.max(16, Math.min(ARENA_SIZE - 16, enemy.x + dx * push));
@@ -303,6 +309,7 @@ export class ArenaModal {
 
   private castSpell(): void {
     if (this.finished || this.spellCooldownMs > 0) return;
+    if (this.bossMode && !this.bossVulnerable) return;
     this.spellCooldownMs = 1100;
     const speed = 340;
     this.projectiles.push({
@@ -383,6 +390,7 @@ export class ArenaModal {
 
   private updateState(dtMs: number): void {
     const dt = dtMs / 1000;
+    if (this.bossMode) this.bossCycleMs += dtMs;
     this.invulnMs = Math.max(0, this.invulnMs - dtMs);
     this.dashMs = Math.max(0, this.dashMs - dtMs);
     this.dashCooldownMs = Math.max(0, this.dashCooldownMs - dtMs);
@@ -452,7 +460,63 @@ export class ArenaModal {
       const isPhase2 = Boolean(e.isBoss && e.hp <= e.maxHp * 0.5);
       const curSpeed = isPhase2 ? e.speed * 1.25 : e.speed;
 
-      if (e.isBoss) {
+      if (e.isBoss && this.bossMode) {
+        e.x = ARENA_SIZE / 2;
+        e.y = ARENA_SIZE / 2;
+        const cycle = 19000;
+        const beat = this.bossCycleMs % cycle;
+        this.bossVulnerable = beat >= 15000;
+        e.shootCdMs = (e.shootCdMs ?? 0) - dtMs;
+        if (!this.bossVulnerable && e.shootCdMs <= 0) {
+          const baseAng = Math.atan2(this.py - e.y, this.px - e.x);
+          if (beat < 5000) {
+            e.shootCdMs = 380;
+            for (const off of [-0.28, 0, 0.28]) {
+              this.projectiles.push({
+                x: e.x,
+                y: e.y,
+                vx: Math.cos(baseAng + off) * 210,
+                vy: Math.sin(baseAng + off) * 210,
+                lifeMs: 2400,
+                fromEnemy: true,
+              });
+            }
+          } else if (beat < 10000) {
+            e.shootCdMs = 860;
+            for (let i = 0; i < 10; i++) {
+              const ang = (Math.PI * 2 * i) / 10 + beat / 900;
+              this.projectiles.push({
+                x: e.x,
+                y: e.y,
+                vx: Math.cos(ang) * 150,
+                vy: Math.sin(ang) * 150,
+                lifeMs: 2600,
+                fromEnemy: true,
+              });
+            }
+          } else {
+            e.shootCdMs = 640;
+            for (let i = -2; i <= 2; i++) {
+              this.projectiles.push({
+                x: 20,
+                y: e.y + i * 28,
+                vx: 120,
+                vy: 0,
+                lifeMs: 2800,
+                fromEnemy: true,
+              });
+              this.projectiles.push({
+                x: e.x + i * 28,
+                y: 20,
+                vx: 0,
+                vy: 110,
+                lifeMs: 2800,
+                fromEnemy: true,
+              });
+            }
+          }
+        }
+      } else if (e.isBoss) {
         e.shootCdMs = (e.shootCdMs ?? 1400) - dtMs;
         if (e.shootCdMs <= 0) {
           e.shootCdMs = isPhase2 ? 1050 : 1650;
@@ -469,6 +533,18 @@ export class ArenaModal {
             });
           }
         }
+      }
+
+      if (this.bossMode && e.isBoss) {
+        if (!this.bossVulnerable && dist <= e.radius + 16 && this.invulnMs <= 0) {
+          this.hp -= 1;
+          this.invulnMs = 700;
+          if (this.hp <= 0) {
+            this.finishRun(false);
+            return;
+          }
+        }
+        continue;
       }
 
       if (dist > 1) {
@@ -500,7 +576,7 @@ export class ArenaModal {
     const hpEl = this.overlayEl?.querySelector('#arena-hp-text');
     if (this.bossMode) {
       const boss = this.enemies[0];
-      if (waveEl) waveEl.textContent = boss && boss.hp <= boss.maxHp * 0.5 ? 'FASE 2' : 'JEFE';
+      if (waveEl) waveEl.textContent = this.bossVulnerable ? '¡ATACA!' : 'Esquiva';
       if (killsEl) killsEl.textContent = `PV Jefe: ${Math.max(0, boss?.hp ?? 0)}`;
     } else {
       if (waveEl) waveEl.textContent = `Oleada ${this.wave}/5`;

@@ -7,6 +7,9 @@ import {
   COMBAT_TILE_COOLDOWN_MS,
   EVENT_TILE_COOLDOWN_MS,
   ITEMS_BY_ID,
+  LOCAL_BOSS_KEY_IDS,
+  MYTHICS,
+  SLOT_COST_GOLD,
   lifeDamageBonus,
   potionHealFlat,
   MAX_INVENTORY_SLOTS,
@@ -14,6 +17,8 @@ import {
   MINIGAME_COOLDOWN_MS,
   MOVE_COOLDOWN_MS,
   PLAYER_CLASSES,
+  RACES,
+  SUBCLASSES,
   PORTAL_COOLDOWN_MS,
   RARITY_LABELS,
   ROOM_CODE_LENGTH,
@@ -22,8 +27,16 @@ import {
   STARTING_GOLD,
   TAVERN_MAX_PLAYS,
   TAVERN_WINDOW_MS,
+  skillPointOnLevel,
   xpForNextLevel,
+  portalKey,
+  portalNeedsRoad,
+  questBoardSpot,
+  roadTaskTarget,
   type ActiveEventState,
+  type BoardTaskState,
+  type QuestBoardPayload,
+  type PortalDef,
   type BlueCreatureState,
   type CombatEndedPayload,
   type CombatState,
@@ -35,8 +48,13 @@ import {
   type EventSource,
   type EventTriggerType,
   type ItemRarity,
+  type MythicId,
+  type SlotRarity,
+  type SlotSpinPayload,
   type PlayerClass,
   type PlayerState,
+  type Race,
+  type SubclassId,
   type PublicPlayerState,
   type PublicRoomState,
   type QuestState,
@@ -86,6 +104,11 @@ export interface InternalRoom {
   roamingMonsters?: RoamingMonster[];
   blueCreature?: BlueCreatureState | null;
   secretRoomUnlocked?: boolean;
+  sanctumKey?: boolean;
+  celestialDefeated?: number;
+  visitedRegions: string[];
+  unlockedPortals: string[];
+  boardTasks: BoardTaskState[];
   recentEventIds?: string[];
 }
 
@@ -105,11 +128,12 @@ export type MoveOutcome =
       steppedOnShopTile: boolean;
       steppedOnMinigameTile: boolean;
       steppedOnSecretQuestionTile: boolean;
+      steppedOnSlotTile: boolean;
+      questBoard: QuestBoardPayload | null;
       secretPortalPrompt: {
         hasFinalKey: boolean;
-        hasBlueEssence: boolean;
-        hasCoins: boolean;
-        coins: number;
+        hasSanctumKey: boolean;
+        celestialDefeated: number;
       } | null;
       hitBlueCreature: boolean;
       mapNotice?: string;
@@ -193,6 +217,7 @@ export class RoomManager {
   private springCooldowns = new Map<string, number>();
   private surpriseCooldowns = new Map<string, number>();
   private secretPortalCooldowns = new Map<string, number>();
+  private boardCooldowns = new Map<string, number>();
   private pendingEventRooms = new Set<string>();
   private pendingEnemyTarget = new Map<string, { targetId: string; dodgeReduction: 0 | 15 | 30 }>();
   private saveTimer: NodeJS.Timeout | null = null;
@@ -326,6 +351,17 @@ export class RoomManager {
           : spawnRoamingMonstersForRegion(map);
         room.blueCreature = room.blueCreature ?? spawnBlueCreature();
         room.secretRoomUnlocked = Boolean(room.secretRoomUnlocked);
+        room.sanctumKey = Boolean(room.sanctumKey);
+        room.celestialDefeated = room.celestialDefeated ?? 0;
+        room.visitedRegions = Array.isArray(room.visitedRegions) ? room.visitedRegions : ['valderroble'];
+        if (!room.visitedRegions.includes('valderroble')) room.visitedRegions.push('valderroble');
+        room.unlockedPortals = Array.isArray(room.unlockedPortals) ? room.unlockedPortals : [];
+        room.boardTasks = Array.isArray(room.boardTasks) ? room.boardTasks : [];
+        if (room.blueCreature) room.blueCreature.tier = room.blueCreature.tier ?? 1;
+        for (const p of room.players) {
+          if (!p.race) p.race = 'Human';
+          if (p.subclass === undefined) p.subclass = null;
+        }
         if (!room.quest || typeof room.quest.target !== 'number') {
           room.quest = createQuestByIndex(0);
         }
@@ -382,33 +418,39 @@ export class RoomManager {
 
   private createPlayer(
     name: string,
-    playerClass: PlayerClass,
+    race: Race,
     regionId: string,
     indexInRoom: number
   ): PlayerState {
-    const template = PLAYER_CLASSES[playerClass];
+    const archetype: PlayerClass = race === 'Elf' ? 'Rogue' : 'Fighter';
+    const template = PLAYER_CLASSES[archetype];
     const region = getRegion(regionId);
     const pos = findWalkableNearby(region, region.spawn.x, region.spawn.y, indexInRoom);
+    const maxHp = template.maxHp + (race === 'Dwarf' ? 8 : 0);
+    const ac = template.ac + (race === 'Dwarf' ? 2 : 0);
 
     return {
       id: crypto.randomUUID(),
       token: crypto.randomUUID(),
       name,
-      playerClass,
+      playerClass: archetype,
+      race,
+      subclass: null,
       x: pos.x,
       y: pos.y,
       regionId: region.id,
-      hp: template.maxHp,
-      maxHp: template.maxHp,
-      ac: template.ac,
+      hp: maxHp,
+      maxHp,
+      ac,
       attackMod: template.attackMod,
       damageDice: template.damageDice,
       gold: STARTING_GOLD,
       xp: 0,
       level: 1,
-      skillPoints: 1,
+      skillPoints: race === 'Human' ? 2 : 1,
       unlockedSkills: [],
-      luckBonus: 0,
+      unlockedMythics: [],
+      luckBonus: race === 'Elf' ? 3 : 0,
       inventory: {},
       shopUpgrades: {},
       equippedWeaponId: null,
@@ -453,6 +495,11 @@ export class RoomManager {
       roamingMonsters: room.roamingMonsters ?? [],
       blueCreature: room.blueCreature ?? null,
       secretRoomUnlocked: Boolean(room.secretRoomUnlocked),
+      sanctumKey: Boolean(room.sanctumKey),
+      celestialDefeated: room.celestialDefeated ?? 0,
+      visitedRegions: room.visitedRegions ?? ['valderroble'],
+      unlockedPortals: room.unlockedPortals ?? [],
+      boardTasks: room.boardTasks ?? [],
     };
   }
 
@@ -467,16 +514,16 @@ export class RoomManager {
   public createRoom(
     socketId: string,
     rawName: string,
-    playerClass: PlayerClass
+    race: Race
   ): { room: InternalRoom; player: PlayerState } | { error: string } {
     const name = this.sanitizeName(rawName);
     if (!name) return { error: 'Por favor, escribe un nombre para tu personaje.' };
-    if (!PLAYER_CLASSES[playerClass]) return { error: 'Clase seleccionada no válida.' };
+    if (!RACES[race]) return { error: 'Raza seleccionada no válida.' };
 
     this.detachSocket(socketId);
 
     const code = this.generateRoomCode();
-    const player = this.createPlayer(name, playerClass, STARTING_REGION_ID, 0);
+    const player = this.createPlayer(name, race, STARTING_REGION_ID, 0);
     const room: InternalRoom = {
       code,
       hostId: player.id,
@@ -489,8 +536,13 @@ export class RoomManager {
       quest: createQuestByIndex(0),
       bossKeys: [],
       roamingMonsters: spawnRoamingMonstersForRegion(getRegion(STARTING_REGION_ID)),
-      blueCreature: spawnBlueCreature(),
+      blueCreature: spawnBlueCreature(undefined, 1),
       secretRoomUnlocked: false,
+      sanctumKey: false,
+      celestialDefeated: 0,
+      visitedRegions: ['valderroble'],
+      unlockedPortals: [],
+      boardTasks: [],
       recentEventIds: [],
     };
 
@@ -504,7 +556,7 @@ export class RoomManager {
     socketId: string,
     rawCode: string,
     rawName: string,
-    playerClass: PlayerClass,
+    race: Race,
     playerToken?: string
   ): { room: InternalRoom; player: PlayerState; reconnected: boolean } | { error: string } {
     const code = rawCode.trim().toUpperCase();
@@ -531,7 +583,7 @@ export class RoomManager {
 
     const name = this.sanitizeName(rawName);
     if (!name) return { error: 'Por favor, escribe un nombre para tu personaje.' };
-    if (!PLAYER_CLASSES[playerClass]) return { error: 'Clase seleccionada no válida.' };
+    if (!RACES[race]) return { error: 'Raza seleccionada no válida.' };
 
     // 2. Check reconnect by matching disconnected player name
     const disconnectedMatch = room.players.find(
@@ -558,7 +610,7 @@ export class RoomManager {
     }
 
     this.detachSocket(socketId);
-    const player = this.createPlayer(name, playerClass, room.regionId, room.players.length);
+    const player = this.createPlayer(name, race, room.regionId, room.players.length);
     room.players.push(player);
     this.socketToBinding.set(socketId, { roomCode: room.code, playerId: player.id });
     this.scheduleSave();
@@ -757,11 +809,23 @@ export class RoomManager {
         }
       }
 
+      if ((portal.minLevel ?? 0) >= 5) {
+        const missingSubclass = room.players.filter((p) => (p.level ?? 1) >= 5 && !p.subclass);
+        if (missingSubclass.length > 0) {
+          const names = missingSubclass.map((p) => p.name).join(', ');
+          return {
+            type: 'portal_blocked',
+            room,
+            message: `Antes de salir hace falta una subclase (nivel 5). Faltan: ${names}.`,
+          };
+        }
+      }
+
       if (portal.requiresFinalUnlock && !room.secretRoomUnlocked) {
         const hasFinalKey = (room.bossKeys ?? []).includes('key_final_boss');
-        const hasBlueEssence = (room.bossKeys ?? []).includes('key_blue_creature');
-        const hasCoins = (player.gold ?? 0) >= 1000;
-        if (!hasFinalKey || !hasBlueEssence || !hasCoins) {
+        const hasSanctumKey = Boolean(room.sanctumKey);
+        const celestialDefeated = room.celestialDefeated ?? 0;
+        if (!hasFinalKey || !hasSanctumKey || celestialDefeated < 3) {
           return {
             type: 'moved',
             room,
@@ -772,11 +836,12 @@ export class RoomManager {
             steppedOnShopTile: false,
             steppedOnMinigameTile: false,
             steppedOnSecretQuestionTile: false,
+            steppedOnSlotTile: false,
+            questBoard: null,
             secretPortalPrompt: {
               hasFinalKey,
-              hasBlueEssence,
-              hasCoins,
-              coins: player.gold ?? 0,
+              hasSanctumKey,
+              celestialDefeated,
             },
             openedChest: null,
             hitBlueCreature: false,
@@ -784,8 +849,21 @@ export class RoomManager {
             tileY: nextY,
           };
         }
-        player.gold -= 1000;
         room.secretRoomUnlocked = true;
+      }
+
+      const key = portalKey(currentMap.id, portal.x, portal.y);
+      const roadOpen =
+        !portalNeedsRoad(portal.targetRegionId) ||
+        (room.visitedRegions ?? []).includes(portal.targetRegionId) ||
+        (room.unlockedPortals ?? []).includes(key);
+      if (!roadOpen) {
+        return {
+          type: 'portal_blocked',
+          room,
+          message:
+            'Este camino está cerrado. Habla con el tablón, a dos casillas del portal.',
+        };
       }
 
       const prevPortal = this.lastPortalAt.get(room.code) ?? 0;
@@ -802,6 +880,8 @@ export class RoomManager {
         });
 
         room.roamingMonsters = spawnRoamingMonstersForRegion(targetMap);
+        room.visitedRegions = room.visitedRegions ?? ['valderroble'];
+        if (!room.visitedRegions.includes(targetMap.id)) room.visitedRegions.push(targetMap.id);
         this.advanceQuest(room, 'portal');
         this.scheduleSave();
         return {
@@ -811,6 +891,21 @@ export class RoomManager {
           toRegionName: targetMap.name,
           triggeredByName: player.name,
         };
+      }
+    }
+
+    const boardPortal = currentMap.portals.find((candidate) => {
+      if (!portalNeedsRoad(candidate.targetRegionId)) return false;
+      const spot = questBoardSpot(currentMap, candidate);
+      return spot?.x === nextX && spot?.y === nextY;
+    });
+    let questBoard: QuestBoardPayload | null = null;
+    if (boardPortal) {
+      const boardCooldownKey = `${room.code}:${player.id}:${nextX},${nextY}`;
+      const readyAt = this.boardCooldowns.get(boardCooldownKey) ?? 0;
+      if (now >= readyAt) {
+        this.boardCooldowns.set(boardCooldownKey, now + 8_000);
+        questBoard = this.describeBoard(room, currentMap.id, boardPortal);
       }
     }
 
@@ -897,9 +992,8 @@ export class RoomManager {
         this.secretPortalCooldowns.set(spKey, now + 10_000);
         secretPortalPrompt = {
           hasFinalKey: (room.bossKeys ?? []).includes('key_final_boss'),
-          hasBlueEssence: (room.bossKeys ?? []).includes('key_blue_creature'),
-          hasCoins: (player.gold ?? 0) >= 1000,
-          coins: player.gold ?? 0,
+          hasSanctumKey: Boolean(room.sanctumKey),
+          celestialDefeated: room.celestialDefeated ?? 0,
         };
       }
     }
@@ -915,6 +1009,8 @@ export class RoomManager {
       steppedOnShopTile: landedTile === 'shop',
       steppedOnMinigameTile: landedTile === 'minigame',
       steppedOnSecretQuestionTile: landedTile === 'secret_question',
+      steppedOnSlotTile: landedTile === 'slot',
+      questBoard,
       secretPortalPrompt,
       hitBlueCreature,
       mapNotice,
@@ -926,14 +1022,17 @@ export class RoomManager {
 
   private grantXp(player: PlayerState, amount: number): number {
     if (amount <= 0) return 0;
-    player.xp = (player.xp ?? 0) + amount;
+    const gained = player.race === 'Human' ? Math.round(amount * 1.1) : amount;
+    player.xp = (player.xp ?? 0) + gained;
     player.level = player.level ?? 1;
     let gainedLevels = 0;
 
     while (player.xp >= xpForNextLevel(player.level)) {
       player.xp -= xpForNextLevel(player.level);
       player.level += 1;
-      player.skillPoints = (player.skillPoints ?? 0) + 1;
+      if (skillPointOnLevel(player.level)) {
+        player.skillPoints = (player.skillPoints ?? 0) + 1;
+      }
       player.maxHp += 2;
       player.hp = Math.min(player.maxHp, player.hp + 2);
       player.attackMod += 1;
@@ -1265,6 +1364,7 @@ export class RoomManager {
     room.activeInternalEvent = null;
     room.phase = 'playing';
     this.advanceQuest(room, 'event');
+    this.noteBoardProgress(room, 'event');
     this.scheduleSave();
 
     return {
@@ -1279,6 +1379,92 @@ export class RoomManager {
       },
       room: this.toPublicRoom(room),
     };
+  }
+
+  private describeBoard(room: InternalRoom, regionId: string, portal: PortalDef): QuestBoardPayload {
+    const key = portalKey(regionId, portal.x, portal.y);
+    const target = roadTaskTarget(portal.minLevel);
+    const destination = getRegion(portal.targetRegionId).name;
+    const done =
+      (room.visitedRegions ?? []).includes(portal.targetRegionId) ||
+      (room.unlockedPortals ?? []).includes(key);
+    const task = (room.boardTasks ?? []).find((item) => item.portalKey === key);
+    if (done) {
+      return { portalKey: key, destination, combatTarget: target, eventTarget: target, status: 'done' };
+    }
+    if (task) {
+      return {
+        portalKey: key,
+        destination,
+        combatTarget: target,
+        eventTarget: target,
+        status: 'active',
+        kind: task.kind,
+        progress: task.progress,
+        target: task.target,
+      };
+    }
+    return { portalKey: key, destination, combatTarget: target, eventTarget: target, status: 'open' };
+  }
+
+  public acceptBoardTask(
+    socketId: string,
+    portalKeyValue: string,
+    kind: 'combat' | 'event'
+  ): { room: InternalRoom; notice: string } | { error: string } {
+    const binding = this.socketToBinding.get(socketId);
+    if (!binding) return { error: 'No estás en ninguna sala.' };
+    const room = this.rooms.get(binding.roomCode);
+    const player = room?.players.find((p) => p.id === binding.playerId);
+    if (!room || !player || room.phase !== 'playing') {
+      return { error: 'Ahora no puedes aceptar esa tarea.' };
+    }
+    const map = getRegion(room.regionId);
+    const portal = map.portals.find((p) => portalKey(map.id, p.x, p.y) === portalKeyValue);
+    if (!portal || !portalNeedsRoad(portal.targetRegionId)) {
+      return { error: 'Ese tablón no existe.' };
+    }
+    if (
+      (room.visitedRegions ?? []).includes(portal.targetRegionId) ||
+      (room.unlockedPortals ?? []).includes(portalKeyValue)
+    ) {
+      return { error: 'Ese camino ya está abierto.' };
+    }
+    room.boardTasks = room.boardTasks ?? [];
+    if (room.boardTasks.some((task) => task.portalKey === portalKeyValue)) {
+      return { error: 'Ya hay una tarea aceptada en este tablón.' };
+    }
+    const target = roadTaskTarget(portal.minLevel);
+    room.boardTasks.push({
+      portalKey: portalKeyValue,
+      destination: getRegion(portal.targetRegionId).name,
+      kind,
+      progress: 0,
+      target,
+    });
+    this.scheduleSave();
+    const label = kind === 'combat' ? `${target} combate${target === 1 ? '' : 's'}` : `${target} evento${target === 1 ? '' : 's'}`;
+    return {
+      room,
+      notice: `${player.name} aceptó el tablón hacia ${getRegion(portal.targetRegionId).name}: ${label} en este reino.`,
+    };
+  }
+
+  private noteBoardProgress(room: InternalRoom, kind: 'combat' | 'event'): void {
+    const prefix = `${room.regionId}:`;
+    let opened = false;
+    for (const task of room.boardTasks ?? []) {
+      if (task.kind !== kind || !task.portalKey.startsWith(prefix) || task.progress >= task.target) continue;
+      task.progress += 1;
+      if (task.progress >= task.target) {
+        room.unlockedPortals = room.unlockedPortals ?? [];
+        if (!room.unlockedPortals.includes(task.portalKey)) room.unlockedPortals.push(task.portalKey);
+        opened = true;
+      }
+    }
+    if (opened) {
+      room.boardTasks = (room.boardTasks ?? []).filter((task) => task.progress < task.target);
+    }
   }
 
   private advanceQuest(room: InternalRoom, type: 'combat' | 'portal' | 'event'): string | null {
@@ -1355,7 +1541,7 @@ export class RoomManager {
       room.players.reduce((sum, p) => sum + (p.level ?? 1), 0) /
       Math.max(1, room.players.length);
     const enemies = isBlueCreature
-      ? [spawnBlueCreatureEnemy()]
+      ? [spawnBlueCreatureEnemy((room.celestialDefeated ?? 0) + 1)]
       : isBoss
         ? [spawnBossForRegion(room.regionId, room.players.length, Math.round(avgLevel))]
         : spawnEnemiesForParty(room.regionId, room.players.length, Math.round(avgLevel));
@@ -1507,6 +1693,11 @@ export class RoomManager {
       const nextIdx = (combat.turnIndex + step) % total;
       if (combat.turnIndex + step >= total) {
         combat.round += 1;
+        const uriel = combat.urielRoundsByPlayer ?? {};
+        for (const id of Object.keys(uriel)) {
+          if (uriel[id] > 0) uriel[id] -= 1;
+        }
+        combat.urielRoundsByPlayer = uriel;
       }
       const candidate = combat.turnOrder[nextIdx];
       if (this.isCombatantAlive(room, candidate)) {
@@ -1527,7 +1718,9 @@ export class RoomManager {
       | 'skill_pierce'
       | 'defend'
       | 'potion'
-      | 'bomb',
+      | 'bomb'
+      | 'mythic_uriel'
+      | 'mythic_raphael',
     targetId?: string,
     qteScore = 0
   ): CombatStepOutcome | { error: string } {
@@ -1974,6 +2167,35 @@ export class RoomManager {
           summary: `${headline} — ${player.name} atraviesa la defensa de ${target.name}.`,
         };
       }
+    } else if (action === 'mythic_uriel' || action === 'mythic_raphael') {
+      const mythicId: MythicId = action === 'mythic_uriel' ? 'uriel' : 'raphael';
+      const owned = player.unlockedMythics ?? [];
+      if (!owned.includes(mythicId)) {
+        return { error: 'No tienes esa habilidad mítica.' };
+      }
+      combat.mythicsUsedByPlayer = combat.mythicsUsedByPlayer ?? {};
+      const used = combat.mythicsUsedByPlayer[player.id] ?? [];
+      if (used.includes(mythicId)) {
+        return { error: 'Esa habilidad ya se usó en este combate.' };
+      }
+      combat.mythicsUsedByPlayer[player.id] = [...used, mythicId];
+      const info = MYTHICS[mythicId];
+      if (mythicId === 'uriel') {
+        combat.urielRoundsByPlayer = { ...(combat.urielRoundsByPlayer ?? {}), [player.id]: 3 };
+        combat.perfectDodgesByPlayer = { ...(combat.perfectDodgesByPlayer ?? {}), [player.id]: 0 };
+      } else {
+        combat.raphaelChargeByPlayer = { ...(combat.raphaelChargeByPlayer ?? {}), [player.id]: 3 };
+      }
+      const headline = `${info.name}. ${info.title}.`;
+      roll = {
+        actorId: player.id,
+        actorName: player.name,
+        actorKind: 'player',
+        actionType: 'special',
+        headline,
+        hit: true,
+        summary: `${player.name} invoca a ${info.name}. ${info.blurb}`,
+      };
     } else if (action === 'bomb') {
       const target = resolveTarget();
       if ('error' in target) return target;
@@ -2181,6 +2403,16 @@ export class RoomManager {
     const pending = this.pendingEnemyTarget.get(binding.roomCode);
     if (!pending || pending.targetId !== binding.playerId) return false;
     pending.dodgeReduction = quality === 'perfect' ? 30 : quality === 'medium' ? 15 : 0;
+    if (quality === 'perfect') {
+      const room = this.rooms.get(binding.roomCode);
+      const combat = room?.combat;
+      const rounds = combat?.urielRoundsByPlayer?.[binding.playerId] ?? 0;
+      if (combat && rounds > 0) {
+        combat.perfectDodgesByPlayer = combat.perfectDodgesByPlayer ?? {};
+        combat.perfectDodgesByPlayer[binding.playerId] =
+          (combat.perfectDodgesByPlayer[binding.playerId] ?? 0) + 1;
+      }
+    }
     return true;
   }
 
@@ -2243,6 +2475,7 @@ export class RoomManager {
     }
 
     this.advanceQuest(room, 'combat');
+    this.noteBoardProgress(room, 'combat');
     this.scheduleSave();
 
     return {
@@ -2263,6 +2496,8 @@ export class RoomManager {
     const combat = room.combat;
     const activeTurn = combat.turnOrder[combat.turnIndex];
     if (!activeTurn || activeTurn.kind !== 'enemy') return null;
+
+    this.healRaphaelCharges(room);
 
     const enemy = combat.enemies.find((e) => e.id === activeTurn.id && e.hp > 0);
     if (!enemy) {
@@ -2316,7 +2551,9 @@ export class RoomManager {
     if (enemy.isBoss && enemy.bossPhase === 2 && Math.random() < 0.35) {
       const aoeDmg = rollDiceExpression('1d6+3');
       for (const lp of livingPlayers) {
-        lp.hp = Math.max(0, lp.hp - aoeDmg.total);
+        const hit = this.resolveIncomingDamage(room, lp, aoeDmg.total, 0);
+        lp.hp = Math.max(0, lp.hp - hit.damage);
+        this.reflectUriel(room, hit.reflected);
         combat.playerStatuses = combat.playerStatuses ?? {};
         const cur = combat.playerStatuses[lp.id] ?? [];
         combat.playerStatuses[lp.id] = [
@@ -2340,6 +2577,11 @@ export class RoomManager {
       combat.log = [...combat.log, roll.summary].slice(-20);
       if (!room.players.some((p) => p.hp > 0)) {
         return { type: 'ended', outcome: this.finishCombat(room, false) };
+      }
+      if (this.tickRaphaelCharges(room) || !combat.enemies.some((e) => e.hp > 0)) {
+        const outcome = this.finishCombat(room, true);
+        outcome.lastRoll = roll;
+        return { type: 'ended', outcome };
       }
       this.advanceTurnIndex(room);
       this.scheduleSave();
@@ -2367,11 +2609,10 @@ export class RoomManager {
     let roll: DiceRollBreakdown;
     if (hit) {
       const dmg = rollDiceExpression(enemy.damageDice, critical);
-      const finalDmg =
-        dodgeReduction > 0
-          ? Math.max(1, Math.round(dmg.total * (1 - dodgeReduction / 100)))
-          : dmg.total;
+      const resolved = this.resolveIncomingDamage(room, target, dmg.total, dodgeReduction);
+      const finalDmg = resolved.damage;
       target.hp = Math.max(0, target.hp - finalDmg);
+      this.reflectUriel(room, resolved.reflected);
       let statusNote = '';
       if (Math.random() < 0.25) {
         const applied: StatusKind =
@@ -2390,12 +2631,7 @@ export class RoomManager {
         ];
         statusNote = applied === 'poison' ? ' (+Veneno)' : ' (+Quemadura)';
       }
-      const dodgeNote =
-        dodgeReduction === 30
-          ? ' (Esquiva perfecta -30%)'
-          : dodgeReduction === 15
-            ? ' (Esquiva media -15%)'
-            : '';
+      const dodgeNote = resolved.notes ? ` (${resolved.notes})` : '';
       const headline = critical
         ? `¡Golpe crítico! ${finalDmg} de daño${dodgeNote}${statusNote}`
         : `¡Impacto enemigo! ${finalDmg} de daño${dodgeNote}${statusNote}`;
@@ -2474,9 +2710,110 @@ export class RoomManager {
       return { type: 'ended', outcome: this.finishCombat(room, false) };
     }
 
+    if (this.tickRaphaelCharges(room)) {
+      const finalRoll = combat.lastRoll;
+      const outcome = this.finishCombat(room, true);
+      outcome.lastRoll = finalRoll;
+      return { type: 'ended', outcome };
+    }
+    if (!combat.enemies.some((e) => e.hp > 0)) {
+      const finalRoll = combat.lastRoll;
+      const outcome = this.finishCombat(room, true);
+      outcome.lastRoll = finalRoll;
+      return { type: 'ended', outcome };
+    }
+
     this.advanceTurnIndex(room);
     this.scheduleSave();
     return { type: 'updated', room, roll };
+  }
+
+  private resolveIncomingDamage(
+    room: InternalRoom,
+    player: PlayerState,
+    raw: number,
+    dodgeReduction: number
+  ): { damage: number; notes: string; reflected: number } {
+    const combat = room.combat;
+    let damage =
+      dodgeReduction > 0 ? Math.max(1, Math.round(raw * (1 - dodgeReduction / 100))) : raw;
+    const notes: string[] = [];
+    if (dodgeReduction === 30) notes.push('Esquiva perfecta, -30%');
+    else if (dodgeReduction === 15) notes.push('Esquiva media, -15%');
+
+    if ((combat?.raphaelChargeByPlayer?.[player.id] ?? 0) > 0) {
+      damage = Math.max(1, Math.round(damage * 0.7));
+      notes.push('Raphael, -30%');
+    }
+    if (combat?.godlyCurse) {
+      damage = Math.max(1, Math.round(damage * 0.1));
+      notes.push('Maldición, -90%');
+    }
+
+    let reflected = 0;
+    if ((combat?.urielRoundsByPlayer?.[player.id] ?? 0) > 0) {
+      if (dodgeReduction === 30 && (combat?.perfectDodgesByPlayer?.[player.id] ?? 0) >= 3) {
+        reflected = raw;
+        notes.push('Uriel devuelve el golpe');
+      }
+      damage = 0;
+      notes.push('Uriel bloquea');
+    }
+    return { damage, notes: notes.join('. '), reflected };
+  }
+
+  private reflectUriel(room: InternalRoom, amount: number): void {
+    if (amount <= 0 || !room.combat || room.combat.mode !== 'pve') return;
+    const victims = room.combat.enemies.filter((enemy) => enemy.hp > 0).slice(0, 2);
+    for (const enemy of victims) {
+      enemy.hp = Math.max(0, enemy.hp - amount);
+    }
+    if (victims.length > 0) {
+      room.combat.log = [
+        ...room.combat.log,
+        `Uriel devuelve ${amount} de daño a ${victims.map((enemy) => enemy.name).join(' y ')}.`,
+      ].slice(-20);
+    }
+  }
+
+  private healRaphaelCharges(room: InternalRoom): void {
+    const combat = room.combat;
+    if (!combat) return;
+    const charges = combat.raphaelChargeByPlayer ?? {};
+    for (const player of room.players) {
+      if ((charges[player.id] ?? 0) <= 0 || player.hp <= 0) continue;
+      const heal = Math.max(1, Math.round(player.maxHp * 0.15));
+      const before = player.hp;
+      player.hp = Math.min(player.maxHp, player.hp + heal);
+      const gained = player.hp - before;
+      if (gained > 0) {
+        combat.log = [...combat.log, `Raphael cura a ${player.name}: +${gained} de vida.`].slice(-20);
+      }
+    }
+  }
+
+  private tickRaphaelCharges(room: InternalRoom): boolean {
+    const combat = room.combat;
+    if (!combat) return false;
+    const charges = { ...(combat.raphaelChargeByPlayer ?? {}) };
+    let fired = false;
+    for (const id of Object.keys(charges)) {
+      if (charges[id] > 0) {
+        charges[id] -= 1;
+        if (charges[id] === 0) fired = true;
+      }
+    }
+    combat.raphaelChargeByPlayer = charges;
+    if (!fired) return false;
+    for (const enemy of combat.enemies) {
+      if (enemy.hp > 0) enemy.hp = Math.max(0, enemy.hp - 150);
+    }
+    combat.godlyCurse = true;
+    combat.log = [
+      ...combat.log,
+      'El haz de Raphael inflige 150 a todos los enemigos. Maldición: hacen un 90% menos de daño.',
+    ].slice(-20);
+    return !combat.enemies.some((enemy) => enemy.hp > 0);
   }
 
   private finishCombat(room: InternalRoom, victory: boolean): CombatEndedPayload {
@@ -2496,12 +2833,14 @@ export class RoomManager {
         if (p.hp <= 0) p.hp = 1;
       }
       if (combat.isBlueCreature) {
-        room.bossKeys = room.bossKeys ?? [];
-        if (!room.bossKeys.includes('key_blue_creature')) {
-          room.bossKeys.push('key_blue_creature');
-          earnedBossKeyLabel = '?';
+        room.celestialDefeated = Math.min(3, (room.celestialDefeated ?? 0) + 1);
+        earnedBossKeyLabel = `Criatura celeste ${room.celestialDefeated}/3`;
+        if (room.celestialDefeated < 3) {
+          const nextTier = (room.celestialDefeated + 1) as 1 | 2 | 3;
+          room.blueCreature = spawnBlueCreature(room.regionId, nextTier);
+        } else {
+          room.blueCreature = null;
         }
-        room.blueCreature = spawnBlueCreature(room.regionId);
       } else if (combat.isBoss) {
         if (room.regionId === 'camara-final') {
           room.bossKeys = room.bossKeys ?? [];
@@ -2521,6 +2860,7 @@ export class RoomManager {
         }
       }
       this.advanceQuest(room, 'combat');
+      this.noteBoardProgress(room, 'combat');
     } else {
       const map = getRegion(room.regionId);
       room.players.forEach((p, idx) => {
@@ -2531,15 +2871,17 @@ export class RoomManager {
       });
     }
 
+    const finalRoll = combat?.lastRoll ?? null;
     room.combat = null;
     room.phase = 'playing';
     this.scheduleSave();
 
-    const keyPart = earnedBossKeyLabel ? ` ¡Obtuvieron la ${earnedBossKeyLabel}!` : '';
+    const keyPart = earnedBossKeyLabel ? ` Llave obtenida: ${earnedBossKeyLabel}.` : '';
     return {
       victory,
       xpGained,
       goldGained,
+      lastRoll: finalRoll,
       summary: victory
         ? `¡Victoria! El grupo derrotó a los enemigos (+${xpGained} EXP, +${goldGained} Oro).${keyPart}`
         : 'El grupo cayó en combate y despertó a salvo en la entrada del reino con 50% de PV.',
@@ -2594,6 +2936,20 @@ export class RoomManager {
     const item = SHOP_ITEMS.find((i) => i.id === itemId);
     if (!item) return { error: 'Objeto no encontrado en la tienda.' };
 
+    if (item.id === 'sanctum_key') {
+      if (room.sanctumKey) return { error: 'El grupo ya tiene la Llave del Eclipse.' };
+      if ((player.gold ?? 0) < item.price) {
+        return { error: `No tienes suficientes monedas (cuesta ${item.price}).` };
+      }
+      player.gold -= item.price;
+      room.sanctumKey = true;
+      this.scheduleSave();
+      return {
+        room,
+        notice: `${player.name} compró la Llave del Eclipse por ${item.price} monedas.`,
+      };
+    }
+
     if ((player.gold ?? 0) < item.price) {
       return { error: `No tienes suficientes monedas (cuesta ${item.price}).` };
     }
@@ -2631,6 +2987,119 @@ export class RoomManager {
     return {
       room,
       notice: `${player.name} compró ${item.name} por ${item.price} monedas.`,
+    };
+  }
+
+  public chooseSubclass(
+    socketId: string,
+    subclassId: SubclassId
+  ): { room: InternalRoom; notice: string } | { error: string } {
+    const binding = this.socketToBinding.get(socketId);
+    if (!binding) return { error: 'No estás en ninguna sala.' };
+    const room = this.rooms.get(binding.roomCode);
+    const player = room?.players.find((p) => p.id === binding.playerId);
+    if (!room || !player) return { error: 'Personaje no encontrado.' };
+    if ((player.level ?? 1) < 5) return { error: 'La subclase se elige al llegar a nivel 5.' };
+    if (player.subclass) return { error: 'Ya elegiste una subclase.' };
+    const def = SUBCLASSES[subclassId];
+    if (!def || def.race !== (player.race ?? 'Human')) {
+      return { error: 'Esa subclase no pertenece a tu raza.' };
+    }
+    player.subclass = subclassId;
+    player.playerClass = def.archetype;
+    if (subclassId === 'knight' || subclassId === 'mage' || subclassId === 'summoner') {
+      player.attackMod += 1;
+    } else if (subclassId === 'rogue') {
+      player.luckBonus = (player.luckBonus ?? 0) + 1;
+    } else if (subclassId === 'explorer' || subclassId === 'dancer') {
+      player.luckBonus = (player.luckBonus ?? 0) + 2;
+    } else if (subclassId === 'guardian') {
+      player.maxHp += 4;
+      player.hp += 4;
+      player.ac += 1;
+    } else if (subclassId === 'forgemaster') {
+      player.attackMod += 2;
+    } else if (subclassId === 'berserker') {
+      player.attackMod += 3;
+      player.ac = Math.max(1, player.ac - 1);
+    }
+    this.scheduleSave();
+    return { room, notice: `${player.name} eligió la subclase ${def.name}.` };
+  }
+
+  public spinSlot(socketId: string): SlotSpinPayload | { error: string } {
+    const binding = this.socketToBinding.get(socketId);
+    if (!binding) return { error: 'No estás en ninguna sala.' };
+    const room = this.rooms.get(binding.roomCode);
+    const player = room?.players.find((p) => p.id === binding.playerId);
+    if (!room || !player || room.phase !== 'playing') {
+      return { error: 'Ahora no puedes tirar de la tragaperras.' };
+    }
+    if ((player.gold ?? 0) < SLOT_COST_GOLD) {
+      return { error: 'Necesitas 100 monedas.' };
+    }
+    const keyId = (room.bossKeys ?? []).find((id) =>
+      (LOCAL_BOSS_KEY_IDS as readonly string[]).includes(id)
+    );
+    if (!keyId) {
+      return { error: 'Necesitas una llave de jefe local.' };
+    }
+    player.gold -= SLOT_COST_GOLD;
+    room.bossKeys = (room.bossKeys ?? []).filter((id) => id !== keyId);
+
+    const roll = Math.random() * 100;
+    let rarity: SlotRarity = 'comun';
+    if (roll < 1) rarity = 'mitico';
+    else if (roll < 10) rarity = 'legendario';
+    else if (roll < 40) rarity = 'epico';
+    else if (roll < 75) rarity = 'raro';
+
+    if (rarity === 'mitico') {
+      const owned = player.unlockedMythics ?? [];
+      const pool = (['uriel', 'raphael'] as MythicId[]).filter((id) => !owned.includes(id));
+      if (pool.length === 0) {
+        player.gold += 400;
+        this.scheduleSave();
+        return {
+          rarity,
+          jackpot: true,
+          gold: 400,
+          xp: 0,
+          summary: 'Jackpot. Ya tienes a Uriel y a Raphael. La máquina deja 400 monedas.',
+          room: this.toPublicRoom(room),
+        };
+      }
+      const mythicId = pool[Math.floor(Math.random() * pool.length)];
+      player.unlockedMythics = [...owned, mythicId];
+      const info = MYTHICS[mythicId];
+      this.scheduleSave();
+      return {
+        rarity,
+        jackpot: true,
+        mythicId,
+        gold: 0,
+        xp: 0,
+        summary: `Jackpot. ${info.name}, ${info.title}. ${info.blurb}`,
+        room: this.toPublicRoom(room),
+      };
+    }
+
+    const reward = this.grantChestReward(player, rarity);
+    this.scheduleSave();
+    const itemBit = reward.inventoryFull
+      ? ' La mochila está llena.'
+      : reward.itemName
+        ? ` Recibes ${reward.itemName}.`
+        : '';
+    return {
+      rarity,
+      jackpot: false,
+      gold: reward.gold,
+      xp: reward.xp,
+      itemName: reward.itemName,
+      inventoryFull: reward.inventoryFull,
+      summary: `${RARITY_LABELS[rarity]}. +${reward.gold} monedas y +${reward.xp} EXP.${itemBit}`,
+      room: this.toPublicRoom(room),
     };
   }
 
@@ -2929,6 +3398,14 @@ export class RoomManager {
       player.ac += 2;
       player.maxHp += 4;
       player.hp = Math.min(player.maxHp, player.hp + 4);
+    } else if (node.id === 'martial_3') {
+      player.attackMod += 3;
+    } else if (node.id === 'guard_3') {
+      player.ac += 3;
+      player.maxHp += 6;
+      player.hp = Math.min(player.maxHp, player.hp + 6);
+    } else if (node.id === 'focus_3') {
+      player.luckBonus = (player.luckBonus ?? 0) + 4;
     } else if (node.id === 'focus_1') {
       player.attackMod += 1;
       player.luckBonus = (player.luckBonus ?? 0) + 3;
@@ -3206,7 +3683,6 @@ export class RoomManager {
 
   public tickBlueCreature(): Array<{ code: string; creature: BlueCreatureState }> {
     this.blueCreatureTicks += 1;
-    const shouldJumpWorld = this.blueCreatureTicks % 6 === 0;
     const updated: Array<{ code: string; creature: BlueCreatureState }> = [];
     const dirs = [
       { dx: 0, dy: -1 },
@@ -3218,17 +3694,28 @@ export class RoomManager {
     for (const room of this.rooms.values()) {
       if (room.phase !== 'playing') continue;
       if (!room.players.some((p) => p.connected)) continue;
+      if ((room.celestialDefeated ?? 0) >= 3) continue;
 
-      if (!room.blueCreature || shouldJumpWorld) {
-        room.blueCreature = spawnBlueCreature(room.blueCreature?.regionId);
+      const tier = (room.blueCreature?.tier ?? ((room.celestialDefeated ?? 0) + 1)) as 1 | 2 | 3;
+      const jumpEvery = tier === 1 ? 6 : tier === 2 ? 4 : 3;
+      const hideThisTick = tier > 1 && this.blueCreatureTicks % tier !== 0;
+
+      if (!room.blueCreature || this.blueCreatureTicks % jumpEvery === 0) {
+        room.blueCreature = spawnBlueCreature(room.blueCreature?.regionId, tier);
         updated.push({ code: room.code, creature: room.blueCreature });
         continue;
       }
+      if (hideThisTick) continue;
 
       const map = getRegion(room.blueCreature.regionId);
+      if (tier >= 2 && Math.random() < (tier === 3 ? 0.7 : 0.4)) {
+        room.blueCreature = spawnBlueCreature(room.blueCreature.regionId, tier);
+        updated.push({ code: room.code, creature: room.blueCreature });
+        continue;
+      }
       const d = dirs[Math.floor(Math.random() * dirs.length)];
-      const nx = room.blueCreature.x + d.dx;
-      const ny = room.blueCreature.y + d.dy;
+      const nx = room.blueCreature.x + d.dx * tier;
+      const ny = room.blueCreature.y + d.dy * tier;
       const tile = map.tiles[ny]?.[nx];
       if (tile === 'grass' || tile === 'path') {
         room.blueCreature.x = nx;

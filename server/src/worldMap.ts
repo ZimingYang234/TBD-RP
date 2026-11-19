@@ -24,6 +24,7 @@ const CHAR_TO_TILE: Record<string, TileType> = {
   F: 'spring',
   X: 'trap',
   Q: 'secret_question',
+  L: 'slot',
 };
 
 function parseGrid(rows: string[]): TileType[][] {
@@ -78,7 +79,7 @@ export const REGIONS: Record<string, RegionMap> = {
       '#.#H..C..,,..F.....#',
       '#..#####.,,..~~....#',
       '#....~~..E,..~~....#',
-      '#........,,..M.....#',
+      '#...P....,,..M.....#',
       '#P,,,,,,S,,,,,,,,,P#',
       '#........,,..X.....#',
       '#..#.....,,..#####.#',
@@ -101,11 +102,19 @@ export const REGIONS: Record<string, RegionMap> = {
       {
         x: 1,
         y: 7,
-        label: '→ Jefe Final (Nv.10+)',
+        label: '→ Jefe Final (Nv.30+)',
         targetRegionId: 'camara-final',
         targetX: 2,
         targetY: 7,
         minLevel: BOSS_PORTAL_MIN_LEVEL,
+      },
+      {
+        x: 4,
+        y: 6,
+        label: '→ Tragaperras',
+        targetRegionId: 'sala-fortuna',
+        targetX: 2,
+        targetY: 1,
       },
       {
         x: 10,
@@ -114,6 +123,7 @@ export const REGIONS: Record<string, RegionMap> = {
         targetRegionId: 'ventisca',
         targetX: 10,
         targetY: 12,
+        minLevel: 5,
       },
       {
         x: 18,
@@ -122,6 +132,7 @@ export const REGIONS: Record<string, RegionMap> = {
         targetRegionId: 'solceniza',
         targetX: 2,
         targetY: 7,
+        minLevel: 5,
       },
       {
         x: 10,
@@ -130,6 +141,7 @@ export const REGIONS: Record<string, RegionMap> = {
         targetRegionId: 'pantano-bruma',
         targetX: 10,
         targetY: 2,
+        minLevel: 5,
       },
       {
         x: 17,
@@ -140,6 +152,7 @@ export const REGIONS: Record<string, RegionMap> = {
         targetY: 7,
         requiredKey: 'key_valderroble',
         requiredKeyLabel: 'Llave de Valderroble',
+        minLevel: 15,
       },
     ],
     chests: [
@@ -188,6 +201,7 @@ export const REGIONS: Record<string, RegionMap> = {
         targetRegionId: 'plano-astral',
         targetX: 10,
         targetY: 12,
+        minLevel: 15,
       },
       {
         x: 18,
@@ -196,6 +210,7 @@ export const REGIONS: Record<string, RegionMap> = {
         targetRegionId: 'ruinas-olvido',
         targetX: 2,
         targetY: 7,
+        minLevel: 15,
       },
       {
         x: 10,
@@ -206,6 +221,7 @@ export const REGIONS: Record<string, RegionMap> = {
         targetY: 7,
         requiredKey: 'key_solceniza',
         requiredKeyLabel: 'Llave de Solceniza',
+        minLevel: 15,
       },
     ],
     chests: [
@@ -254,6 +270,7 @@ export const REGIONS: Record<string, RegionMap> = {
         targetRegionId: 'plano-astral',
         targetX: 2,
         targetY: 7,
+        minLevel: 15,
       },
       {
         x: 1,
@@ -262,6 +279,7 @@ export const REGIONS: Record<string, RegionMap> = {
         targetRegionId: 'archipielago-coral',
         targetX: 17,
         targetY: 7,
+        minLevel: 15,
       },
       {
         x: 10,
@@ -272,6 +290,7 @@ export const REGIONS: Record<string, RegionMap> = {
         targetY: 7,
         requiredKey: 'key_ventisca',
         requiredKeyLabel: 'Llave de Ventisca',
+        minLevel: 15,
       },
     ],
     chests: [
@@ -324,7 +343,7 @@ export const REGIONS: Record<string, RegionMap> = {
       {
         x: 18,
         y: 7,
-        label: '→ Jefe Final (Nv.10+)',
+        label: '→ Jefe Final (Nv.30+)',
         targetRegionId: 'camara-final',
         targetX: 2,
         targetY: 7,
@@ -337,6 +356,7 @@ export const REGIONS: Record<string, RegionMap> = {
         targetRegionId: 'abismo-cristal',
         targetX: 10,
         targetY: 12,
+        minLevel: 25,
       },
       {
         x: 17,
@@ -347,6 +367,7 @@ export const REGIONS: Record<string, RegionMap> = {
         targetY: 7,
         requiredKey: 'key_astral',
         requiredKeyLabel: 'Llave Astral',
+        minLevel: 25,
       },
     ],
     chests: [
@@ -395,6 +416,7 @@ export const REGIONS: Record<string, RegionMap> = {
         targetRegionId: 'ruinas-olvido',
         targetX: 2,
         targetY: 7,
+        minLevel: 15,
       },
     ],
     chests: [
@@ -491,6 +513,7 @@ export const REGIONS: Record<string, RegionMap> = {
         targetRegionId: 'abismo-cristal',
         targetX: 10,
         targetY: 12,
+        minLevel: 25,
       },
     ],
     chests: [
@@ -767,6 +790,43 @@ export const REGIONS: Record<string, RegionMap> = {
     chests: [],
   }),
 
+  'sala-fortuna': makeRegion({
+    id: 'sala-fortuna',
+    name: 'Sala de la Fortuna',
+    subtitle: 'Una tirada. Una llave. Cien monedas.',
+    modifierLabel: 'Tragaperras: 100 monedas y 1 llave de jefe local',
+    theme: 'ruins',
+    spawn: { x: 2, y: 1 },
+    rows: [
+      '####################',
+      '#P.................#',
+      '#..................#',
+      '#..................#',
+      '#........L.........#',
+      '#..................#',
+      '#..................#',
+      '#..................#',
+      '#..................#',
+      '#..................#',
+      '#..................#',
+      '#..................#',
+      '#..................#',
+      '#..................#',
+      '####################',
+    ],
+    portals: [
+      {
+        x: 1,
+        y: 1,
+        label: '→ Valderroble',
+        targetRegionId: 'valderroble',
+        targetX: 5,
+        targetY: 6,
+      },
+    ],
+    chests: [],
+  }),
+
   'nave-rota': makeRegion({
     id: 'nave-rota',
     name: 'Nave Rota',
@@ -857,7 +917,13 @@ export function spawnRoamingMonstersForRegion(map: RegionMap): RoamingMonster[] 
     map.id === 'forja-oculta' ||
     map.id === 'gruta-hielo' ||
     map.id === 'observatorio-astral';
-  if (isMiniWorld || map.id === 'camara-final' || map.id === 'sala-secreta' || map.id === 'nave-rota') {
+  if (
+    isMiniWorld ||
+    map.id === 'camara-final' ||
+    map.id === 'sala-secreta' ||
+    map.id === 'nave-rota' ||
+    map.id === 'sala-fortuna'
+  ) {
     return [];
   }
 
@@ -896,7 +962,7 @@ const BLUE_CREATURE_KINGDOMS = [
   'abismo-cristal',
 ];
 
-export function spawnBlueCreature(excludeRegionId?: string): BlueCreatureState {
+export function spawnBlueCreature(excludeRegionId?: string, tier: 1 | 2 | 3 = 1): BlueCreatureState {
   const pool = BLUE_CREATURE_KINGDOMS.filter((id) => id !== excludeRegionId);
   const regionId = pool[Math.floor(Math.random() * pool.length)] ?? 'valderroble';
   const map = getRegion(regionId);
@@ -905,11 +971,14 @@ export function spawnBlueCreature(excludeRegionId?: string): BlueCreatureState {
   for (let y = 1; y < map.height - 1; y++) {
     for (let x = 1; x < map.width - 1; x++) {
       const t = map.tiles[y]?.[x];
-      if ((t === 'grass' || t === 'path') && Math.abs(x - map.spawn.x) + Math.abs(y - map.spawn.y) >= 3) {
+      const far = Math.abs(x - map.spawn.x) + Math.abs(y - map.spawn.y);
+      const minFar = 3 + tier * 2;
+      const corner = tier < 3 || x <= 2 || y <= 2 || x >= map.width - 3 || y >= map.height - 3;
+      if ((t === 'grass' || t === 'path') && far >= minFar && corner) {
         candidates.push({ x, y });
       }
     }
   }
   const pos = candidates[Math.floor(Math.random() * candidates.length)] ?? map.spawn;
-  return { regionId, x: pos.x, y: pos.y };
+  return { regionId, x: pos.x, y: pos.y, tier };
 }

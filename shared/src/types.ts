@@ -1,5 +1,18 @@
 export type PlayerClass = 'Fighter' | 'Wizard' | 'Rogue';
 
+export type Race = 'Human' | 'Elf' | 'Dwarf';
+
+export type SubclassId =
+  | 'knight'
+  | 'rogue'
+  | 'mage'
+  | 'explorer'
+  | 'summoner'
+  | 'dancer'
+  | 'guardian'
+  | 'forgemaster'
+  | 'berserker';
+
 export type Direction = 'up' | 'down' | 'left' | 'right';
 
 export type TileType =
@@ -15,7 +28,8 @@ export type TileType =
   | 'minigame'
   | 'spring'
   | 'trap'
-  | 'secret_question';
+  | 'secret_question'
+  | 'slot';
 
 export type RegionTheme =
   | 'verdant'
@@ -30,6 +44,10 @@ export type RegionTheme =
   | 'spaceship';
 
 export type ItemRarity = 'comun' | 'raro' | 'epico' | 'legendario';
+
+export type MythicId = 'uriel' | 'raphael';
+
+export type SlotRarity = ItemRarity | 'mitico';
 
 export type ItemKind = 'consumable' | 'weapon' | 'armor' | 'upgrade';
 
@@ -68,6 +86,7 @@ export interface BlueCreatureState {
   regionId: string;
   x: number;
   y: number;
+  tier?: 1 | 2 | 3;
 }
 
 export interface SecretQuestionState {
@@ -101,15 +120,18 @@ export interface RegionMap {
 export type SkillNodeId =
   | 'martial_1'
   | 'martial_2'
+  | 'martial_3'
   | 'guard_1'
   | 'guard_2'
+  | 'guard_3'
   | 'focus_1'
-  | 'focus_2';
+  | 'focus_2'
+  | 'focus_3';
 
 export interface SkillNodeDef {
   id: SkillNodeId;
   branch: 'Marcial' | 'Baluarte' | 'Arcano';
-  tier: 1 | 2;
+  tier: 1 | 2 | 3;
   name: string;
   kind: 'passive' | 'active';
   cost: number;
@@ -123,6 +145,8 @@ export interface PlayerState {
   token: string;
   name: string;
   playerClass: PlayerClass;
+  race?: Race;
+  subclass?: SubclassId | null;
   x: number;
   y: number;
   regionId: string;
@@ -136,6 +160,7 @@ export interface PlayerState {
   level: number;
   skillPoints: number;
   unlockedSkills: SkillNodeId[];
+  unlockedMythics?: MythicId[];
   luckBonus: number;
   inventory: Record<string, number>;
   shopUpgrades?: Record<string, number>;
@@ -228,9 +253,33 @@ export interface CombatState {
   potionsLeftByPlayer: Record<string, number>;
   specialUsedByPlayer: Record<string, boolean>;
   unlockedSpecialsUsedByPlayer?: Record<string, string[]>;
+  mythicsUsedByPlayer?: Record<string, MythicId[]>;
+  urielRoundsByPlayer?: Record<string, number>;
+  raphaelChargeByPlayer?: Record<string, number>;
+  perfectDodgesByPlayer?: Record<string, number>;
+  godlyCurse?: boolean;
   playerStatuses?: Record<string, CombatStatus[]>;
   lastRoll: DiceRollBreakdown | null;
   log: string[];
+}
+
+export interface BoardTaskState {
+  portalKey: string;
+  destination: string;
+  kind: 'combat' | 'event';
+  progress: number;
+  target: number;
+}
+
+export interface QuestBoardPayload {
+  portalKey: string;
+  destination: string;
+  combatTarget: number;
+  eventTarget: number;
+  status: 'open' | 'active' | 'done';
+  kind?: 'combat' | 'event';
+  progress?: number;
+  target?: number;
 }
 
 export interface QuestState {
@@ -260,6 +309,19 @@ export interface CombatEndedPayload {
   summary: string;
   xpGained: number;
   goldGained: number;
+  lastRoll?: DiceRollBreakdown | null;
+  room: PublicRoomState;
+}
+
+export interface SlotSpinPayload {
+  rarity: SlotRarity;
+  jackpot: boolean;
+  mythicId?: MythicId;
+  gold: number;
+  xp: number;
+  itemName?: string;
+  inventoryFull?: boolean;
+  summary: string;
   room: PublicRoomState;
 }
 
@@ -312,6 +374,11 @@ export interface PublicRoomState {
   roamingMonsters?: RoamingMonster[];
   blueCreature?: BlueCreatureState | null;
   secretRoomUnlocked?: boolean;
+  sanctumKey?: boolean;
+  celestialDefeated?: number;
+  visitedRegions?: string[];
+  unlockedPortals?: string[];
+  boardTasks?: BoardTaskState[];
 }
 
 export interface JoinSuccessPayload {
@@ -322,13 +389,13 @@ export interface JoinSuccessPayload {
 
 export interface CreateRoomPayload {
   playerName: string;
-  playerClass: PlayerClass;
+  race: Race;
 }
 
 export interface JoinRoomPayload {
   roomCode: string;
   playerName: string;
-  playerClass: PlayerClass;
+  race: Race;
   playerToken?: string;
 }
 
@@ -383,11 +450,13 @@ export interface ServerToClientEvents {
   open_minigame: (payload: { game: 'memory' | 'reflex' | 'chest_guess' | 'riddle' | 'arena' }) => void;
   open_secret_question: (payload: SecretQuestionState) => void;
   secret_question_result: (payload: { correct: boolean; message: string; canCustomize: boolean }) => void;
+  open_quest_board: (payload: QuestBoardPayload) => void;
+  open_slot: () => void;
+  slot_result: (payload: SlotSpinPayload) => void;
   open_secret_portal_reqs: (payload: {
     hasFinalKey: boolean;
-    hasBlueEssence: boolean;
-    hasCoins: boolean;
-    coins: number;
+    hasSanctumKey: boolean;
+    celestialDefeated: number;
   }) => void;
   save_code_generated: (payload: { saveCode: string }) => void;
   room_error: (payload: { message: string; code?: string }) => void;
@@ -416,7 +485,9 @@ export interface ClientToServerEvents {
       | 'skill_pierce'
       | 'defend'
       | 'potion'
-      | 'bomb';
+      | 'bomb'
+      | 'mythic_uriel'
+      | 'mythic_raphael';
     targetId?: string;
     qteScore?: number;
   }) => void;
@@ -431,6 +502,8 @@ export interface ClientToServerEvents {
   drop_item: (payload: { itemId: string }) => void;
   give_item: (payload: { itemId: string; targetPlayerId: string }) => void;
   unlock_skill: (payload: { skillId: SkillNodeId }) => void;
+  choose_subclass: (payload: { subclassId: SubclassId }) => void;
+  accept_board_task: (payload: { portalKey: string; kind: 'combat' | 'event' }) => void;
   redeem_code: (payload: { code: string }) => void;
   export_save_code: () => void;
   load_save_code: (payload: { saveCode: string }) => void;
@@ -441,6 +514,7 @@ export interface ClientToServerEvents {
     options: [string, string, string];
     correctIndex: number;
   }) => void;
+  spin_slot: () => void;
   complete_minigame: (payload: {
     game: 'memory' | 'reflex' | 'chest_guess' | 'riddle' | 'arena';
     difficulty: 'normal' | 'dificil';
