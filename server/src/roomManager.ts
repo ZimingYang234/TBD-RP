@@ -927,11 +927,12 @@ export class RoomManager {
       }
     }
 
-    const boardPortal = currentMap.portals.find((candidate) => {
-      if (!portalNeedsRoad(candidate.targetRegionId, candidate.minLevel)) return false;
-      const spot = questBoardSpot(currentMap, candidate);
-      return spot?.x === nextX && spot?.y === nextY;
-    });
+    const boardSpot = questBoardSpot(currentMap);
+    const boardPortal =
+      boardSpot && boardSpot.x === nextX && boardSpot.y === nextY
+        ? currentMap.portals.find((candidate) => portalNeedsRoad(candidate.targetRegionId, candidate.minLevel)) ??
+          currentMap.portals[0]
+        : undefined;
     let questBoard: QuestBoardPayload | null = null;
     if (boardPortal) {
       const boardCooldownKey = `${room.code}:${player.id}:${nextX},${nextY}`;

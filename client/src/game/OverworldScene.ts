@@ -4,7 +4,6 @@ import {
   PLAYER_CLASSES,
   RARITY_LABELS,
   TILE_SIZE,
-  portalNeedsRoad,
   questBoardSpot,
   type Direction,
   type ItemRarity,
@@ -1038,11 +1037,8 @@ export class OverworldScene extends Phaser.Scene {
     this.boardLabels = [];
 
     const overlay = this.ensureDomOverlay();
-    for (const portal of map.portals) {
-      if (!portalNeedsRoad(portal.targetRegionId, portal.minLevel)) continue;
-      if ((this.room?.visitedRegions ?? []).includes(portal.targetRegionId)) continue;
-      const spot = questBoardSpot(map, portal);
-      if (!spot) continue;
+    const spot = questBoardSpot(map);
+    if (spot) {
       const cx = spot.x * TILE_SIZE + TILE_SIZE / 2;
       const cy = spot.y * TILE_SIZE + TILE_SIZE / 2;
       const post = this.add.rectangle(cx, cy + 6, 10, 22, 0x6b4f2a, 1).setDepth(4);
@@ -1051,13 +1047,14 @@ export class OverworldScene extends Phaser.Scene {
         .setStrokeStyle(2, 0x92400e, 1)
         .setDepth(5);
       this.boardObjects.push(post, sign);
-      if (!overlay) continue;
+      if (overlay) {
       const label = document.createElement('div');
       label.className = 'map-portal-label';
       label.textContent = 'Tablón';
       overlay.appendChild(label);
       this.positionDomLabel(label, cx, cy - 34);
       this.boardLabels.push(label);
+      }
     }
   }
 

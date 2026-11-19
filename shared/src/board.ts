@@ -1,4 +1,4 @@
-import type { PortalDef, RegionMap } from './types.js';
+import type { RegionMap } from './types.js';
 
 const FREE_REGIONS = new Set(['sala-fortuna', 'sala-secreta', 'nave-rota']);
 
@@ -19,29 +19,15 @@ export function roadTaskTarget(minLevel?: number): number {
   return 1;
 }
 
-export function questBoardSpot(map: RegionMap, portal: PortalDef): { x: number; y: number } | null {
-  const offsets = [
-    [2, 0],
-    [-2, 0],
-    [0, 2],
-    [0, -2],
-    [2, 1],
-    [-2, 1],
-    [2, -1],
-    [-2, -1],
-    [3, 0],
-    [-3, 0],
-    [0, 3],
-    [0, -3],
-  ];
-  for (const [dx, dy] of offsets) {
-    const x = portal.x + dx;
-    const y = portal.y + dy;
-    if (x < 1 || y < 1 || x >= map.width - 1 || y >= map.height - 1) continue;
-    const tile = map.tiles[y]?.[x];
-    if (!tile || tile === 'wall' || tile === 'water' || tile === 'portal') continue;
-    if (map.portals.some((p) => p.x === x && p.y === y)) continue;
-    return { x, y };
-  }
-  return null;
+const MINI_WORLDS = new Set([
+  'santuario-roble',
+  'forja-oculta',
+  'gruta-hielo',
+  'observatorio-astral',
+]);
+
+/** One board per mini world: top-right, one tile away from the walls. */
+export function questBoardSpot(map: RegionMap): { x: number; y: number } | null {
+  if (!MINI_WORLDS.has(map.id)) return null;
+  return { x: map.width - 3, y: 2 };
 }

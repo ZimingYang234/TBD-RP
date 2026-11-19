@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import {
+  questBoardSpot,
   BOSS_PORTAL_MIN_LEVEL,
   type BlueCreatureState,
   type ChestDef,
@@ -50,12 +51,28 @@ function makeRegion(config: {
 }): RegionMap {
   const tiles = parseGrid(config.rows);
   if (BOSS_CORNER_REGIONS.has(config.id)) {
-    const y = tiles.length - 2;
-    const x = (tiles[0]?.length ?? 2) - 2;
+    const y = tiles.length - 3;
+    const x = 2;
     const tile = tiles[y]?.[x];
-    if (tile && tile !== 'wall' && tile !== 'water' && tile !== 'portal') {
+    if (tile !== 'portal') {
       tiles[y][x] = 'boss';
     }
+  }
+  const board = questBoardSpot({
+    id: config.id,
+    name: config.name,
+    subtitle: config.subtitle,
+    theme: config.theme,
+    width: tiles[0]?.length ?? 0,
+    height: tiles.length,
+    tiles,
+    spawn: config.spawn,
+    portals: config.portals,
+    chests: config.chests,
+  });
+  if (board) {
+    const boardTile = tiles[board.y]?.[board.x];
+    if (boardTile === 'wall' || boardTile === 'water') tiles[board.y][board.x] = 'grass';
   }
   return {
     id: config.id,

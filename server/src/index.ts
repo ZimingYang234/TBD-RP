@@ -245,12 +245,6 @@ io.on('connection', (socket) => {
       io.to(outcome.room.code).emit('system_notice', {
         message: `${outcome.triggeredByName} activó un portal: el grupo viajó a ${outcome.toRegionName}.`,
       });
-      void triggerAndBroadcastEvent({
-        roomCode: outcome.room.code,
-        triggeredByName: outcome.triggeredByName,
-        triggerType: 'portal',
-        triggerContext: `El grupo acaba de cruzar un portal mágico desde ${outcome.fromRegionName} hacia ${outcome.toRegionName}.`,
-      });
       return;
     }
 
