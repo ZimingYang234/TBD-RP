@@ -335,17 +335,17 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(circle at center, #131724 0%, #090b10 85%);
+  background: #090b10;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
   padding: 10px;
+  contain: layout paint;
 }
 
 .canvas-host canvas {
   border-radius: 10px;
   border: 1px solid #293147;
-  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.55);
 }
 
 .map-dom-overlay {
@@ -453,11 +453,9 @@ body {
   0%,
   100% {
     opacity: 0.72;
-    letter-spacing: 0.28em;
   }
   50% {
     opacity: 1;
-    letter-spacing: 0.34em;
   }
 }
 

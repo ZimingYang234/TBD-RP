@@ -263,6 +263,10 @@ export class OverworldScene extends Phaser.Scene {
 
   private mapLayer: Phaser.GameObjects.Graphics | null = null;
   private shadowLayer: Phaser.GameObjects.Graphics | null = null;
+  private bakedMapImage: Phaser.GameObjects.Image | null = null;
+  private bakedShadowImage: Phaser.GameObjects.Image | null = null;
+  private bakedMapKey: string | null = null;
+  private bakedShadowKey: string | null = null;
   private propObjects: Phaser.GameObjects.GameObject[] = [];
   private roamingSprites = new Map<string, Phaser.GameObjects.Container>();
   private blueCreatureSprite: Phaser.GameObjects.Container | null = null;
@@ -303,12 +307,15 @@ export class OverworldScene extends Phaser.Scene {
     } else if (this.isSceneReady) {
       this.tweens.resumeAll();
     }
+
+    if (!this.isSceneReady) return;
+    const pauseCanvas = document.hidden || (blocked && this.room?.phase !== 'playing');
+    if (pauseCanvas) this.game.loop.sleep();
+    else this.game.loop.wake();
   }
 
   private getTextResolution(): number {
-    const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
-    if (this.quality === 'low') return Math.max(1.5, Math.min(dpr, 2));
-    return Math.max(2, Math.min(dpr, 2.5));
+    return this.quality === 'high' ? 2 : 1;
   }
 
   public setQuality(quality: GraphicsQuality): void {
@@ -681,6 +688,44 @@ export class OverworldScene extends Phaser.Scene {
     }
   }
 
+  private releaseBake(key: string | null, image: Phaser.GameObjects.Image | null): void {
+    image?.destroy();
+    if (key && this.textures.exists(key)) {
+      this.textures.remove(key);
+    }
+  }
+
+  /** Flatten tile drawing into one image so Chromebooks are not replaying hundreds of fills every frame. */
+  private bakeStaticMap(quality: GraphicsQuality): void {
+    if (!this.mapLayer || !this.room) return;
+    const { map } = this.room;
+    const width = map.width * TILE_SIZE;
+    const height = map.height * TILE_SIZE;
+
+    this.releaseBake(this.bakedMapKey, this.bakedMapImage);
+    this.bakedMapImage = null;
+    this.bakedMapKey = `bake-map-${map.id}-${quality}`;
+    this.mapLayer.setVisible(true).setActive(true);
+    this.mapLayer.generateTexture(this.bakedMapKey, width, height);
+    this.mapLayer.clear();
+    this.mapLayer.setVisible(false).setActive(false);
+    this.bakedMapImage = this.add.image(0, 0, this.bakedMapKey).setOrigin(0, 0).setDepth(1);
+
+    this.releaseBake(this.bakedShadowKey, this.bakedShadowImage);
+    this.bakedShadowImage = null;
+    this.bakedShadowKey = null;
+    if (this.shadowLayer) {
+      if (quality === 'high') {
+        this.bakedShadowKey = `bake-shadow-${map.id}-${quality}`;
+        this.shadowLayer.setVisible(true).setActive(true);
+        this.shadowLayer.generateTexture(this.bakedShadowKey, width, height);
+        this.bakedShadowImage = this.add.image(0, 0, this.bakedShadowKey).setOrigin(0, 0).setDepth(2);
+      }
+      this.shadowLayer.clear();
+      this.shadowLayer.setVisible(false).setActive(false);
+    }
+  }
+
   private redrawMap(): void {
     if (!this.mapLayer || !this.shadowLayer || !this.room) return;
     const { map } = this.room;
@@ -720,8 +765,9 @@ export class OverworldScene extends Phaser.Scene {
           g.fillStyle(base, 1);
           g.fillRect(px, py, TILE_SIZE, TILE_SIZE);
 
-          // Terrain details for medium and high quality
-          if (q !== 'low' && rnd < (q === 'high' ? 0.42 : 0.25)) {
+          // Extra terrain detail is high quality only. It is baked once, but it
+          // still makes region changes heavier on Chromebooks.
+          if (q === 'high' && rnd < 0.42) {
             const dx = px + 14 + Math.floor(rnd * 30);
             const dy = py + 14 + Math.floor(hash2D(y, x) * 30);
 
@@ -810,7 +856,7 @@ export class OverworldScene extends Phaser.Scene {
           g.fillStyle(palette.wallFace, 1);
           g.fillRect(px, py, TILE_SIZE, TILE_SIZE);
 
-          if (q === 'low') {
+          if (q !== 'high') {
             g.fillStyle(palette.wallTop, 1);
             g.fillRect(px + 4, py + 4, TILE_SIZE - 8, TILE_SIZE - 14);
           } else {
@@ -872,6 +918,8 @@ export class OverworldScene extends Phaser.Scene {
       }
     }
 
+    this.bakeStaticMap(q);
+
     // Portals & crisp destination labels
     const mapPixelWidth = map.width * TILE_SIZE;
     for (const portal of map.portals) {
@@ -884,24 +932,8 @@ export class OverworldScene extends Phaser.Scene {
         .setDepth(5);
       const core = this.add.circle(cx, cy, TILE_SIZE * 0.12, palette.portalCore, 0.95).setDepth(7);
 
-      if (q === 'low') {
+      if (q !== 'high') {
         this.propObjects.push(ring, core);
-      } else if (q === 'medium') {
-        const innerRing = this.add
-          .circle(cx, cy, TILE_SIZE * 0.22)
-          .setStrokeStyle(2, palette.portalCore, 0.7)
-          .setDepth(6);
-
-        this.tweens.add({
-          targets: [ring, innerRing],
-          scale: { from: 0.95, to: 1.05 },
-          duration: 950,
-          yoyo: true,
-          repeat: -1,
-          ease: 'Sine.easeInOut',
-        });
-
-        this.propObjects.push(ring, innerRing, core);
       } else {
         const aura = this.add.circle(cx, cy, TILE_SIZE * 0.44, palette.portalGlow, 0.22).setDepth(4);
         const innerRing = this.add
@@ -994,7 +1026,7 @@ export class OverworldScene extends Phaser.Scene {
       .setStrokeStyle(1.5, 0xe0f2fe, 0.95)
       .setDepth(4);
 
-    if (q !== 'low') {
+    if (q === 'high') {
       this.tweens.add({
         targets: star,
         scale: { from: 0.92, to: 1.12 },
@@ -1161,25 +1193,23 @@ export class OverworldScene extends Phaser.Scene {
   private spawnEventMarker(cx: number, cy: number, palette: ThemePalette): void {
     const q = this.quality;
 
-    if (q !== 'low') {
-      if (q === 'high') {
-        const runeHalo = this.add
-          .circle(cx, cy, 24, palette.eventTile, 0.14)
-          .setStrokeStyle(1.5, palette.eventGlow, 0.45)
-          .setDepth(2);
+    if (q === 'high') {
+      const runeHalo = this.add
+        .circle(cx, cy, 24, palette.eventTile, 0.14)
+        .setStrokeStyle(1.5, palette.eventGlow, 0.45)
+        .setDepth(2);
 
-        this.tweens.add({
-          targets: runeHalo,
-          scale: { from: 0.94, to: 1.1 },
-          alpha: { from: 0.1, to: 0.25 },
-          duration: 1200,
-          yoyo: true,
-          repeat: -1,
-          ease: 'Sine.easeInOut',
-        });
+      this.tweens.add({
+        targets: runeHalo,
+        scale: { from: 0.94, to: 1.1 },
+        alpha: { from: 0.1, to: 0.25 },
+        duration: 1200,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      });
 
-        this.propObjects.push(runeHalo);
-      }
+      this.propObjects.push(runeHalo);
 
       const pedestal = this.add
         .circle(cx, cy, 18, 0x1e2230, 0.72)
@@ -1193,7 +1223,7 @@ export class OverworldScene extends Phaser.Scene {
       .setStrokeStyle(2, palette.eventGlow, 0.9)
       .setDepth(4);
 
-    if (q !== 'low') {
+    if (q === 'high') {
       this.tweens.add({
         targets: gem,
         y: cy - 4,
@@ -1213,8 +1243,8 @@ export class OverworldScene extends Phaser.Scene {
     const avatar = this.add.container(0, 0);
     const q = this.quality;
 
-    if (q !== 'low') {
-      const shadow = this.add.ellipse(0, 18, 34, 14, 0x000000, q === 'high' ? 0.38 : 0.28);
+    if (q === 'high') {
+      const shadow = this.add.ellipse(0, 18, 34, 14, 0x000000, 0.38);
       avatar.add(shadow);
     }
 
@@ -1384,6 +1414,13 @@ export class OverworldScene extends Phaser.Scene {
     const targetY = tileY * TILE_SIZE + TILE_SIZE / 2;
 
     this.tweens.killTweensOf(bundle.container);
+    if (this.quality !== 'high') {
+      bundle.container.setPosition(targetX, targetY);
+      if (bundle.labelEl) {
+        this.positionDomLabel(bundle.labelEl, targetX, targetY - TILE_SIZE * 0.6);
+      }
+      return;
+    }
     this.tweens.add({
       targets: bundle.container,
       x: targetX,

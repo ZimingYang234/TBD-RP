@@ -523,15 +523,32 @@ function renderGameShell(room: PublicRoomState): void {
   syncInputLock();
 }
 
+let lastHudSignature = '';
+
 function updateGameHud(room: PublicRoomState): void {
   const codeEl = document.querySelector('#hud-room-code');
   const regionEl = document.querySelector('#hud-region-name');
   const netEl = document.querySelector('#hud-net-status');
   const partyEl = document.querySelector('#hud-party-cards');
+  const hudSignature = [
+    room.code,
+    room.regionId,
+    room.phase,
+    room.map.modifierLabel ?? '',
+    room.quest ? `${room.quest.progress}/${room.quest.target}` : '',
+    room.bossKeys?.length ?? 0,
+    ...room.players.map(
+      (p) =>
+        `${p.id}:${p.hp}:${p.maxHp}:${p.ac}:${p.attackMod}:${p.gold}:${p.xp}:${p.level}:${p.connected}:${p.luckBonus ?? 0}:${p.skillPoints ?? 0}:${p.equippedWeaponId ?? ''}:${p.equippedArmorId ?? ''}:${Object.keys(p.inventory ?? {}).length}`
+    ),
+  ].join('|');
+
+  if (netEl) netEl.textContent = getTransportLabel();
+  if (hudSignature === lastHudSignature && partyEl) return;
+  lastHudSignature = hudSignature;
 
   if (codeEl) codeEl.textContent = room.code;
   if (regionEl) regionEl.textContent = room.map.name;
-  if (netEl) netEl.textContent = getTransportLabel();
 
   const combatBtn = document.querySelector<HTMLButtonElement>('#hud-combat-btn');
   if (combatBtn) {

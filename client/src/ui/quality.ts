@@ -3,15 +3,28 @@ export type GraphicsQuality = 'low' | 'medium' | 'high';
 const QUALITY_STORAGE_KEY = 'tbd_rpg_quality_v1';
 const QUALITY_STYLE_ID = 'tbd-quality-control-styles';
 
-function getDefaultQuality(): GraphicsQuality {
+/** School Chromebooks and other weak devices. Used to keep the renderer cheap. */
+export function isLowPowerDevice(): boolean {
   try {
-    if (typeof navigator !== 'undefined' && navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 2) {
-      return 'low';
-    }
+    const nav = navigator as Navigator & {
+      deviceMemory?: number;
+      connection?: { saveData?: boolean };
+    };
+    const ua = nav.userAgent || '';
+    const cores = nav.hardwareConcurrency || 8;
+    const memory = nav.deviceMemory;
+    if (/CrOS|Chromebook/i.test(ua)) return true;
+    if (nav.connection?.saveData) return true;
+    if (typeof memory === 'number' && memory <= 4) return true;
+    if (cores <= 4) return true;
   } catch {
     // ignore
   }
-  return 'medium';
+  return false;
+}
+
+function getDefaultQuality(): GraphicsQuality {
+  return isLowPowerDevice() ? 'low' : 'medium';
 }
 
 export const QUALITY_LEVELS: readonly GraphicsQuality[] = ['low', 'medium', 'high'];

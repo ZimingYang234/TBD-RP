@@ -41,6 +41,7 @@ export class EventModal {
   }
 
   public hide(): void {
+    if (!this.root.innerHTML) return;
     this.root.innerHTML = '';
   }
 

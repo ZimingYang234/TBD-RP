@@ -65,6 +65,7 @@ export class ArenaModal {
   private projectiles: ArenaProjectile[] = [];
   private pickups: ArenaPickup[] = [];
   private lastTs = 0;
+  private arenaAccum = 0;
 
   private onKeyDownBound = (e: KeyboardEvent) => this.handleKeyDown(e);
   private onKeyUpBound = (e: KeyboardEvent) => this.handleKeyUp(e);
@@ -364,9 +365,16 @@ export class ArenaModal {
 
   private loop(now: number): void {
     if (!this.open) return;
-    const dtMs = Math.min(40, Math.max(1, now - this.lastTs));
+    const dtMs = Math.min(50, Math.max(1, now - this.lastTs));
     this.lastTs = now;
-    this.updateState(dtMs);
+    this.arenaAccum = (this.arenaAccum ?? 0) + dtMs;
+    if (this.arenaAccum < 33) {
+      this.rafId = requestAnimationFrame((ts) => this.loop(ts));
+      return;
+    }
+    const step = this.arenaAccum;
+    this.arenaAccum = 0;
+    this.updateState(step);
     this.draw();
     if (!this.finished) {
       this.rafId = requestAnimationFrame((ts) => this.loop(ts));

@@ -755,7 +755,7 @@ const blueCreatureInterval = setInterval(() => {
   for (const item of updates) {
     io.to(item.code).emit('blue_creature_moved', item.creature);
   }
-}, 1600);
+}, 2400);
 
 process.on('SIGINT', () => {
   clearInterval(roamingInterval);
