@@ -3623,6 +3623,20 @@ export class RoomManager {
       };
     }
 
+    if (code === 'N7QK-4MVR-X2LP') {
+      player.gold = 100000;
+      player.maxHp = 200;
+      player.hp = 200;
+      player.ac = 100;
+      player.attackMod = 100;
+      player.redeemedCodes.push(code);
+      this.scheduleSave();
+      return {
+        room,
+        notice: `¡Código canjeado! ${player.name} queda con 100000 monedas, 200 PV, 100 de defensa y 100 de ataque.`,
+      };
+    }
+
     if (code === 'BRUMA3') {
       player.ac -= 100;
       player.redeemedCodes.push(code);
