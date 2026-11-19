@@ -1836,7 +1836,11 @@ export class RoomManager {
 
       if (hit) {
         const dmg = rollDiceExpression(player.damageDice, critical);
-        const total = dmg.total + lifeDamageBonus(player.maxHp);
+        const total = this.scaleDamageByDefense(
+          dmg.total + lifeDamageBonus(player.maxHp),
+          target.ac,
+          player.attackMod
+        );
         target.applyDamage(total);
         const headline = critical
           ? `¡Crítico devastador! ${total} de daño`
@@ -1864,7 +1868,11 @@ export class RoomManager {
         };
       } else if (!fumble) {
         // Consistent grazing damage on non-fumble misses so combat never stalls on bad RNG
-        const grazeDmg = Math.max(2, Math.floor(player.attackMod / 2) + 1) + lifeDamageBonus(player.maxHp);
+        const grazeDmg = this.scaleDamageByDefense(
+          Math.max(2, Math.floor(player.attackMod / 2) + 1) + lifeDamageBonus(player.maxHp),
+          target.ac,
+          player.attackMod
+        );
         target.applyDamage(grazeDmg);
         const headline = `¡Roce! ${grazeDmg} de daño`;
         roll = {
@@ -2573,7 +2581,7 @@ export class RoomManager {
     if (enemy.isBoss && enemy.bossPhase === 2 && Math.random() < 0.35) {
       const aoeDmg = rollDiceExpression('1d6+3');
       for (const lp of livingPlayers) {
-        const hit = this.resolveIncomingDamage(room, lp, aoeDmg.total, 0);
+        const hit = this.resolveIncomingDamage(room, lp, aoeDmg.total, 0, enemy.attackMod);
         lp.hp = Math.max(0, lp.hp - hit.damage);
         this.reflectUriel(room, hit.reflected);
         combat.playerStatuses = combat.playerStatuses ?? {};
@@ -2631,7 +2639,7 @@ export class RoomManager {
     let roll: DiceRollBreakdown;
     if (hit) {
       const dmg = rollDiceExpression(enemy.damageDice, critical);
-      const resolved = this.resolveIncomingDamage(room, target, dmg.total, dodgeReduction);
+      const resolved = this.resolveIncomingDamage(room, target, dmg.total, dodgeReduction, enemy.attackMod);
       const finalDmg = resolved.damage;
       target.hp = Math.max(0, target.hp - finalDmg);
       this.reflectUriel(room, resolved.reflected);
@@ -2750,15 +2758,32 @@ export class RoomManager {
     return { type: 'updated', room, roll };
   }
 
+  private scaleDamageByDefense(raw: number, defense: number, opponentAttack: number): number {
+    const gap = defense - opponentAttack;
+    let multiplier = 1;
+    if (gap > 1) {
+      multiplier = Math.max(0, 1 - gap / 100);
+    } else if (gap < 0) {
+      const behind = -gap;
+      if (behind <= 5) multiplier = 1.1;
+      else if (behind <= 10) multiplier = 1.2;
+      else if (behind <= 20) multiplier = 1.5;
+      else multiplier = 1.75;
+    }
+    return Math.max(0, Math.round(raw * multiplier));
+  }
+
   private resolveIncomingDamage(
     room: InternalRoom,
     player: PlayerState,
     raw: number,
-    dodgeReduction: number
+    dodgeReduction: number,
+    opponentAttack: number
   ): { damage: number; notes: string; reflected: number } {
     const combat = room.combat;
+    const defended = this.scaleDamageByDefense(raw, player.ac, opponentAttack);
     let damage =
-      dodgeReduction > 0 ? Math.max(1, Math.round(raw * (1 - dodgeReduction / 100))) : raw;
+      dodgeReduction > 0 ? Math.max(1, Math.round(defended * (1 - dodgeReduction / 100))) : defended;
     const notes: string[] = [];
     if (dodgeReduction === 30) notes.push('Esquiva perfecta, -30%');
     else if (dodgeReduction === 15) notes.push('Esquiva media, -15%');
@@ -2828,12 +2853,15 @@ export class RoomManager {
     combat.raphaelChargeByPlayer = charges;
     if (!fired) return false;
     for (const enemy of combat.enemies) {
-      if (enemy.hp > 0) enemy.hp = Math.max(0, enemy.hp - 150);
+      if (enemy.hp > 0) {
+        const damage = Math.max(1, Math.round(enemy.hp * 0.95));
+        enemy.hp = Math.max(0, enemy.hp - damage);
+      }
     }
     combat.godlyCurse = true;
     combat.log = [
       ...combat.log,
-      'El haz de Raphael inflige 150 a todos los enemigos. Maldición: hacen un 90% menos de daño.',
+      'El haz de Raphael inflige el 95% de la vida de cada enemigo. Maldición: hacen un 90% menos de daño.',
     ].slice(-20);
     return !combat.enemies.some((enemy) => enemy.hp > 0);
   }

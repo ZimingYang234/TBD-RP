@@ -66,7 +66,7 @@ export const MYTHICS: Record<
   raphael: {
     name: 'Raphael',
     title: 'Inteligencia Absoluta',
-    blurb: '3 turnos enemigos: -30% de daño y cura un 15% de tu vida. Luego un haz de 150 y una maldición del 90%.',
+    blurb: '3 turnos enemigos: -30% de daño y cura un 15% de tu vida. Luego un haz del 95% de su vida y una maldición del 90%.',
   },
 };
 
