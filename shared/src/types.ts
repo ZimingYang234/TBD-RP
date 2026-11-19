@@ -451,6 +451,7 @@ export interface ServerToClientEvents {
   open_secret_question: (payload: SecretQuestionState) => void;
   secret_question_result: (payload: { correct: boolean; message: string; canCustomize: boolean }) => void;
   open_quest_board: (payload: QuestBoardPayload) => void;
+  portal_hint: (payload: { x: number; y: number; message: string }) => void;
   open_slot: () => void;
   slot_result: (payload: SlotSpinPayload) => void;
   open_secret_portal_reqs: (payload: {

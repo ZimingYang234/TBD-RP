@@ -111,7 +111,7 @@ export const REGIONS: Record<string, RegionMap> = {
       {
         x: 4,
         y: 6,
-        label: '→ Tragaperras',
+        label: '→ Slot machine',
         targetRegionId: 'sala-fortuna',
         targetX: 2,
         targetY: 1,
@@ -792,9 +792,9 @@ export const REGIONS: Record<string, RegionMap> = {
 
   'sala-fortuna': makeRegion({
     id: 'sala-fortuna',
-    name: 'Sala de la Fortuna',
+    name: 'Slot machine',
     subtitle: 'Una tirada. Una llave. Cien monedas.',
-    modifierLabel: 'Tragaperras: 100 monedas y 1 llave de jefe local',
+    modifierLabel: 'Slot machine: 100 monedas y 1 llave de jefe local',
     theme: 'ruins',
     spawn: { x: 2, y: 1 },
     rows: [

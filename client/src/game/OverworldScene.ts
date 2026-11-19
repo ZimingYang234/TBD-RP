@@ -283,6 +283,8 @@ export class OverworldScene extends Phaser.Scene {
   private domBannerEl: HTMLDivElement | null = null;
   private domSoonEl: HTMLDivElement | null = null;
   private domPortalEls: HTMLDivElement[] = [];
+  private boardObjects: Phaser.GameObjects.GameObject[] = [];
+  private boardLabels: HTMLDivElement[] = [];
   private domBannerTimer: number | null = null;
 
   private cursors: Phaser.Types.Input.Keyboard.CursorKeys | null = null;
@@ -357,7 +359,19 @@ export class OverworldScene extends Phaser.Scene {
       this.syncPlayers(room.players, regionChanged);
       this.syncRoamingMonsters(room.roamingMonsters ?? []);
       this.syncBlueCreature(room.blueCreature ?? null);
+      this.spawnQuestBoards(room.map);
     }
+  }
+
+  public showMapBubble(tileX: number, tileY: number, message: string): void {
+    const overlay = this.ensureDomOverlay();
+    if (!overlay) return;
+    const bubble = document.createElement('div');
+    bubble.className = 'map-speech';
+    bubble.textContent = message;
+    overlay.appendChild(bubble);
+    this.positionDomLabel(bubble, tileX * TILE_SIZE + TILE_SIZE / 2, tileY * TILE_SIZE);
+    window.setTimeout(() => bubble.remove(), 2800);
   }
 
   public showRegionBanner(title: string, subtitle: string): void {
@@ -523,7 +537,7 @@ export class OverworldScene extends Phaser.Scene {
       } else if (tile === 'secret_question') {
         tip = 'Enigma Secreto (?)';
       } else if (tile === 'slot') {
-        tip = 'Tragaperras (100 monedas y 1 llave)';
+        tip = 'Slot machine (100 monedas y 1 llave)';
       } else if (tile === 'chest') {
         const chest = this.room.map.chests?.find((c) => c.x === tx && c.y === ty);
         tip = chest ? `Cofre ${RARITY_LABELS[chest.rarity]} (clic o camina aquí)` : 'Cofre';
@@ -1018,28 +1032,32 @@ export class OverworldScene extends Phaser.Scene {
   }
 
   private spawnQuestBoards(map: PublicRoomState['map']): void {
+    for (const obj of this.boardObjects) obj.destroy();
+    this.boardObjects = [];
+    for (const label of this.boardLabels) label.remove();
+    this.boardLabels = [];
+
     const overlay = this.ensureDomOverlay();
     for (const portal of map.portals) {
-      if (!portalNeedsRoad(portal.targetRegionId)) continue;
+      if (!portalNeedsRoad(portal.targetRegionId, portal.minLevel)) continue;
+      if ((this.room?.visitedRegions ?? []).includes(portal.targetRegionId)) continue;
       const spot = questBoardSpot(map, portal);
       if (!spot) continue;
       const cx = spot.x * TILE_SIZE + TILE_SIZE / 2;
       const cy = spot.y * TILE_SIZE + TILE_SIZE / 2;
-      const post = this.add
-        .rectangle(cx, cy + 6, 10, 22, 0x6b4f2a, 1)
-        .setDepth(4);
+      const post = this.add.rectangle(cx, cy + 6, 10, 22, 0x6b4f2a, 1).setDepth(4);
       const sign = this.add
         .rectangle(cx, cy - 8, 28, 16, 0xf5e6c8, 1)
         .setStrokeStyle(2, 0x92400e, 1)
         .setDepth(5);
-      this.propObjects.push(post, sign);
+      this.boardObjects.push(post, sign);
       if (!overlay) continue;
       const label = document.createElement('div');
       label.className = 'map-portal-label';
       label.textContent = 'Tablón';
       overlay.appendChild(label);
       this.positionDomLabel(label, cx, cy - 34);
-      this.domPortalEls.push(label);
+      this.boardLabels.push(label);
     }
   }
 
@@ -1055,7 +1073,7 @@ export class OverworldScene extends Phaser.Scene {
     if (overlay) {
       const label = document.createElement('div');
       label.className = 'map-portal-label';
-      label.textContent = 'Tragaperras';
+      label.textContent = 'Slot machine';
       overlay.appendChild(label);
       this.positionDomLabel(label, cx, cy - 36);
       this.domPortalEls.push(label);

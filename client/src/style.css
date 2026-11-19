@@ -607,6 +607,77 @@ body {
 .icon-boss-key { color: #fbbf24; }
 .icon-uriel { color: #fde68a; }
 .icon-raphael { color: #a5f3fc; }
+.board-copy {
+  margin: 0 0 12px;
+  color: #e8eef8;
+  line-height: 1.45;
+  font-size: 0.98rem;
+}
+
+.board-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.board-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  color: #f8fafc;
+  background: #141924;
+  border: 1px solid rgba(247, 196, 95, 0.55);
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+
+.board-option strong {
+  color: #f7c45f;
+  font-size: 1rem;
+}
+
+.board-option span {
+  color: #d7deea;
+  font-size: 0.92rem;
+  line-height: 1.35;
+}
+
+.board-option:hover {
+  background: #1d2433;
+}
+
+.map-speech {
+  position: absolute;
+  transform: translate(-50%, -130%);
+  max-width: 220px;
+  padding: 8px 12px;
+  border-radius: 14px;
+  background: #f8fafc;
+  color: #111827;
+  font-weight: 700;
+  font-size: 14px;
+  line-height: 1.3;
+  text-align: center;
+  z-index: 30;
+  pointer-events: none;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+}
+
+.map-speech::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -7px;
+  transform: translateX(-50%);
+  border-width: 8px 7px 0;
+  border-style: solid;
+  border-color: #f8fafc transparent transparent;
+}
+
 .icon-eclipse-key { color: #e9d5ff; filter: drop-shadow(0 0 6px #c084fc); }
 
 .shop-relic {

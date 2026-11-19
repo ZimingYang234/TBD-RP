@@ -161,6 +161,9 @@ export type MoveOutcome =
       type: 'portal_blocked';
       room: InternalRoom;
       message: string;
+      bubble: string;
+      tileX: number;
+      tileY: number;
     };
 
 export type VoteOutcome =
@@ -793,7 +796,10 @@ export class RoomManager {
         return {
           type: 'portal_blocked',
           room,
-          message: `Necesitas la ${keyLabel} (derrota al Jefe de este reino).`,
+          message: `Necesitas la ${keyLabel}.`,
+          bubble: `Hace falta la ${keyLabel}.`,
+          tileX: nextX,
+          tileY: nextY,
         };
       }
 
@@ -805,6 +811,9 @@ export class RoomManager {
             type: 'portal_blocked',
             room,
             message: `Este portal requiere que todo el grupo sea Nivel ${portal.minLevel}+. Faltan: ${names}.`,
+            bubble: `Hace falta que el grupo sea de nivel ${portal.minLevel}.`,
+            tileX: nextX,
+            tileY: nextY,
           };
         }
       }
@@ -817,6 +826,9 @@ export class RoomManager {
             type: 'portal_blocked',
             room,
             message: `Antes de salir hace falta una subclase (nivel 5). Faltan: ${names}.`,
+            bubble: 'Hace falta elegir una subclase.',
+            tileX: nextX,
+            tileY: nextY,
           };
         }
       }
@@ -854,15 +866,31 @@ export class RoomManager {
 
       const key = portalKey(currentMap.id, portal.x, portal.y);
       const roadOpen =
-        !portalNeedsRoad(portal.targetRegionId) ||
+        !portalNeedsRoad(portal.targetRegionId, portal.minLevel) ||
         (room.visitedRegions ?? []).includes(portal.targetRegionId) ||
         (room.unlockedPortals ?? []).includes(key);
       if (!roadOpen) {
+        const boardCooldownKey = `${room.code}:${player.id}:portal:${key}`;
+        const readyAt = this.boardCooldowns.get(boardCooldownKey) ?? 0;
+        const questBoard = now >= readyAt ? this.describeBoard(room, currentMap.id, portal) : null;
+        if (questBoard) this.boardCooldowns.set(boardCooldownKey, now + 8_000);
         return {
-          type: 'portal_blocked',
+          type: 'moved',
           room,
-          message:
-            'Este camino está cerrado. Habla con el tablón, a dos casillas del portal.',
+          player,
+          steppedOnEventTile: false,
+          steppedOnCombatTile: false,
+          isBossCombatTile: false,
+          steppedOnShopTile: false,
+          steppedOnMinigameTile: false,
+          steppedOnSecretQuestionTile: false,
+          steppedOnSlotTile: false,
+          questBoard,
+          secretPortalPrompt: null,
+          openedChest: null,
+          hitBlueCreature: false,
+          tileX: nextX,
+          tileY: nextY,
         };
       }
 
@@ -895,7 +923,7 @@ export class RoomManager {
     }
 
     const boardPortal = currentMap.portals.find((candidate) => {
-      if (!portalNeedsRoad(candidate.targetRegionId)) return false;
+      if (!portalNeedsRoad(candidate.targetRegionId, candidate.minLevel)) return false;
       const spot = questBoardSpot(currentMap, candidate);
       return spot?.x === nextX && spot?.y === nextY;
     });
@@ -1421,7 +1449,7 @@ export class RoomManager {
     }
     const map = getRegion(room.regionId);
     const portal = map.portals.find((p) => portalKey(map.id, p.x, p.y) === portalKeyValue);
-    if (!portal || !portalNeedsRoad(portal.targetRegionId)) {
+    if (!portal || !portalNeedsRoad(portal.targetRegionId, portal.minLevel)) {
       return { error: 'Ese tablón no existe.' };
     }
     if (
@@ -3033,7 +3061,7 @@ export class RoomManager {
     const room = this.rooms.get(binding.roomCode);
     const player = room?.players.find((p) => p.id === binding.playerId);
     if (!room || !player || room.phase !== 'playing') {
-      return { error: 'Ahora no puedes tirar de la tragaperras.' };
+      return { error: 'Ahora no puedes tirar de la slot machine.' };
     }
     if ((player.gold ?? 0) < SLOT_COST_GOLD) {
       return { error: 'Necesitas 100 monedas.' };

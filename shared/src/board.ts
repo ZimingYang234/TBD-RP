@@ -6,7 +6,8 @@ export function portalKey(regionId: string, x: number, y: number): string {
   return `${regionId}:${x},${y}`;
 }
 
-export function portalNeedsRoad(targetRegionId: string): boolean {
+export function portalNeedsRoad(targetRegionId: string, minLevel?: number): boolean {
+  if ((minLevel ?? 0) >= 25) return false;
   return !FREE_REGIONS.has(targetRegionId);
 }
 

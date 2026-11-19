@@ -41,13 +41,19 @@ export class QuestBoardModal {
     const data = this.data;
     const body =
       data.status === 'done'
-        ? `<p class="modal-narration">El camino hacia ${this.escape(data.destination)} ya está abierto.</p>`
+        ? `<p class="board-copy">El camino hacia ${this.escape(data.destination)} ya está abierto.</p>`
         : data.status === 'active'
-          ? `<p class="modal-narration">Tarea en curso hacia ${this.escape(data.destination)}: ${data.progress ?? 0}/${data.target ?? 0} ${data.kind === 'event' ? 'eventos' : 'combates'}.</p>`
-          : `<p class="modal-narration">Para abrir el camino hacia ${this.escape(data.destination)}, elige una. Si rechazas, el portal sigue cerrado.</p>
-            <div class="choice-list">
-              <button type="button" class="choice-btn" id="board-combat">Misión: gana ${data.combatTarget} combate${data.combatTarget === 1 ? '' : 's'} en este reino.</button>
-              <button type="button" class="choice-btn" id="board-event">Evento: resuelve ${data.eventTarget} evento${data.eventTarget === 1 ? '' : 's'} en este reino.</button>
+          ? `<p class="board-copy">Llevas ${data.progress ?? 0} de ${data.target ?? 0} ${data.kind === 'event' ? 'eventos' : 'combates'} para abrir ${this.escape(data.destination)}.</p>`
+          : `<p class="board-copy">Elige cómo abrir el camino. Si cierras esto, el portal sigue cerrado.</p>
+            <div class="board-options">
+              <button type="button" class="board-option" id="board-combat">
+                <strong>Misión</strong>
+                <span>Gana ${data.combatTarget} combate${data.combatTarget === 1 ? '' : 's'} en este reino.</span>
+              </button>
+              <button type="button" class="board-option" id="board-event">
+                <strong>Evento</strong>
+                <span>Resuelve ${data.eventTarget} evento${data.eventTarget === 1 ? '' : 's'} en este reino.</span>
+              </button>
             </div>`;
 
     this.overlayEl.innerHTML = `

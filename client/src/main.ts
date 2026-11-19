@@ -917,6 +917,10 @@ socket.on('secret_question_result', (payload) => {
   secretQuestionModal.setResult(payload);
 });
 
+socket.on('portal_hint', ({ x, y, message }) => {
+  overworldScene?.showMapBubble(x, y, message);
+});
+
 socket.on('open_quest_board', (payload) => {
   if (currentRoom && currentRoom.phase === 'playing') {
     questBoardModal.show(payload);
@@ -935,7 +939,7 @@ socket.on('slot_result', (payload) => {
   currentRoom = payload.room;
   slotModal.play(payload);
   updateGameHud(payload.room);
-  addLog(`[Tragaperras] ${payload.summary}`);
+  addLog(`[Slot machine] ${payload.summary}`);
 });
 
 socket.on('open_secret_portal_reqs', (reqs) => {

@@ -226,7 +226,11 @@ io.on('connection', (socket) => {
     if (!outcome) return;
 
     if (outcome.type === 'portal_blocked') {
-      socket.emit('room_error', { message: outcome.message });
+      socket.emit('portal_hint', {
+        x: outcome.tileX,
+        y: outcome.tileY,
+        message: outcome.bubble,
+      });
       return;
     }
 

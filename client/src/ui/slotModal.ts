@@ -114,7 +114,7 @@ export class SlotModal {
         <div class="modal-header">
           <div>
             <div class="modal-kicker">Sala de la Fortuna</div>
-            <h2 class="modal-title">Tragaperras</h2>
+            <h2 class="modal-title">Slot machine</h2>
           </div>
           <button type="button" id="slot-close-btn" class="btn btn-secondary">Cerrar</button>
         </div>
