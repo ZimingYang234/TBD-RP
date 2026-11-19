@@ -532,10 +532,10 @@ export class OverworldScene extends Phaser.Scene {
         tip = 'Minijuego (clic o camina aquí)';
       } else if (tile === 'spring') {
         tip = 'Fuente Curativa (+8 Vida)';
-      } else if (tile === 'trap') {
-        tip = 'Trampa oculta';
       } else if (tile === 'secret_question') {
         tip = 'Enigma Secreto (?)';
+      } else if (tile === 'boss') {
+        tip = 'Jefe por turnos (2 llaves de monstruo)';
       } else if (tile === 'slot') {
         tip = 'Slot machine (100 monedas y 1 llave)';
       } else if (tile === 'chest') {
@@ -776,9 +776,9 @@ export class OverworldScene extends Phaser.Scene {
           tile === 'chest' ||
           tile === 'minigame' ||
           tile === 'spring' ||
-          tile === 'trap' ||
           tile === 'secret_question' ||
-          tile === 'slot'
+          tile === 'slot' ||
+          tile === 'boss'
         ) {
           const base = (x + y) % 2 === 0 ? palette.grassA : palette.grassB;
           g.fillStyle(base, 1);
@@ -839,12 +839,12 @@ export class OverworldScene extends Phaser.Scene {
             this.spawnMinigameMarker(px + TILE_SIZE / 2, py + TILE_SIZE / 2);
           } else if (tile === 'spring') {
             this.spawnSpringMarker(px + TILE_SIZE / 2, py + TILE_SIZE / 2);
-          } else if (tile === 'trap') {
-            this.spawnTrapMarker(px + TILE_SIZE / 2, py + TILE_SIZE / 2);
           } else if (tile === 'secret_question') {
             this.spawnSecretQuestionMarker(px + TILE_SIZE / 2, py + TILE_SIZE / 2);
           } else if (tile === 'slot') {
             this.spawnSlotMarker(px + TILE_SIZE / 2, py + TILE_SIZE / 2);
+          } else if (tile === 'boss') {
+            this.spawnBossMarker(px + TILE_SIZE / 2, py + TILE_SIZE / 2);
           } else if (tile === 'chest') {
             const chest = map.chests?.find((c) => c.x === x && c.y === y);
             this.spawnChestMarker(px + TILE_SIZE / 2, py + TILE_SIZE / 2, chest?.rarity ?? 'comun');
@@ -1122,15 +1122,6 @@ export class OverworldScene extends Phaser.Scene {
     this.propObjects.push(outer, inner);
   }
 
-  private spawnTrapMarker(cx: number, cy: number): void {
-    const g = this.add.graphics().setDepth(3);
-    g.lineStyle(2, 0x9ca3af, 0.75);
-    g.strokeCircle(cx, cy, 11);
-    g.lineBetween(cx - 8, cy - 8, cx + 8, cy + 8);
-    g.lineBetween(cx - 8, cy + 8, cx + 8, cy - 8);
-    this.propObjects.push(g);
-  }
-
   private spawnSecretQuestionMarker(cx: number, cy: number): void {
     const aura = this.add
       .circle(cx, cy, 22, 0x38bdf8, 0.25)
@@ -1225,6 +1216,22 @@ export class OverworldScene extends Phaser.Scene {
     const clasp = this.add.rectangle(cx, cy, 5, 6, 0xfef3c7, 1).setDepth(6);
 
     this.propObjects.push(base, box, lid, clasp);
+  }
+
+  private spawnBossMarker(cx: number, cy: number): void {
+    const base = this.add
+      .circle(cx, cy, 22, 0x2a0a12, 0.95)
+      .setStrokeStyle(3, 0xfbbf24, 1)
+      .setDepth(3);
+    const skull = this.add.graphics().setDepth(5);
+    skull.fillStyle(0xf8fafc, 1);
+    skull.fillCircle(cx, cy - 2, 8);
+    skull.fillStyle(0x1a0508, 1);
+    skull.fillCircle(cx - 3, cy - 3, 1.6);
+    skull.fillCircle(cx + 3, cy - 3, 1.6);
+    skull.fillRect(cx - 3, cy + 1, 6, 2);
+    const aura = this.add.circle(cx, cy, 28, 0x7f1d1d, 0.28).setDepth(2);
+    this.propObjects.push(base, skull, aura);
   }
 
   private spawnCombatMarker(cx: number, cy: number): void {

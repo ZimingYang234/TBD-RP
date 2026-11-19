@@ -22,7 +22,8 @@ const CHAR_TO_TILE: Record<string, TileType> = {
   H: 'chest',
   M: 'minigame',
   F: 'spring',
-  X: 'trap',
+  X: 'grass',
+  K: 'boss',
   Q: 'secret_question',
   L: 'slot',
 };
@@ -47,6 +48,15 @@ function makeRegion(config: {
   portals: PortalDef[];
   chests: ChestDef[];
 }): RegionMap {
+  const tiles = parseGrid(config.rows);
+  if (BOSS_CORNER_REGIONS.has(config.id)) {
+    const y = tiles.length - 2;
+    const x = (tiles[0]?.length ?? 2) - 2;
+    const tile = tiles[y]?.[x];
+    if (tile && tile !== 'wall' && tile !== 'water' && tile !== 'portal') {
+      tiles[y][x] = 'boss';
+    }
+  }
   return {
     id: config.id,
     name: config.name,
@@ -55,12 +65,24 @@ function makeRegion(config: {
     theme: config.theme,
     width: config.rows[0].length,
     height: config.rows.length,
-    tiles: parseGrid(config.rows),
+    tiles,
     spawn: config.spawn,
     portals: config.portals,
     chests: config.chests,
   };
 }
+
+const BOSS_CORNER_REGIONS = new Set([
+  'valderroble',
+  'solceniza',
+  'ventisca',
+  'plano-astral',
+  'pantano-bruma',
+  'ruinas-olvido',
+  'archipielago-coral',
+  'abismo-cristal',
+  'camara-final',
+]);
 
 export const STARTING_REGION_ID = 'valderroble';
 

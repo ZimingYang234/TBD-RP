@@ -29,7 +29,8 @@ export type TileType =
   | 'spring'
   | 'trap'
   | 'secret_question'
-  | 'slot';
+  | 'slot'
+  | 'boss';
 
 export type RegionTheme =
   | 'verdant'
@@ -371,6 +372,7 @@ export interface PublicRoomState {
   combat: CombatState | null;
   quest: QuestState | null;
   bossKeys: string[];
+  monsterKeys?: Record<string, number>;
   roamingMonsters?: RoamingMonster[];
   blueCreature?: BlueCreatureState | null;
   secretRoomUnlocked?: boolean;

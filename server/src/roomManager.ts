@@ -101,6 +101,7 @@ export interface InternalRoom {
   combat: CombatState | null;
   quest: QuestState | null;
   bossKeys: string[];
+  monsterKeys: Record<string, number>;
   roamingMonsters?: RoamingMonster[];
   blueCreature?: BlueCreatureState | null;
   secretRoomUnlocked?: boolean;
@@ -349,6 +350,8 @@ export class RoomManager {
         }
         room.recentEventIds = Array.isArray(room.recentEventIds) ? room.recentEventIds : [];
         room.bossKeys = Array.isArray(room.bossKeys) ? [...room.bossKeys] : [];
+        room.monsterKeys =
+          room.monsterKeys && typeof room.monsterKeys === 'object' ? { ...room.monsterKeys } : {};
         room.roamingMonsters = Array.isArray(room.roamingMonsters)
           ? room.roamingMonsters
           : spawnRoamingMonstersForRegion(map);
@@ -495,6 +498,7 @@ export class RoomManager {
       combat: room.combat,
       quest: room.quest ?? null,
       bossKeys: [...(room.bossKeys ?? [])],
+      monsterKeys: { ...(room.monsterKeys ?? {}) },
       roamingMonsters: room.roamingMonsters ?? [],
       blueCreature: room.blueCreature ?? null,
       secretRoomUnlocked: Boolean(room.secretRoomUnlocked),
@@ -538,6 +542,7 @@ export class RoomManager {
       combat: null,
       quest: createQuestByIndex(0),
       bossKeys: [],
+      monsterKeys: {},
       roamingMonsters: spawnRoamingMonstersForRegion(getRegion(STARTING_REGION_ID)),
       blueCreature: spawnBlueCreature(undefined, 1),
       secretRoomUnlocked: false,
@@ -972,18 +977,6 @@ export class RoomManager {
             ? `Fuente Curativa: ${player.name} recuperó +${healed} de Vida.`
             : `Fuente Curativa: ${player.name} ya tiene la Vida al máximo.`;
       }
-    } else if (landedTile === 'trap') {
-      const trapKey = `${room.code}:${room.regionId}:${nextX},${nextY}`;
-      const readyAt = this.springCooldowns.get(trapKey) ?? 0;
-      if (now >= readyAt) {
-        this.springCooldowns.set(trapKey, now + 20_000);
-        if (rollD20() + (player.luckBonus ?? 0) >= 13) {
-          mapNotice = `¡Trampa esquivada! ${player.name} saltó justo a tiempo.`;
-        } else {
-          player.hp = Math.max(1, player.hp - 4);
-          mapNotice = `¡Trampa oculta! ${player.name} pisó unos pinchos (-4 Vida).`;
-        }
-      }
     } else if ((landedTile === 'grass' || landedTile === 'path') && !hitRoamingMonster) {
       const surpriseReadyAt = this.surpriseCooldowns.get(room.code) ?? 0;
       if (now >= surpriseReadyAt && Math.random() < 0.06) {
@@ -1008,21 +1001,21 @@ export class RoomManager {
       hitBlueCreature = true;
     }
 
-    let secretPortalPrompt: Extract<MoveOutcome, { type: 'moved' }>['secretPortalPrompt'] = null;
-    if (
-      currentMap.id === 'valderroble' &&
-      !room.secretRoomUnlocked &&
-      Math.abs(nextX - 17) + Math.abs(nextY - 13) <= 2
-    ) {
-      const spKey = `${room.code}:${player.id}`;
-      const readyAt = this.secretPortalCooldowns.get(spKey) ?? 0;
-      if (now >= readyAt) {
-        this.secretPortalCooldowns.set(spKey, now + 10_000);
-        secretPortalPrompt = {
-          hasFinalKey: (room.bossKeys ?? []).includes('key_final_boss'),
-          hasSanctumKey: Boolean(room.sanctumKey),
-          celestialDefeated: room.celestialDefeated ?? 0,
-        };
+    const secretPortalPrompt = null;
+
+    let openBossTile = false;
+    if (landedTile === 'boss') {
+      room.monsterKeys = room.monsterKeys ?? {};
+      const have = room.monsterKeys[room.regionId] ?? 0;
+      const tileKey = `${room.code}:${room.regionId}:${nextX},${nextY}`;
+      const cooling = now < (this.combatTileCooldowns.get(tileKey) ?? 0);
+      if (have < 2) {
+        mapNotice = 'Hacen falta 2 llaves de monstruo de este reino.';
+      } else if (cooling) {
+        mapNotice = 'El jefe todavía se está recuperando.';
+      } else {
+        room.monsterKeys[room.regionId] = have - 2;
+        openBossTile = true;
       }
     }
 
@@ -1032,8 +1025,8 @@ export class RoomManager {
       room,
       player,
       steppedOnEventTile: landedTile === 'event',
-      steppedOnCombatTile: landedTile === 'combat' || hitRoamingMonster || hitBlueCreature,
-      isBossCombatTile: currentMap.id === 'camara-final' && landedTile === 'combat',
+      steppedOnCombatTile: landedTile === 'combat' || hitRoamingMonster || hitBlueCreature || openBossTile,
+      isBossCombatTile: openBossTile || (currentMap.id === 'camara-final' && landedTile === 'combat'),
       steppedOnShopTile: landedTile === 'shop',
       steppedOnMinigameTile: landedTile === 'minigame',
       steppedOnSecretQuestionTile: landedTile === 'secret_question',
@@ -2859,6 +2852,14 @@ export class RoomManager {
         this.grantXp(p, xpGained);
         p.gold = (p.gold ?? 0) + goldGained;
         if (p.hp <= 0) p.hp = 1;
+      }
+      if (!combat.isBoss && !combat.isBlueCreature) {
+        const slain = combat.enemies.filter((enemy) => !enemy.isBoss).length;
+        if (slain > 0) {
+          room.monsterKeys = room.monsterKeys ?? {};
+          room.monsterKeys[room.regionId] = (room.monsterKeys[room.regionId] ?? 0) + slain;
+          earnedBossKeyLabel = `+${slain} de monstruo`;
+        }
       }
       if (combat.isBlueCreature) {
         room.celestialDefeated = Math.min(3, (room.celestialDefeated ?? 0) + 1);

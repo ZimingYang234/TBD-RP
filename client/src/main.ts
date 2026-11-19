@@ -1,6 +1,8 @@
 import type Phaser from 'phaser';
 import {
+  BOSS_KEY_BY_REGION,
   GAME_TITLE,
+  LOCAL_BOSS_KEY_IDS,
   MAX_INVENTORY_SLOTS,
   PLAYER_CLASSES,
   xpForNextLevel,
@@ -61,6 +63,52 @@ function renderLogs(): void {
   if (!logEl) return;
   logEl.innerHTML = logs.map((line) => `<div>${escapeHtml(line)}</div>`).join('');
   logEl.scrollTop = logEl.scrollHeight;
+}
+
+function showKeysModal(room: PublicRoomState): void {
+  document.getElementById('keys-overlay')?.remove();
+  const overlay = document.createElement('div');
+  overlay.id = 'keys-overlay';
+  overlay.className = 'modal-overlay';
+  const monster = room.monsterKeys ?? {};
+  const regionNames: Record<string, string> = {
+    valderroble: 'Valderroble',
+    solceniza: 'Solceniza',
+    ventisca: 'Ventisca',
+    'plano-astral': 'Plano Astral',
+    'pantano-bruma': 'Pantano Bruma',
+    'ruinas-olvido': 'Ruinas del Olvido',
+    'archipielago-coral': 'Archipiélago',
+    'abismo-cristal': 'Abismo Cristal',
+    'camara-final': 'Cámara Final',
+  };
+  const monsterLines = Object.entries(monster)
+    .filter(([, count]) => count > 0)
+    .map(([region, count]) => `<li>${escapeHtml(regionNames[region] ?? region)}: <strong>${count}</strong></li>`)
+    .join('') || '<li>Ninguna</li>';
+  const bossLines = (LOCAL_BOSS_KEY_IDS as readonly string[])
+    .map((id) => {
+      const label = Object.values(BOSS_KEY_BY_REGION).find((key) => key.id === id)?.label ?? id;
+      const owned = (room.bossKeys ?? []).includes(id);
+      return `<li>${escapeHtml(label)}: <strong>${owned ? 'Sí' : 'No'}</strong></li>`;
+    })
+    .join('');
+  overlay.innerHTML = `
+    <div class="modal-card" role="dialog" aria-modal="true">
+      <div class="modal-header">
+        <div>
+          <div class="modal-kicker">Inventario de llaves</div>
+          <h2 class="modal-title">Llaves</h2>
+        </div>
+        <button type="button" id="keys-close" class="btn btn-secondary">Cerrar</button>
+      </div>
+      <div class="board-copy"><strong>Monstruo local</strong><ul>${monsterLines}</ul></div>
+      <div class="board-copy"><strong>Jefes locales</strong><ul>${bossLines}</ul></div>
+      <div class="board-copy"><strong>Llave maestra</strong><ul><li>${room.sanctumKey ? 'Sí' : 'No'}</li></ul></div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#keys-close')?.addEventListener('click', () => overlay.remove());
 }
 
 function escapeHtml(str: string): string {
@@ -354,6 +402,7 @@ function renderGameShell(room: PublicRoomState): void {
           </div>
           <div class="topbar-right">
             <button type="button" id="hud-progress-btn" class="btn btn-secondary">Guardar / Reiniciar</button>
+            <button type="button" id="hud-keys-btn" class="btn btn-secondary">Llaves</button>
             <button type="button" id="hud-tutorial-btn" class="btn btn-secondary">? Tutorial</button>
             <div id="hud-quality-slot"></div>
             <span class="badge" id="hud-net-status"></span>
@@ -387,7 +436,7 @@ function renderGameShell(room: PublicRoomState): void {
               <span class="legend-chip"><span class="legend-dot dot-chest"></span>Cofre</span>
               <span class="legend-chip"><span class="legend-dot dot-minigame"></span>Minijuego</span>
               <span class="legend-chip"><span class="legend-dot dot-spring"></span>Fuente</span>
-              <span class="legend-chip"><span class="legend-dot dot-trap"></span>Trampa</span>
+              <span class="legend-chip"><span class="legend-dot dot-combat"></span>Jefe</span>
             </div>
             <div class="redeem-box">
               <input
@@ -496,6 +545,11 @@ function renderGameShell(room: PublicRoomState): void {
         e.preventDefault();
         submitRedeem();
       }
+    });
+
+    document.querySelector('#hud-keys-btn')?.addEventListener('click', () => {
+      if (!currentRoom) return;
+      showKeysModal(currentRoom);
     });
 
     document.querySelector('#hud-progress-btn')?.addEventListener('click', () => {
