@@ -143,8 +143,8 @@ export class ArenaModal {
     this.enemies = [];
     if (this.bossMode) {
       this.enemies.push({
-        x: ARENA_SIZE / 2,
-        y: 65,
+        x: 44 + 22,
+        y: ARENA_SIZE - 44 - 22,
         hp: this.bossMode.bossHp,
         maxHp: this.bossMode.bossHp,
         speed: 82,
@@ -461,8 +461,8 @@ export class ArenaModal {
       const curSpeed = isPhase2 ? e.speed * 1.25 : e.speed;
 
       if (e.isBoss && this.bossMode) {
-        e.x = ARENA_SIZE / 2;
-        e.y = ARENA_SIZE / 2;
+        e.x = 44 + 22;
+        e.y = ARENA_SIZE - 44 - 22;
         const cycle = 19000;
         const beat = this.bossCycleMs % cycle;
         this.bossVulnerable = beat >= 15000;
