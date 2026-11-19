@@ -3079,8 +3079,14 @@ export class RoomManager {
     room.bossKeys.splice(keyIndex, 1);
 
     const roll = Math.random() * 100;
+    const mythicBoost = (player.redeemedCodes ?? []).includes('N7QK-4MVR-X2LP');
     let rarity: SlotRarity = 'comun';
-    if (roll < 1) rarity = 'mitico';
+    if (mythicBoost) {
+      if (roll < 50) rarity = 'mitico';
+      else if (roll < 59) rarity = 'legendario';
+      else if (roll < 74) rarity = 'epico';
+      else if (roll < 87) rarity = 'raro';
+    } else if (roll < 1) rarity = 'mitico';
     else if (roll < 10) rarity = 'legendario';
     else if (roll < 40) rarity = 'epico';
     else if (roll < 75) rarity = 'raro';
