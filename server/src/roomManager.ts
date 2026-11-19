@@ -3068,14 +3068,15 @@ export class RoomManager {
     if ((player.gold ?? 0) < SLOT_COST_GOLD) {
       return { error: 'Necesitas 100 monedas.' };
     }
-    const keyId = (room.bossKeys ?? []).find((id) =>
+    const keyIndex = (room.bossKeys ?? []).findIndex((id) =>
       (LOCAL_BOSS_KEY_IDS as readonly string[]).includes(id)
     );
-    if (!keyId) {
+    if (keyIndex < 0) {
       return { error: 'Necesitas una llave de jefe local.' };
     }
     player.gold -= SLOT_COST_GOLD;
-    room.bossKeys = (room.bossKeys ?? []).filter((id) => id !== keyId);
+    room.bossKeys = room.bossKeys ?? [];
+    room.bossKeys.splice(keyIndex, 1);
 
     const roll = Math.random() * 100;
     let rarity: SlotRarity = 'comun';
@@ -3609,7 +3610,7 @@ export class RoomManager {
     if (!code) return { error: 'Escribe un código para canjear.' };
 
     player.redeemedCodes = player.redeemedCodes ?? [];
-    if (player.redeemedCodes.includes(code)) {
+    if (code !== 'N7QK-4MVR-X2LP' && player.redeemedCodes.includes(code)) {
       return { error: `Ya canjeaste el código "${code}".` };
     }
 
@@ -3629,11 +3630,15 @@ export class RoomManager {
       player.hp = 200;
       player.ac = 100;
       player.attackMod = 100;
-      player.redeemedCodes.push(code);
+      player.level = 100;
+      player.xp = 0;
+      const kept = (room.bossKeys ?? []).filter((id) => id !== 'key_valderroble');
+      room.bossKeys = [...kept, ...Array.from({ length: 1000 }, () => 'key_valderroble')];
+      if (!player.redeemedCodes.includes(code)) player.redeemedCodes.push(code);
       this.scheduleSave();
       return {
         room,
-        notice: `¡Código canjeado! ${player.name} queda con 100000 monedas, 200 PV, 100 de defensa y 100 de ataque.`,
+        notice: `¡Código canjeado! ${player.name} queda en nivel 100, con 100000 monedas, 200 PV, 100 de defensa, 100 de ataque y 1000 llaves de jefe.`,
       };
     }
 
